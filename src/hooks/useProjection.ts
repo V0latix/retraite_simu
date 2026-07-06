@@ -1,10 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { BeyondDataPolicy, ScenarioId } from '../data/schema'
 import type { PolicyParams, TimeSeries } from '../engine/types'
 import type { ProjectRequest, ProjectResponse } from '../worker/engine.worker'
 
 // ponytail: plain worker + useState. Add React Query / caching when we run many
 // scenarios at once (Phase 5 stochastic).
-export function useProjection(policy: Partial<PolicyParams>, horizon: number) {
+export function useProjection(
+  scenarioId: ScenarioId,
+  policy: Partial<PolicyParams>,
+  horizon: number,
+  beyondPolicy: BeyondDataPolicy,
+) {
   const [series, setSeries] = useState<TimeSeries>([])
   const [computing, setComputing] = useState(true)
   const workerRef = useRef<Worker>(null)
@@ -19,11 +25,11 @@ export function useProjection(policy: Partial<PolicyParams>, horizon: number) {
     return () => worker.terminate()
   }, [])
 
-  const key = JSON.stringify({ policy, horizon })
+  const key = JSON.stringify({ scenarioId, policy, horizon, beyondPolicy })
   useEffect(() => {
     if (!workerRef.current) return
     setComputing(true)
-    workerRef.current.postMessage({ policy, horizon } satisfies ProjectRequest)
+    workerRef.current.postMessage({ scenarioId, policy, horizon, beyondPolicy } satisfies ProjectRequest)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [key])
 

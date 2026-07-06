@@ -7,9 +7,15 @@ import { OMEGA, type HypothesisSet, type PopulationState, type TimeSeries, type 
 // ponytail: economy + pension-system math lives inline here for Phase 1/2.
 // Split into economy.ts / pensionSystem.ts when the finance block grows past a screenful.
 
-const AVG_PENSION_0 = 16800 // €/yr, DREES order of magnitude — seed, refine in Phase 0
-const AVG_WAGE_0 = 40000 // €/yr gross avg — seed
 const OTHER_RESOURCES = 0 // T(t): transfers, ignored in v1
+
+/** Absolute money seeds — supplied from data (systemParams.json), not hard-coded. */
+export interface EconInit {
+  avgAnnualWage: number
+  avgAnnualPension: number
+  priceInflation: number
+}
+const DEFAULT_ECON: EconInit = { avgAnnualWage: 40000, avgAnnualPension: 16800, priceInflation: 0.018 }
 
 function countByAge(state: PopulationState, lo: number, hi: number): number {
   let sum = 0
@@ -33,11 +39,16 @@ function contributors(state: PopulationState, h: HypothesisSet, year: number, le
   return active * (1 - u)
 }
 
-export function project(state0: PopulationState, h: HypothesisSet, horizon: number): TimeSeries {
+export function project(
+  state0: PopulationState,
+  h: HypothesisSet,
+  horizon: number,
+  econ: EconInit = DEFAULT_ECON,
+): TimeSeries {
   const series: TimeSeries = []
   let state = state0
-  let avgWage = AVG_WAGE_0
-  let avgPension = AVG_PENSION_0
+  let avgWage = econ.avgAnnualWage
+  let avgPension = econ.avgAnnualPension
   let cumulativeDebt = 0
   const r = 0.01 // discount rate for debt accumulation
 
@@ -53,7 +64,7 @@ export function project(state0: PopulationState, h: HypothesisSet, horizon: numb
     // System (§4.3)
     if (year > state0.year) {
       const g = h.productivity(year)
-      const infl = 0.018 // price index seed
+      const infl = econ.priceInflation
       const idx = p.indexation === 'wages' ? g : p.indexation === 'mix' ? (g + infl) / 2 : infl
       avgPension *= 1 + idx
     }

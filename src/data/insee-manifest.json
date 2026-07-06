@@ -1,0 +1,34 @@
+{
+  "source": "INSEE Projections 2021-2070",
+  "retrieved": "2026-07-06",
+  "scenarios": {
+    "central": {
+      "file": "00_central.xlsx",
+      "inseeId": 5894083
+    },
+    "fertility-high": {
+      "file": "11_fec_haute.xlsx",
+      "inseeId": 5894085
+    },
+    "fertility-low": {
+      "file": "12_fec_basse.xlsx",
+      "inseeId": 5894085
+    },
+    "mortality-low": {
+      "file": "13_ev_haute.xlsx",
+      "inseeId": 5894085
+    },
+    "mortality-high": {
+      "file": "14_ev_basse.xlsx",
+      "inseeId": 5894085
+    },
+    "migration-high": {
+      "file": "15_smi_haut.xlsx",
+      "inseeId": 5894085
+    },
+    "migration-low": {
+      "file": "16_smi_bas.xlsx",
+      "inseeId": 5894085
+    }
+  }
+}

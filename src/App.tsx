@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { DEFAULT_POLICY } from './data/seed'
+import { BASE_YEAR, DEFAULT_POLICY } from './data/loader'
+import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useProjection'
 import { Levers } from './ui/Levers'
@@ -9,11 +10,13 @@ import { Pyramid } from './ui/Pyramid'
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
 function App() {
+  const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
+  const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
   const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
   const [horizon, setHorizon] = useState(2070)
-  const [year, setYear] = useState(2025)
+  const [year, setYear] = useState(BASE_YEAR)
 
-  const { series, computing } = useProjection(policy, horizon)
+  const { series, computing } = useProjection(scenarioId, policy, horizon, beyondPolicy)
 
   const current = useMemo(
     () => series.find((r) => r.year === year) ?? series[0],
@@ -28,14 +31,23 @@ function App() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Simulateur de retraite — France</h1>
         <p className="text-sm text-neutral-500">
-          Modèle macro couplé (démographie → économie → système). Données seed —
-          calage COR à venir (Phase 4).
+          Modèle macro couplé (démographie → économie → système). Démographie
+          sur données INSEE (Projections 2021-2070) ; calage COR à venir (Phase 4).
         </p>
       </header>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4">
-          <Levers policy={policy} horizon={horizon} onPolicy={setP} onHorizon={setHorizon} />
+          <Levers
+            scenarioId={scenarioId}
+            beyondPolicy={beyondPolicy}
+            policy={policy}
+            horizon={horizon}
+            onScenario={setScenarioId}
+            onBeyond={setBeyondPolicy}
+            onPolicy={setP}
+            onHorizon={setHorizon}
+          />
           {last && (
             <div className="rounded-lg border border-neutral-300 p-4 text-sm dark:border-neutral-700">
               <div className="text-neutral-500">Solde en {last.year}</div>
@@ -46,7 +58,7 @@ function App() {
           )}
         </aside>
 
-        <main className="space-y-6">
+        <main className="min-w-0 space-y-6">
           <section>
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Pyramide des âges — {year}</h2>
@@ -56,7 +68,7 @@ function App() {
             </div>
             <input
               type="range"
-              min={2025}
+              min={BASE_YEAR}
               max={horizon}
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}

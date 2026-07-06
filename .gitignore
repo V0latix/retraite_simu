@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+.vercel
+
+# ingestion cache (downloaded INSEE workbooks)
+scripts/.cache/

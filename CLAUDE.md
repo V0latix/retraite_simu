@@ -18,17 +18,21 @@ React 19 + Vite + TypeScript (strict) + Tailwind v4. Charts: Recharts. Tests: Vi
 ## Layout
 ```
 src/engine/      pure engine: types, demography (cohort-component), project()
-src/data/        seed.ts — PLACEHOLDER data, replace with real JSON in Phase 0
+src/data/        loader.ts + real INSEE JSON (scenarios/*.json, initialPyramid.json), schema.ts, systemParams.json
 src/worker/      engine.worker.ts — runs project() off-thread
 src/hooks/       useProjection — drives the worker
 src/ui/          Pyramid, MacroCharts, Levers
+scripts/         ingest-insee.mjs — regenerates the JSON from INSEE workbooks (dev-only)
 ```
 
-## Data status ⚠️
-`src/data/seed.ts` is **not sourced** — closed-form approximations shaped like France ~2025 so the app runs. The seed pyramid is young-heavy; totals aren't realistic until Phase 0 lands real INSEE data. Don't present outputs as accurate before COR calibration (Phase 4).
+## Data status
+- **Demography = real INSEE** (Projections 2021-2070): 7 scenarios (central + fécondité/EV/migration ±), qx/fertility/migration by age 2025-2070, initial 2025 pyramid. Regenerate via `node scripts/ingest-insee.mjs`. Calibration: our cohort-component reproduces INSEE's 2070 total (~69M vs 68.1M, ~1.3%) and 65+ share (~30%).
+- **Extrapolation past 2070** is explicit (`BeyondDataPolicy` = hold/trend/converge, §7), chosen in the UI.
+- ⚠️ **Finance block is not calibrated** — `systemParams.json` holds hand-curated headline figures (PASS, legal age, contribution rate, avg pension). Absolute €/solde levels await COR calibration (Phase 4). Don't present the solde/dette as accurate yet; the demographic curves are sound.
+- Micro barèmes (décote/surcote, point value) → Phase 3. HMD skipped: INSEE's 1962-2070 qx series covers the Phase-5 Lee-Carter history.
 
 ## Roadmap (phases)
-0 Data · 1 Demography+pyramid ✅ · 2 Macro finance ✅(seed) · 3 Micro (RG + AGIRC-ARRCO) · 4 Coupling + COR validation · 5 Stochastic (Lee-Carter, fan charts)
+0 Data ✅(demography) · 1 Demography+pyramid ✅ · 2 Macro finance ✅(uncalibrated €) · 3 Micro (RG + AGIRC-ARRCO) · 4 Coupling + COR validation · 5 Stochastic (Lee-Carter, fan charts)
 
 ## Workflow
 - Each feature → its own `feature/*` branch, commit, then deploy to Vercel.

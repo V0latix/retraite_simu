@@ -1,4 +1,4 @@
-import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { YearResult } from '../engine/types'
 
 const fmt = (n: number) => `${Math.round(Math.abs(n) / 1000)}k`
@@ -28,16 +28,8 @@ export function Pyramid({ year }: { year: YearResult }) {
             formatter={(v, name) => [fmt(Number(v)), name === 'H' ? 'Hommes' : 'Femmes']}
             labelFormatter={(a) => `${a} ans`}
           />
-          <Bar dataKey="H" stackId="s">
-            {data.map((_, i) => (
-              <Cell key={i} fill="#3b82f6" />
-            ))}
-          </Bar>
-          <Bar dataKey="F" stackId="s">
-            {data.map((_, i) => (
-              <Cell key={i} fill="#ec4899" />
-            ))}
-          </Bar>
+          <Bar dataKey="H" stackId="s" fill="#3b82f6" isAnimationActive={false} />
+          <Bar dataKey="F" stackId="s" fill="#ec4899" isAnimationActive={false} />
         </BarChart>
       </ResponsiveContainer>
     </div>

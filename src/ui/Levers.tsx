@@ -1,10 +1,21 @@
+import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
 
 interface Props {
+  scenarioId: ScenarioId
+  beyondPolicy: BeyondDataPolicy
   policy: PolicyParams
   horizon: number
+  onScenario: (id: ScenarioId) => void
+  onBeyond: (b: BeyondDataPolicy) => void
   onPolicy: (p: Partial<PolicyParams>) => void
   onHorizon: (h: number) => void
+}
+
+const BEYOND_LABELS: Record<BeyondDataPolicy, string> = {
+  hold: 'Geler (hold)',
+  trend: 'Prolonger la tendance (trend)',
+  converge: 'Converger (converge)',
 }
 
 function Slider({
@@ -43,9 +54,33 @@ function Slider({
   )
 }
 
-export function Levers({ policy, horizon, onPolicy, onHorizon }: Props) {
+export function Levers({
+  scenarioId,
+  beyondPolicy,
+  policy,
+  horizon,
+  onScenario,
+  onBeyond,
+  onPolicy,
+  onHorizon,
+}: Props) {
   return (
     <div className="space-y-4 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
+      <label className="block">
+        <span className="text-sm text-neutral-500">Scénario INSEE</span>
+        <select
+          value={scenarioId}
+          onChange={(e) => onScenario(e.target.value as ScenarioId)}
+          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
+        >
+          {SCENARIO_IDS.map((id) => (
+            <option key={id} value={id}>
+              {SCENARIO_LABELS[id]}
+            </option>
+          ))}
+        </select>
+      </label>
+
       <h2 className="text-lg font-semibold">Leviers de réforme</h2>
       <Slider
         label="Âge légal de départ"
@@ -92,6 +127,20 @@ export function Levers({ policy, horizon, onPolicy, onHorizon }: Props) {
         fmt={(v) => String(v)}
         onChange={onHorizon}
       />
+      <label className="block">
+        <span className="text-sm text-neutral-500">Extrapolation après 2070</span>
+        <select
+          value={beyondPolicy}
+          onChange={(e) => onBeyond(e.target.value as BeyondDataPolicy)}
+          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
+        >
+          {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
+            <option key={b} value={b}>
+              {BEYOND_LABELS[b]}
+            </option>
+          ))}
+        </select>
+      </label>
     </div>
   )
 }

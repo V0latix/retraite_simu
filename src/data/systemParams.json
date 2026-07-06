@@ -1,0 +1,33 @@
+{
+  "meta": {
+    "note": "Hand-curated headline figures. Replace/extend with fuller COR/DREES/CNAV sourcing in later phases. NOT auto-ingested.",
+    "retrieved": "2026-07-07"
+  },
+  "baseYear": 2025,
+  "policy": {
+    "legalAge": 64,
+    "requiredQuarters": 172,
+    "contributionRate": 0.281,
+    "fullRate": 0.5,
+    "indexation": "prices"
+  },
+  "init": {
+    "retirees": 17000000,
+    "avgAnnualPension": 18480,
+    "avgAnnualWage": 40000,
+    "pass": 47100
+  },
+  "economy": {
+    "productivity": 0.01,
+    "unemployment": 0.05,
+    "priceInflation": 0.018
+  },
+  "_sources": {
+    "legalAge/requiredQuarters": "Réforme 2023 — 64 ans, 172 trim. (génération 1965+)",
+    "contributionRate": "≈ taux cotisation vieillesse déplafonné+plafonné employeur+salarié (CNAV), ordre de grandeur",
+    "pass": "PASS 2025 = 47 100 € (Sécurité sociale)",
+    "retirees": "≈ 17 M retraités de droit direct (DREES 2023-24)",
+    "avgAnnualPension": "≈ 1 540 €/mois brut tous régimes (DREES) → 18 480 €/an",
+    "productivity/unemployment": "Hypothèses COR (productivité 1,0 %/an scénario central ; chômage LT ~5 %)"
+  }
+}
