@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "note": "Hand-curated pension barèmes (RG + AGIRC-ARRCO). Approximate, flagged; the exact réglementaire coefficients belong to the data layer (spec §5.2/§5.3) and should be sourced more precisely later.",
+    "retrieved": "2026-07-07"
+  },
+  "baseYear": 2025,
+  "regimeGeneral": {
+    "fullRate": 0.5,
+    "samWindow": 25,
+    "decotePerQuarter": 0.0125,
+    "maxDecoteQuarters": 20,
+    "surcotePerQuarter": 0.0125,
+    "passBase": 47100
+  },
+  "agircArrco": {
+    "pointValue": 1.4386,
+    "salaireReference": 20.191,
+    "acquisitionRate": 0.0787,
+    "solidarityMalus": 0.9
+  },
+  "coupling": {
+    "couplingSensitivity": 0.04,
+    "note": "Point-value indexation = base indexation − k·(dependencySystem(t) − dependencySystem(base)), floored at −5%/yr. Worse demography → lower complémentaire. k kept gentle so V does not collapse and scenario differences show through. Modeling choice, not a sourced rule."
+  },
+  "_sources": {
+    "fullRate/decote/surcote": "Taux plein 50 % ; décote/surcote ≈ 1,25 %/trimestre (cap décote 20 trim.). Grille exacte à sourcer.",
+    "samWindow": "25 meilleures années (générations 1948+)",
+    "passBase": "PASS 2025 = 47 100 €",
+    "pointValue": "Valeur de service du point AGIRC-ARRCO ≈ 1,4386 € (2024)",
+    "salaireReference": "Prix d'achat du point (salaire de référence) ≈ 20,191 € (2024)",
+    "acquisitionRate": "Taux de cotisation productif de points ≈ 7,87 % (T1, ordre de grandeur)",
+    "solidarityMalus": "Coefficient de solidarité: minoration temporaire ~10 % pendant 3 ans si départ au taux plein sans décalage"
+  }
+}

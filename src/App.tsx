@@ -6,10 +6,12 @@ import { useProjection } from './hooks/useProjection'
 import { Levers } from './ui/Levers'
 import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
+import { MicroView } from './ui/micro/MicroView'
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
 function App() {
+  const [view, setView] = useState<'macro' | 'micro'>('macro')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
   const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
   const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
@@ -36,6 +38,26 @@ function App() {
         </p>
       </header>
 
+      <div className="mb-6 flex gap-1 border-b border-neutral-300 dark:border-neutral-700">
+        {(['macro', 'micro'] as const).map((v) => (
+          <button
+            key={v}
+            type="button"
+            onClick={() => setView(v)}
+            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${
+              view === v
+                ? 'border-indigo-500 text-indigo-500'
+                : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
+            }`}
+          >
+            {v === 'macro' ? 'Vue macro' : 'Vue micro (ma pension)'}
+          </button>
+        ))}
+      </div>
+
+      {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
+
+      {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
         <aside className="space-y-4">
           <Levers
@@ -83,6 +105,7 @@ function App() {
           </section>
         </main>
       </div>
+      )}
     </div>
   )
 }
