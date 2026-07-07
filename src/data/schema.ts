@@ -27,6 +27,13 @@ export interface InitialPyramid {
 /** Extrapolation policy for years beyond the published data (§7). */
 export type BeyondDataPolicy = 'hold' | 'trend' | 'converge'
 
+/** COR reference trajectory for the validation view (§8.3). */
+export interface CorReference {
+  meta: { source: string; url: string; assumptions: string; note: string; retrieved: string }
+  unit: string
+  points: { year: number; depensesPctGdp: number; ressourcesPctGdp: number; soldePctGdp: number }[]
+}
+
 export const SCENARIO_IDS = [
   'central',
   'fertility-high',

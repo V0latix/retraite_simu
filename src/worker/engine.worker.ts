@@ -22,7 +22,14 @@ export interface MicroRequest {
   policy: Partial<PolicyParams>
   beyondPolicy: BeyondDataPolicy
 }
-export type EngineRequest = MacroRequest | MicroRequest
+export interface CompareRequest {
+  type: 'compare'
+  scenarioIds: ScenarioId[]
+  policy: Partial<PolicyParams>
+  horizon: number
+  beyondPolicy: BeyondDataPolicy
+}
+export type EngineRequest = MacroRequest | MicroRequest | CompareRequest
 
 export interface MacroResponse {
   type: 'macro'
@@ -32,7 +39,11 @@ export interface MicroResponse {
   type: 'micro'
   perScenario: { scenarioId: ScenarioId; breakdown: PensionBreakdown }[]
 }
-export type EngineResponse = MacroResponse | MicroResponse
+export interface CompareResponse {
+  type: 'compare'
+  seriesById: Record<string, TimeSeries>
+}
+export type EngineResponse = MacroResponse | MicroResponse | CompareResponse
 
 const scenarioLoaders = import.meta.glob<{ default: ScenarioData }>('../data/scenarios/*.json')
 const state0 = buildInitialState(initialPyramid as InitialPyramid)
@@ -65,7 +76,20 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
   return { type: 'micro', perScenario }
 }
 
+async function runCompare(req: CompareRequest): Promise<CompareResponse> {
+  const seriesById: Record<string, TimeSeries> = {}
+  await Promise.all(
+    req.scenarioIds.map(async (id) => {
+      const data = await loadScenario(id)
+      const h = buildHypotheses(data, req.policy, req.beyondPolicy)
+      seriesById[id] = project(state0, h, req.horizon, ECON_INIT)
+    }),
+  )
+  return { type: 'compare', seriesById }
+}
+
 self.onmessage = async (e: MessageEvent<EngineRequest>) => {
-  const res = e.data.type === 'macro' ? await runMacro(e.data) : await runMicro(e.data)
+  const res =
+    e.data.type === 'macro' ? await runMacro(e.data) : e.data.type === 'micro' ? await runMicro(e.data) : await runCompare(e.data)
   self.postMessage(res)
 }

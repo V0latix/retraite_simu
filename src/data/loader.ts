@@ -12,11 +12,15 @@ export const DEFAULT_POLICY: PolicyParams = {
   indexation: params.policy.indexation as PolicyParams['indexation'],
 }
 
-/** Economic seeds passed into project() so absolute money levels stay in data. */
+/** Economic seeds + COR calibration passed into project() (kept in data). */
 export const ECON_INIT = {
   avgAnnualWage: params.init.avgAnnualWage,
   avgAnnualPension: params.init.avgAnnualPension,
   priceInflation: params.economy.priceInflation,
+  pensionDriftShare: params.calibration.pensionDriftShare,
+  depensesShareBase: params.calibration.depensesShareBase,
+  soldeShareBase: params.calibration.soldeShareBase,
+  resources2070Share: params.calibration.resources2070Share,
 }
 
 export function buildInitialState(pyr: InitialPyramid): PopulationState {

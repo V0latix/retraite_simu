@@ -18,14 +18,14 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 export function MacroCharts({ series }: { series: TimeSeries }) {
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Panel title="Solde annuel du système">
+      <Panel title="Solde annuel du système (% PIB)">
         <LineChart data={series}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
           <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={bn} width={64} stroke="#888" />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} stroke="#888" />
           <ReferenceLine y={0} stroke="#888" />
-          <Tooltip formatter={(v) => bn(Number(v))} />
-          <Line type="monotone" dataKey="balance" stroke="#ef4444" dot={false} strokeWidth={2} />
+          <Tooltip formatter={(v) => `${(Number(v) * 100).toFixed(2)} % PIB`} />
+          <Line type="monotone" dataKey="soldePctGdp" stroke="#ef4444" dot={false} strokeWidth={2} />
         </LineChart>
       </Panel>
 

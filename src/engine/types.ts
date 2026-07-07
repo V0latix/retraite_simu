@@ -49,8 +49,12 @@ export interface YearResult {
   wageBill: number
   contributions: number
   benefits: number
-  balance: number // S(t) = C + T - D
+  balance: number // S(t) = C + T - D, constant euros
   cumulativeDebt: number
+  gdp: number
+  depensesPctGdp: number // D / GDP
+  resourcesPctGdp: number // (C + T) / GDP
+  soldePctGdp: number // S / GDP — COR's unit
 }
 
 export type TimeSeries = YearResult[]

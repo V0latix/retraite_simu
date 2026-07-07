@@ -2,20 +2,34 @@
 // Signature is identical in deterministic and stochastic mode:
 //   project(state0, hypothesisSet, horizon) => TimeSeries
 import { dependencyDemographic, stepDemography } from './demography'
-import { OMEGA, type HypothesisSet, type PopulationState, type TimeSeries, type YearResult } from './types'
+import { OMEGA, type HypothesisSet, type PopulationState, type TimeSeries } from './types'
 
 // ponytail: economy + pension-system math lives inline here for Phase 1/2.
 // Split into economy.ts / pensionSystem.ts when the finance block grows past a screenful.
 
-const OTHER_RESOURCES = 0 // T(t): transfers, ignored in v1
-
-/** Absolute money seeds — supplied from data (systemParams.json), not hard-coded. */
+/**
+ * Absolute money seeds + COR calibration — supplied from data (systemParams.json),
+ * not hard-coded. Everything runs in constant (real, base-year) euros.
+ */
 export interface EconInit {
   avgAnnualWage: number
   avgAnnualPension: number
   priceInflation: number
+  // Calibration to the COR reference (see corReference.json).
+  depensesShareBase: number // pension mass / GDP at the base year (≈ 0.139)
+  soldeShareBase: number // solde / GDP at the base year (≈ -0.001)
+  resources2070Share: number // total resources / GDP target by 2070 (≈ 0.128)
+  pensionDriftShare: number // noria drift of avg pension as a share of productivity
 }
-const DEFAULT_ECON: EconInit = { avgAnnualWage: 40000, avgAnnualPension: 16800, priceInflation: 0.018 }
+const DEFAULT_ECON: EconInit = {
+  avgAnnualWage: 40000,
+  avgAnnualPension: 16800,
+  priceInflation: 0.018,
+  depensesShareBase: 0.139,
+  soldeShareBase: -0.001,
+  resources2070Share: 0.128,
+  pensionDriftShare: 0.22,
+}
 
 function countByAge(state: PopulationState, lo: number, hi: number): number {
   let sum = 0
@@ -46,34 +60,58 @@ export function project(
   econ: EconInit = DEFAULT_ECON,
 ): TimeSeries {
   const series: TimeSeries = []
+  const baseYear = state0.year
   let state = state0
   let avgWage = econ.avgAnnualWage
-  let avgPension = econ.avgAnnualPension
+  let avgPension = econ.avgAnnualPension // constant (real) euros
   let cumulativeDebt = 0
-  const r = 0.01 // discount rate for debt accumulation
 
-  for (let year = state.year; year <= horizon; year++) {
+  // COR-anchored base-year constants (fixed on the first iteration).
+  const resourcesShareBase = econ.depensesShareBase + econ.soldeShareBase // ≈ 0.138
+  let gdpBase = 0
+  let laborShare = 0
+  let tShareBase = 0 // other-resources (T) share of GDP at the base year
+
+  for (let year = baseYear; year <= horizon; year++) {
     const p = h.policy(year)
 
-    // Economy (§4.2)
-    if (year > state0.year) avgWage *= 1 + h.productivity(year)
+    // Economy (§4.2) — real wage grows with productivity.
+    if (year > baseYear) avgWage *= 1 + h.productivity(year)
     const contrib = contributors(state, h, year, p.legalAge)
     const wageBill = contrib * avgWage
     const contributions = wageBill * p.contributionRate
 
-    // System (§4.3)
-    if (year > state0.year) {
+    // Average pension real growth = max(indexation of the stock, noria drift).
+    // Indexation: prices → flat, wages → g, mix → g/2. Noria: new retirees enter
+    // with higher (wage-based) pensions, lifting the average even under price
+    // indexation — without this, dépenses/PIB collapse (§4.3).
+    if (year > baseYear) {
       const g = h.productivity(year)
-      const infl = econ.priceInflation
-      const idx = p.indexation === 'wages' ? g : p.indexation === 'mix' ? (g + infl) / 2 : infl
-      avgPension *= 1 + idx
+      const idx = p.indexation === 'wages' ? g : p.indexation === 'mix' ? g / 2 : 0
+      avgPension *= 1 + Math.max(idx, econ.pensionDriftShare * g)
     }
     const nRetirees = retirees(state, p.legalAge)
     const benefits = nRetirees * avgPension
-    const balance = contributions + OTHER_RESOURCES - benefits
-    cumulativeDebt = cumulativeDebt * (1 + r) - balance
 
-    const result: YearResult = {
+    // Anchor GDP and shares to COR at the base year.
+    if (year === baseYear) {
+      gdpBase = benefits / econ.depensesShareBase // pins pension mass to ~13.9% GDP
+      laborShare = wageBill / gdpBase
+      tShareBase = resourcesShareBase - contributions / gdpBase
+    }
+    const gdp = wageBill / laborShare
+
+    // Other resources T(t): share of GDP tapers to the COR 2070 target (State
+    // support unwinding — the bulk of COR's deterioration). Contributions stay
+    // lever-sensitive on top, so raising the contribution rate improves the solde.
+    const frac = Math.min(1, Math.max(0, (year - baseYear) / (2070 - baseYear)))
+    const tShare = tShareBase - (resourcesShareBase - econ.resources2070Share) * frac
+    const otherResources = tShare * gdp
+    const resources = contributions + otherResources
+    const balance = resources - benefits
+    cumulativeDebt = cumulativeDebt - balance // real, no discounting
+
+    series.push({
       year,
       pyramid: { H: Array.from(state.H), F: Array.from(state.F) },
       dependencyDemographic: dependencyDemographic(state),
@@ -86,8 +124,11 @@ export function project(
       benefits,
       balance,
       cumulativeDebt,
-    }
-    series.push(result)
+      gdp,
+      depensesPctGdp: benefits / gdp,
+      resourcesPctGdp: resources / gdp,
+      soldePctGdp: balance / gdp,
+    })
 
     if (year < horizon) state = stepDemography(state, h)
   }

@@ -7,11 +7,12 @@ import { Levers } from './ui/Levers'
 import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
 import { MicroView } from './ui/micro/MicroView'
+import { ComparisonView } from './ui/ComparisonView'
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
 function App() {
-  const [view, setView] = useState<'macro' | 'micro'>('macro')
+  const [view, setView] = useState<'macro' | 'micro' | 'comparison'>('macro')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
   const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
   const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
@@ -39,7 +40,7 @@ function App() {
       </header>
 
       <div className="mb-6 flex gap-1 border-b border-neutral-300 dark:border-neutral-700">
-        {(['macro', 'micro'] as const).map((v) => (
+        {(['macro', 'micro', 'comparison'] as const).map((v) => (
           <button
             key={v}
             type="button"
@@ -50,12 +51,13 @@ function App() {
                 : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
             }`}
           >
-            {v === 'macro' ? 'Vue macro' : 'Vue micro (ma pension)'}
+            {v === 'macro' ? 'Vue macro' : v === 'micro' ? 'Vue micro (ma pension)' : 'Validation & comparaison'}
           </button>
         ))}
       </div>
 
       {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
+      {view === 'comparison' && <ComparisonView policy={policy} beyondPolicy={beyondPolicy} />}
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -74,8 +76,9 @@ function App() {
             <div className="rounded-lg border border-neutral-300 p-4 text-sm dark:border-neutral-700">
               <div className="text-neutral-500">Solde en {last.year}</div>
               <div className={`text-xl font-semibold ${last.balance < 0 ? 'text-red-500' : 'text-emerald-500'}`}>
-                {bn(last.balance)}
+                {(last.soldePctGdp * 100).toFixed(1)} % PIB
               </div>
+              <div className="text-xs text-neutral-500">{bn(last.balance)} · calé COR</div>
             </div>
           )}
         </aside>
