@@ -22,6 +22,13 @@
     "couplingSensitivity": 0.04,
     "note": "Point-value indexation = base indexation − k·(dependencySystem(t) − dependencySystem(base)), floored at −5%/yr. Worse demography → lower complémentaire. k kept gentle so V does not collapse and scenario differences show through. Modeling choice, not a sourced rule."
   },
+  "contributions": {
+    "rateT1": 0.278,
+    "rateT2": 0.269,
+    "employeeShareT1": 0.113,
+    "employeeShareT2": 0.104,
+    "ceilingPass": 8
+  },
   "_sources": {
     "fullRate/decote/surcote": "Taux plein 50 % ; décote/surcote ≈ 1,25 %/trimestre (cap décote 20 trim.). Grille exacte à sourcer.",
     "samWindow": "25 meilleures années (générations 1948+)",
@@ -29,6 +36,7 @@
     "pointValue": "Valeur de service du point AGIRC-ARRCO ≈ 1,4386 € (2024)",
     "salaireReference": "Prix d'achat du point (salaire de référence) ≈ 20,191 € (2024)",
     "acquisitionRate": "Taux de cotisation productif de points ≈ 7,87 % (T1, ordre de grandeur)",
-    "solidarityMalus": "Coefficient de solidarité: minoration temporaire ~10 % pendant 3 ans si départ au taux plein sans décalage"
+    "solidarityMalus": "Coefficient de solidarité: minoration temporaire ~10 % pendant 3 ans si départ au taux plein sans décalage",
+    "contributions": "Taux TOTAL retraite (employeur+salarié), 2025. T1 (0→PASS) ≈ 27,8 % : RG vieillesse plafonnée 15,45 % (6,90 sal + 8,55 emp) + déplafonnée 2,30 % (0,40 + 1,90) + AGIRC-ARRCO 7,87 % + CEG ~2,15 %. T2 (PASS→8 PASS) ≈ 26,9 % : RG déplafonnée 2,30 % + AGIRC-ARRCO 21,59 % + CEG 2,70 % + CET 0,35 %. Part salariale ≈ 11,3 % (T1) / 10,4 % (T2). Sources : Urssaf/CNAV + AGIRC-ARRCO 2025."
   }
 }

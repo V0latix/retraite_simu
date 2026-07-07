@@ -1,5 +1,6 @@
 // Total pension = RG + complémentaire, plus the replacement rate (spec §5.3/§5.4).
 import { computeComplementaire } from './agircArrco'
+import { computeContributions } from './contributions'
 import { computeRG } from './regimeGeneral'
 import type { Career, MicroContext, PensionBreakdown } from './types'
 
@@ -9,6 +10,7 @@ export function computePension(career: Career, ctx: MicroContext): PensionBreakd
 
   const rg = computeRG(career, ctx, liquidationYear)
   const comp = computeComplementaire(career, ctx, liquidationYear)
+  const contrib = computeContributions(career, ctx.passByYear)
   const total = rg.pRG + comp.pComp
   const lastSalary = career.salaryByYear[career.salaryByYear.length - 1] ?? 0
 
@@ -24,5 +26,8 @@ export function computePension(career: Career, ctx: MicroContext): PensionBreakd
     total,
     lastSalary,
     replacementRate: lastSalary > 0 ? total / lastSalary : 0,
+    totalContributions: contrib.total,
+    employeeContributions: contrib.employeeTotal,
+    contributionsByYear: contrib.byYear,
   }
 }

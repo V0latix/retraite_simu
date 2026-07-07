@@ -80,6 +80,25 @@ describe('macro → micro coupling (§5.4)', () => {
     expect(pLow.pComp).toBeLessThan(pCentral.pComp)
   })
 
+  it('career contributions accumulate and split employee/total correctly', () => {
+    const p = computePension(synthesizeCareer(PRESETS.median), ctxFor(central as unknown as ScenarioData))
+    expect(p.totalContributions).toBeGreaterThan(0)
+    expect(p.employeeContributions).toBeGreaterThan(0)
+    expect(p.employeeContributions).toBeLessThan(p.totalContributions) // total includes employer
+    // cumulative is monotonically non-decreasing and ends at the total
+    const cum = p.contributionsByYear.map((y) => y.cumulative)
+    for (let i = 1; i < cum.length; i++) expect(cum[i]).toBeGreaterThanOrEqual(cum[i - 1])
+    expect(cum.at(-1)).toBeCloseTo(p.totalContributions, 0)
+  })
+
+  it('a high salary above the PASS is taxed on both tiers', () => {
+    const p = computePension(synthesizeCareer(PRESETS.cadre), ctxFor(central as unknown as ScenarioData))
+    // cadre earns above the PASS → per-year contribution exceeds what T1 alone would give.
+    const yr = p.contributionsByYear.at(-1)!
+    expect(yr.contribution).toBeGreaterThan(0)
+    expect(yr.contribution / yr.salary).toBeGreaterThan(0.26) // blended tier rate
+  })
+
   it('replacement rate lands in a plausible band', () => {
     for (const preset of Object.values(PRESETS)) {
       const p = computePension(synthesizeCareer(preset), ctxFor(central as unknown as ScenarioData))

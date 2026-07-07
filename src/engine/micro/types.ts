@@ -48,4 +48,7 @@ export interface PensionBreakdown {
   total: number // €/yr
   lastSalary: number
   replacementRate: number // total / lastSalary
+  totalContributions: number // retirement contributions paid over the career (employer+employee)
+  employeeContributions: number // employee share of that total
+  contributionsByYear: { year: number; salary: number; contribution: number; employee: number; cumulative: number }[]
 }

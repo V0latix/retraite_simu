@@ -25,6 +25,12 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
       </div>
 
       <div className="rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
+        <p className="mb-2 text-xs leading-snug text-neutral-500">
+          Votre pension se compose du <span className="text-blue-500">régime général</span> (base, CNAV) et de la{' '}
+          <span className="text-pink-500">complémentaire</span> (AGIRC-ARRCO, en points). Le <em>taux de remplacement</em> est
+          la part de votre dernier salaire que remplace la pension ; le <em>SAM</em> est le salaire annuel moyen de vos 25
+          meilleures années ; le <em>taux de liquidation</em> (50 % au maximum) est réduit par une décote s'il manque des trimestres.
+        </p>
         <div className="mb-2 flex justify-between text-sm">
           <span className="text-blue-500">Régime général {eur(b.pRG)}</span>
           <span className="text-pink-500">Complémentaire {eur(b.pComp)}</span>

@@ -4,6 +4,7 @@ import { PRESETS } from '../../engine/micro/career'
 import type { CareerParams } from '../../engine/micro/types'
 import type { PolicyParams } from '../../engine/types'
 import { useMicro } from '../../hooks/useMicro'
+import { CareerCharts } from './CareerCharts'
 import { CareerForm } from './CareerForm'
 import { PensionResult } from './PensionResult'
 import { ScenarioSensitivity } from './ScenarioSensitivity'
@@ -43,6 +44,7 @@ export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyo
         ) : (
           <>
             {selected && <PensionResult b={selected.breakdown} scenarioLabel={SCENARIO_LABELS[scenarioId]} />}
+            {selected && <CareerCharts b={selected.breakdown} />}
             {perScenario.length > 0 && <ScenarioSensitivity rows={perScenario} selected={scenarioId} />}
           </>
         )}
