@@ -34,6 +34,8 @@ export interface MicroContext {
   salaireRefByYear: (year: number) => number // point purchase price SR(t)
   /** Coefficient to revalue a salary from `fromYear` to the liquidation year. */
   revalCoef: (fromYear: number, toYear: number) => number
+  /** Period life expectancy at an exact age in a given year, from the scenario qx. */
+  lifeExpectancy: (age: number, year: number) => number
 }
 
 export interface PensionBreakdown {
@@ -51,4 +53,5 @@ export interface PensionBreakdown {
   totalContributions: number // retirement contributions paid over the career (employer+employee)
   employeeContributions: number // employee share of that total
   contributionsByYear: { year: number; salary: number; contribution: number; employee: number; cumulative: number }[]
+  lifeExpectancyAtRetirement: number // remaining years expected at the retirement age (scenario qx)
 }

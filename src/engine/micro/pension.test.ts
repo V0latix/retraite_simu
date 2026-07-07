@@ -21,6 +21,7 @@ const flatCtx: MicroContext = {
   pointValueByYear: () => 1.4386,
   salaireRefByYear: () => 20.191,
   revalCoef: () => 1,
+  lifeExpectancy: () => 23,
 }
 
 const career = (startYear: number, nYears: number, salary: number): Career => ({
@@ -66,8 +67,9 @@ describe('régime général', () => {
 
 describe('macro → micro coupling (§5.4)', () => {
   const ctxFor = (data: ScenarioData) => {
-    const series = project(buildInitialState(pyr), buildHypotheses(data), 2075, ECON_INIT)
-    return buildMicroContext(series, 64, 172)
+    const h = buildHypotheses(data)
+    const series = project(buildInitialState(pyr), h, 2075, ECON_INIT)
+    return buildMicroContext(series, h.mortality, 64, 172)
   }
   // A younger cohort liquidates later (2064), where scenarios have diverged.
   const young = synthesizeCareer({ ...PRESETS.median, birthYear: 2000, startYear: 2022 })

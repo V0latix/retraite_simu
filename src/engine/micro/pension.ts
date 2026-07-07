@@ -29,5 +29,6 @@ export function computePension(career: Career, ctx: MicroContext): PensionBreakd
     totalContributions: contrib.total,
     employeeContributions: contrib.employeeTotal,
     contributionsByYear: contrib.byYear,
+    lifeExpectancyAtRetirement: ctx.lifeExpectancy(retirementAge, liquidationYear),
   }
 }

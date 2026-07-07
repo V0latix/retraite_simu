@@ -83,7 +83,7 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
       const data = await loadScenario(scenarioId)
       const h = buildHypotheses(data, req.policy, req.beyondPolicy)
       const series = project(state0, h, horizon, ECON_INIT)
-      const ctx = buildMicroContext(series, merged.legalAge, merged.requiredQuarters)
+      const ctx = buildMicroContext(series, h.mortality, merged.legalAge, merged.requiredQuarters)
       return { scenarioId, breakdown: computePension(career, ctx) }
     }),
   )

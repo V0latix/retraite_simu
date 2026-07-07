@@ -2,13 +2,25 @@
 // the revaluation coefficient from the selected macro scenario. The point value
 // growth reacts to that scenario's system dependency, so a demographically worse
 // scenario mechanically lowers the complémentaire.
-import type { TimeSeries } from '../types'
+import { OMEGA, type Sex, type TimeSeries } from '../types'
 import type { MicroContext } from './types'
 import params from '../../data/pensionParams.json'
 import system from '../../data/systemParams.json'
 
 const BASE = params.baseYear
 const g = system.economy.productivity // real wage growth (productivity)
+
+/** Period life expectancy at an exact age, unisex average, from the scenario qx. */
+function periodLifeExpectancy(mortality: (year: number, age: number, sex: Sex) => number, age: number, year: number): number {
+  let surv = 1
+  let e = 0.5 // half-year mid-period correction
+  for (let a = age; a < OMEGA; a++) {
+    const q = (mortality(year, a, 'H') + mortality(year, a, 'F')) / 2
+    surv *= 1 - q
+    e += surv
+  }
+  return e
+}
 
 // The whole micro calc runs in CONSTANT (real, base-year) euros. That keeps
 // inflation out of it: pensions are revalued on prices, so in real terms
@@ -18,6 +30,7 @@ const g = system.economy.productivity // real wage growth (productivity)
 /** Build a per-scenario context from that scenario's macro TimeSeries. */
 export function buildMicroContext(
   macroSeries: TimeSeries,
+  mortality: (year: number, age: number, sex: Sex) => number,
   legalAge: number,
   requiredQuarters: number,
 ): MicroContext {
@@ -48,5 +61,6 @@ export function buildMicroContext(
     salaireRefByYear: srAt,
     // Real euros throughout → revaluation is neutral.
     revalCoef: () => 1,
+    lifeExpectancy: (age, year) => periodLifeExpectancy(mortality, age, year),
   }
 }

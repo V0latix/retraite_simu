@@ -3,7 +3,6 @@ import type { PensionBreakdown } from '../../engine/micro/types'
 
 const k = (n: number) => `${Math.round(n / 1000).toLocaleString('fr-FR')} k€`
 const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`
-const LIFE_EXPECTANCY_65 = 23 // années, ordre de grandeur (INSEE, espérance de vie à ~65 ans)
 
 function Card({ title, desc, children }: { title: string; desc: string; children: React.ReactNode }) {
   return (
@@ -19,6 +18,8 @@ function Card({ title, desc, children }: { title: string; desc: string; children
 
 export function CareerCharts({ b }: { b: PensionBreakdown }) {
   const breakEven = b.total > 0 ? b.totalContributions / b.total : 0
+  const lifeExp = b.lifeExpectancyAtRetirement // années de retraite espérées (qx du scénario)
+  const paybackYears = Math.max(31, Math.ceil(lifeExp) + 2)
   // Cumulative series: total and (running) employee share.
   let cumEmp = 0
   const contribData = b.contributionsByYear.map((y) => {
@@ -26,7 +27,7 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
     return { year: y.year, cumulative: y.cumulative, cumulEmployee: cumEmp }
   })
   // Cumulative pension received per year of retirement (constant euros).
-  const payback = Array.from({ length: 31 }, (_, y) => ({ year: y, cumulPension: b.total * y }))
+  const payback = Array.from({ length: paybackYears + 1 }, (_, y) => ({ year: y, cumulPension: b.total * y }))
 
   return (
     <div className="space-y-4">
@@ -76,7 +77,7 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
           <Tooltip formatter={(v) => eur(Number(v))} labelFormatter={(y) => `${y} ans de retraite`} />
           <ReferenceLine y={b.totalContributions} stroke="#ef4444" strokeDasharray="5 4" label={{ value: 'total cotisé', fontSize: 11, fill: '#ef4444', position: 'insideTopRight' }} />
           <ReferenceLine x={Math.round(breakEven)} stroke="#10b981" label={{ value: `équilibre ${breakEven.toFixed(0)} ans`, fontSize: 11, fill: '#10b981', position: 'top' }} />
-          <ReferenceLine x={LIFE_EXPECTANCY_65} stroke="#888" strokeDasharray="2 3" label={{ value: '~espérance de vie', fontSize: 10, fill: '#888', position: 'insideBottomRight' }} />
+          <ReferenceLine x={Math.round(lifeExp)} stroke="#888" strokeDasharray="2 3" label={{ value: `espérance de vie ${lifeExp.toFixed(0)} ans`, fontSize: 10, fill: '#888', position: 'insideBottomRight' }} />
           <Line type="monotone" dataKey="cumulPension" name="Pensions cumulées" stroke="#3b82f6" dot={false} strokeWidth={2} isAnimationActive={false} />
         </LineChart>
       </Card>
