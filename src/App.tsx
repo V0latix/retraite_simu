@@ -8,11 +8,12 @@ import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
 import { MicroView } from './ui/micro/MicroView'
 import { ComparisonView } from './ui/ComparisonView'
+import { StochasticView } from './ui/StochasticView'
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
 function App() {
-  const [view, setView] = useState<'macro' | 'micro' | 'comparison'>('macro')
+  const [view, setView] = useState<'macro' | 'micro' | 'comparison' | 'stochastic'>('macro')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
   const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
   const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
@@ -34,13 +35,13 @@ function App() {
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Simulateur de retraite — France</h1>
         <p className="text-sm text-neutral-500">
-          Modèle macro couplé (démographie → économie → système). Démographie
-          sur données INSEE (Projections 2021-2070) ; calage COR à venir (Phase 4).
+          Modèle macro + micro sur données INSEE (Projections 2021-2070), finance
+          calée COR ; mode stochastique Lee-Carter.
         </p>
       </header>
 
       <div className="mb-6 flex gap-1 border-b border-neutral-300 dark:border-neutral-700">
-        {(['macro', 'micro', 'comparison'] as const).map((v) => (
+        {(['macro', 'micro', 'comparison', 'stochastic'] as const).map((v) => (
           <button
             key={v}
             type="button"
@@ -51,13 +52,20 @@ function App() {
                 : 'border-transparent text-neutral-500 hover:text-neutral-800 dark:hover:text-neutral-200'
             }`}
           >
-            {v === 'macro' ? 'Vue macro' : v === 'micro' ? 'Vue micro (ma pension)' : 'Validation & comparaison'}
+            {v === 'macro'
+              ? 'Vue macro'
+              : v === 'micro'
+                ? 'Vue micro (ma pension)'
+                : v === 'comparison'
+                  ? 'Validation & comparaison'
+                  : 'Aléa (fan chart)'}
           </button>
         ))}
       </div>
 
       {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
       {view === 'comparison' && <ComparisonView policy={policy} beyondPolicy={beyondPolicy} />}
+      {view === 'stochastic' && <StochasticView policy={policy} beyondPolicy={beyondPolicy} />}
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">

@@ -15,6 +15,9 @@ extracts, for years 2025-2070 and ages 0-105:
 - `hyp_soldemigH/F` → net migration by age
 - `populationH/F` at 2025 → initial pyramid (central scenario only)
 
+It also fits **Lee-Carter** on the observed qx 1962-2021 (central workbook) and
+emits `src/data/leeCarter.json` (α/β/κ, drift, σ per sex) for the stochastic mode.
+
 Sources:
 - central: https://www.insee.fr/fr/statistiques/5894083 (`00_central.xlsx`)
 - variants: https://www.insee.fr/fr/statistiques/5894085 (`1x_*.xlsx`)

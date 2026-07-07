@@ -1,7 +1,9 @@
 // Runs projections off the main thread so recalcs never block the UI (§9.1).
 import initialPyramid from '../data/initialPyramid.json'
+import leeCarter from '../data/leeCarter.json'
 import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
-import { SCENARIO_IDS, type BeyondDataPolicy, type InitialPyramid, type ScenarioData, type ScenarioId } from '../data/schema'
+import { SCENARIO_IDS, type BeyondDataPolicy, type InitialPyramid, type LeeCarterFit, type ScenarioData, type ScenarioId } from '../data/schema'
+import { runStochastic, type FanResult } from '../engine/scenarios/fanchart'
 import { buildMicroContext } from '../engine/micro/coupling'
 import { computePension } from '../engine/micro/pension'
 import type { CareerParams, PensionBreakdown } from '../engine/micro/types'
@@ -29,7 +31,15 @@ export interface CompareRequest {
   horizon: number
   beyondPolicy: BeyondDataPolicy
 }
-export type EngineRequest = MacroRequest | MicroRequest | CompareRequest
+export interface StochasticRequest {
+  type: 'stochastic'
+  draws: number
+  horizon: number
+  policy: Partial<PolicyParams>
+  beyondPolicy: BeyondDataPolicy
+  seed: number
+}
+export type EngineRequest = MacroRequest | MicroRequest | CompareRequest | StochasticRequest
 
 export interface MacroResponse {
   type: 'macro'
@@ -43,7 +53,11 @@ export interface CompareResponse {
   type: 'compare'
   seriesById: Record<string, TimeSeries>
 }
-export type EngineResponse = MacroResponse | MicroResponse | CompareResponse
+export interface StochasticResponse {
+  type: 'stochastic'
+  fan: FanResult
+}
+export type EngineResponse = MacroResponse | MicroResponse | CompareResponse | StochasticResponse
 
 const scenarioLoaders = import.meta.glob<{ default: ScenarioData }>('../data/scenarios/*.json')
 const state0 = buildInitialState(initialPyramid as InitialPyramid)
@@ -88,8 +102,27 @@ async function runCompare(req: CompareRequest): Promise<CompareResponse> {
   return { type: 'compare', seriesById }
 }
 
+async function runStochasticReq(req: StochasticRequest): Promise<StochasticResponse> {
+  const central = await loadScenario('central')
+  const fan = runStochastic(state0, central, leeCarter as LeeCarterFit, ECON_INIT, {
+    draws: req.draws,
+    horizon: req.horizon,
+    policy: req.policy,
+    beyond: req.beyondPolicy,
+    seed: req.seed,
+  })
+  return { type: 'stochastic', fan }
+}
+
 self.onmessage = async (e: MessageEvent<EngineRequest>) => {
+  const d = e.data
   const res =
-    e.data.type === 'macro' ? await runMacro(e.data) : e.data.type === 'micro' ? await runMicro(e.data) : await runCompare(e.data)
+    d.type === 'macro'
+      ? await runMacro(d)
+      : d.type === 'micro'
+        ? await runMicro(d)
+        : d.type === 'compare'
+          ? await runCompare(d)
+          : await runStochasticReq(d)
   self.postMessage(res)
 }

@@ -27,6 +27,22 @@ export interface InitialPyramid {
 /** Extrapolation policy for years beyond the published data (§7). */
 export type BeyondDataPolicy = 'hold' | 'trend' | 'converge'
 
+/** Lee-Carter fit + stochastic assumptions (§6.3). */
+export interface LeeCarterSex {
+  alpha: number[] // α_a, log baseline mortality by age
+  beta: number[] // β_a, age sensitivity (Σβ = 1)
+  kappa: number[] // κ_t, historical time index
+  drift: number // annual drift of κ
+  sigma: number // std of κ innovations
+}
+export interface LeeCarterFit {
+  meta: { source: string; fitYears: [number, number]; note: string; retrieved: string }
+  ages: number[]
+  H: LeeCarterSex
+  F: LeeCarterSex
+  assumptions: { fertilitySigma: number; migrationSigma: number; defaultDraws: number }
+}
+
 /** COR reference trajectory for the validation view (§8.3). */
 export interface CorReference {
   meta: { source: string; url: string; assumptions: string; note: string; retrieved: string }

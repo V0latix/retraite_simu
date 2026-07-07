@@ -19,6 +19,7 @@ React 19 + Vite + TypeScript (strict) + Tailwind v4. Charts: Recharts. Tests: Vi
 ```
 src/engine/      pure engine: types, demography (cohort-component), project()
 src/engine/micro/  RG (regimeGeneral) + AGIRC-ARRCO (agircArrco) + coupling + pension; career synth
+src/engine/scenarios/  stochastic (Lee-Carter generator) + fanchart (percentile aggregation)
 src/data/        loader.ts + real INSEE JSON (scenarios/*.json, initialPyramid.json), schema.ts, systemParams.json, pensionParams.json
 src/worker/      engine.worker.ts — {type:'macro'|'micro'} off-thread
 src/hooks/       useProjection (macro), useMicro (pension × 7 scenarios), useCompare (macro × N scenarios)
@@ -33,7 +34,10 @@ scripts/         ingest-insee.mjs — regenerates the JSON from INSEE workbooks 
 - **Micro engine (Phase 3) runs in constant (real) euros.** RG (SAM = 25 best capped at PASS, décote/surcote, proratisation) + AGIRC-ARRCO points. Barèmes in `pensionParams.json` — hand-curated/approximate, flagged. The macro→micro coupling (§5.4) ties the AGIRC-ARRCO point value to each scenario's `dependencySystem` (`couplingSensitivity` k, gentle) so the same career yields a different pension per scenario. Replacement rates land in the realistic range (SMIC ~64%, médian ~53%, cadre ~34%); the per-scenario spread is small for near-2049 retirees (honest) and widens for younger cohorts. HMD skipped: INSEE's 1962-2070 qx covers Phase-5.
 
 ## Roadmap (phases)
-0 Data ✅(demography) · 1 Demography+pyramid ✅ · 2 Macro finance ✅ · 3 Micro (RG + AGIRC-ARRCO) ✅ · 4 Coupling + COR validation ✅ · 5 Stochastic (Lee-Carter, fan charts)
+0 Data ✅(demography) · 1 Demography+pyramid ✅ · 2 Macro finance ✅ · 3 Micro (RG + AGIRC-ARRCO) ✅ · 4 Coupling + COR validation ✅ · 5 Stochastic (Lee-Carter, fan charts) ✅ — v1 roadmap complete
+
+## Stochastic mode (Phase 5)
+Lee-Carter fitted at build time on INSEE observed qx 1962-2021 (`scripts/ingest-insee.mjs` → `leeCarter.json`: α/β/κ, drift, σ per sex). The generator (`src/engine/scenarios/stochastic.ts`) perturbs the **calibrated central** — qx·exp(β_a·z_t) with z a driftless RW (σ from the fit), plus RW factors on fertility/migration (hand-tuned σ, flagged) — so the median tracks the deterministic central and the fan is data-grounded. `runStochastic` (fanchart.ts) runs `project()` K times → p5/25/50/75/95 bands. `project()` itself is unchanged (invariant held). Fan tab covers solde %PIB, dependency, 65+ share.
 
 ## Workflow
 - Each feature → its own `feature/*` branch, commit, then deploy to Vercel.
