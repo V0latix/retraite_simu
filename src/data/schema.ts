@@ -43,6 +43,45 @@ export interface LeeCarterFit {
   assumptions: { fertilitySigma: number; migrationSigma: number; defaultDraws: number }
 }
 
+/**
+ * Observed (historical) counterparts of the projected series, so every chart can
+ * show "passé observé" before "futur projeté". Produced by scripts/ingest-historical.mjs.
+ * Holes are `null`: the retirees headcount lags a year behind the other COR series.
+ */
+export interface HistoricalData {
+  meta: { source: string; note: string; retrieved: string }
+  /** Last year with observed finance data — the frontier between observed and projected. */
+  lastObserved: number
+  finance: {
+    years: number[]
+    depensesPctGdp: (number | null)[]
+    resourcesPctGdp: (number | null)[]
+    soldePctGdp: (number | null)[]
+    activePerRetiree: (number | null)[]
+    contributors: (number | null)[]
+    retirees: (number | null)[]
+    gdp: (number | null)[] // Md€ courants
+  }
+  demography: {
+    years: number[]
+    ratio2064over65: (number | null)[]
+    share65: { years: number[]; values: number[] }
+  }
+  /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
+  anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }
+}
+
+/** Observed pyramids, 1946 (création du régime général) → 2025. Matrices are [yearIndex][age]. */
+export interface HistoricalPyramid {
+  meta: { source: string; url: string; note: string; retrieved: string }
+  ages: number[]
+  years: number[]
+  H: number[][]
+  F: number[][]
+  /** "France métropolitaine" before 1991, "France" after — the champ changes, so we label it. */
+  champ: Record<string, string>
+}
+
 /** COR reference trajectory for the validation view (§8.3). */
 export interface CorReference {
   meta: { source: string; url: string; assumptions: string; note: string; retrieved: string }

@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import corRef from '../data/corReference.json'
+import { historical } from '../data/loader'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
 import { useCompare } from '../hooks/useCompare'
+import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
 
 const cor = corRef as CorReference
 const pct1 = (n: number) => `${(n * 100).toFixed(1)} %`
@@ -30,19 +32,21 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
   const toggle = (id: ScenarioId) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 5 ? [...prev, id] : prev))
 
-  // COR validation data: model central solde vs COR reference points.
+  // COR validation data: observed solde, then model central solde vs COR reference points.
   const central = seriesById.central ?? []
-  const validation = central
+  type Row = { year: number; observed: number | null; model: number | null; cor: number | null }
+  const observed: Row[] = historical.finance.years.flatMap((year, i) => {
+    const v = historical.finance.soldePctGdp[i]
+    return v == null ? [] : [{ year, observed: +(v * 100).toFixed(2), model: null, cor: null }]
+  })
+  const validation: Row[] = central
     .filter((r) => r.year % 5 === 0)
-    .map((r) => ({
-      year: r.year,
-      model: +(r.soldePctGdp * 100).toFixed(2),
-      cor: null as number | null,
-    }))
+    .map((r) => ({ year: r.year, observed: null, model: +(r.soldePctGdp * 100).toFixed(2), cor: null }))
   for (const p of cor.points) {
     const row = validation.find((v) => v.year === p.year)
     if (row) row.cor = +(p.soldePctGdp * 100).toFixed(2)
   }
+  const validationWithHistory = [...observed, ...validation]
 
   // Scenario comparison: solde % PIB per selected scenario, merged by year.
   const years = central.filter((r) => r.year % 2 === 0).map((r) => r.year)
@@ -80,20 +84,26 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Panel
             title="Validation COR — solde (% PIB), scénario central"
-            subtitle="Modèle vs COR (juin 2025, réf.). Écart attendu en milieu de période : régime unique agrégé, effectif retraités ≈ 64 ans+ (§13)."
+            subtitle={`Solde observé jusqu'à ${LAST_OBSERVED_YEAR} (trait plein), puis modèle projeté (pointillés) vs COR. Écart attendu en milieu de période : régime unique agrégé, effectif retraités ≈ 64 ans+ (§13).`}
           >
-            <LineChart data={validation}>
+            <LineChart data={validationWithHistory}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="year" stroke="#888" />
+              <XAxis dataKey="year" stroke="#888" type="number" domain={['dataMin', 'dataMax']} />
               <YAxis tickFormatter={(v) => `${v}%`} stroke="#888" width={40} />
               <ReferenceLine y={0} stroke="#888" />
+              {frontier()}
               <Tooltip formatter={(v) => (v == null ? '—' : `${Number(v).toFixed(2)} % PIB`)} />
-              <Line type="monotone" dataKey="model" name="Modèle" stroke="#6366f1" strokeWidth={2} dot={false} />
+              {/* Same hue as the model: one series, two regimes — solid where measured, dashed where projected. */}
+              <Line type="monotone" dataKey="observed" name="Observé" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="model" name="Modèle" stroke="#6366f1" strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} />
               <Line type="monotone" dataKey="cor" name="COR" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 4" connectNulls dot={{ r: 3 }} />
             </LineChart>
           </Panel>
 
-          <Panel title="Comparaison de scénarios — solde (% PIB)" subtitle="Même politique, démographie INSEE différente (§10).">
+          <Panel
+            title="Comparaison de scénarios — solde (% PIB)"
+            subtitle="Même politique, démographie INSEE différente (§10). Entièrement projeté : les scénarios ne divergent qu'à partir de l'année de base."
+          >
             <LineChart data={comparison}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
               <XAxis dataKey="year" stroke="#888" />
@@ -116,7 +126,7 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
             .map((v) => (
               <div key={v.year} className="text-center">
                 <div className="text-neutral-500">{v.year}</div>
-                <div className="font-semibold tabular-nums">{(v.model - (v.cor ?? 0)).toFixed(1)} pt</div>
+                <div className="font-semibold tabular-nums">{((v.model ?? 0) - (v.cor ?? 0)).toFixed(1)} pt</div>
               </div>
             ))}
         </div>

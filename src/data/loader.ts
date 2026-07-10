@@ -1,9 +1,16 @@
 // Builds engine inputs from the real INSEE JSON (replaces the old seed.ts).
 import { OMEGA, type HypothesisSet, type PolicyParams, type PopulationState, type Sex } from '../engine/types'
-import type { BeyondDataPolicy, InitialPyramid, ScenarioData } from './schema'
+import type { BeyondDataPolicy, HistoricalData, HistoricalPyramid, InitialPyramid, ScenarioData } from './schema'
 import params from './systemParams.json'
+import historicalJson from './historical.json'
+import historicalPyramidJson from './historicalPyramid.json'
 
 export const BASE_YEAR = params.baseYear
+
+/** Observed series (COR + INSEE). Everything before LAST_OBSERVED_YEAR is measured, not modelled. */
+export const historical = historicalJson as HistoricalData
+export const historicalPyramid = historicalPyramidJson as HistoricalPyramid
+export const LAST_OBSERVED_YEAR = historical.lastObserved
 
 export const DEFAULT_POLICY: PolicyParams = {
   legalAge: params.policy.legalAge,

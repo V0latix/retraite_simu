@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { BASE_YEAR, DEFAULT_POLICY } from './data/loader'
+import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useProjection'
@@ -11,6 +11,16 @@ import { ComparisonView } from './ui/ComparisonView'
 import { StochasticView } from './ui/StochasticView'
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
+
+// Observed pyramids start at the birth of the régime général (ordonnances d'octobre 1945).
+const PYRAMID_FROM = historicalPyramid.years[0]
+const PYRAMID_LAST_OBSERVED = historicalPyramid.years[historicalPyramid.years.length - 1]
+
+const sumAges = (H: number[], F: number[], lo: number, hi: number) => {
+  let s = 0
+  for (let a = lo; a <= hi && a < H.length; a++) s += H[a] + F[a]
+  return s
+}
 
 function App() {
   const [view, setView] = useState<'macro' | 'micro' | 'comparison' | 'stochastic'>('macro')
@@ -27,6 +37,28 @@ function App() {
     [series, year],
   )
   const last = series[series.length - 1]
+
+  // Up to 2025 the pyramid is measured (INSEE); beyond, the engine projects it.
+  const pyramid = useMemo(() => {
+    const i = historicalPyramid.years.indexOf(year)
+    if (i >= 0) {
+      const { H, F } = { H: historicalPyramid.H[i], F: historicalPyramid.F[i] }
+      return {
+        H,
+        F,
+        observed: true,
+        champ: historicalPyramid.champ[String(year)],
+        dependency: sumAges(H, F, 65, 200) / sumAges(H, F, 20, 64),
+      }
+    }
+    if (!current) return null
+    return {
+      H: current.pyramid.H,
+      F: current.pyramid.F,
+      observed: false,
+      dependency: current.dependencyDemographic,
+    }
+  }, [year, current])
 
   const setP = (p: Partial<PolicyParams>) => setPolicy((prev) => ({ ...prev, ...p }))
 
@@ -96,18 +128,23 @@ function App() {
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Pyramide des âges — {year}</h2>
               <span className="text-sm text-neutral-500">
-                {computing ? 'calcul…' : `dép. démographique ${current ? (current.dependencyDemographic * 100).toFixed(0) : '–'}%`}
+                {computing ? 'calcul…' : `dép. démographique ${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'}%`}
               </span>
             </div>
             <input
               type="range"
-              min={BASE_YEAR}
+              min={PYRAMID_FROM}
               max={horizon}
               value={year}
               onChange={(e) => setYear(Number(e.target.value))}
-              className="mb-2 w-full accent-indigo-500"
+              className="w-full accent-indigo-500"
             />
-            {current && <Pyramid year={current} />}
+            <div className="mb-2 flex justify-between text-[11px] text-neutral-500">
+              <span>{PYRAMID_FROM} — création du régime général</span>
+              <span>{PYRAMID_LAST_OBSERVED} — fin des données observées</span>
+              <span>{horizon}</span>
+            </div>
+            {pyramid && <Pyramid {...pyramid} />}
           </section>
 
           <section>
