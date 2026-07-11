@@ -1,5 +1,8 @@
 import { PRESETS } from '../../engine/micro/career'
 import type { CareerParams, Status } from '../../engine/micro/types'
+import { Card } from '@/components/ui/card'
+import { Input } from '@/components/ui/input'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Props {
   params: CareerParams
@@ -26,18 +29,18 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="text-sm text-neutral-500">{label}</span>
+      <span className="text-sm text-muted-foreground">{label}</span>
       <div className="mt-1 flex items-center gap-2">
-        <input
+        <Input
           type="number"
           min={min}
           max={max}
           step={step}
           value={value}
           onChange={(e) => onChange(Number(e.target.value))}
-          className="w-full rounded border border-neutral-300 bg-transparent p-2 tabular-nums dark:border-neutral-700"
+          className="tabular-nums"
         />
-        {suffix && <span className="text-sm text-neutral-500">{suffix}</span>}
+        {suffix && <span className="text-sm text-muted-foreground">{suffix}</span>}
       </div>
     </label>
   )
@@ -45,25 +48,23 @@ function Field({
 
 export function CareerForm({ params, onChange, onPreset }: Props) {
   return (
-    <div className="space-y-4 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
+    <Card className="gap-4 p-4">
       <h2 className="text-lg font-semibold">Carrière</h2>
 
       <label className="block">
-        <span className="text-sm text-neutral-500">Cas-type</span>
-        <select
-          onChange={(e) => onPreset(e.target.value)}
-          defaultValue=""
-          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
-        >
-          <option value="" disabled>
-            Choisir un préréglage…
-          </option>
-          {Object.keys(PRESETS).map((k) => (
-            <option key={k} value={k}>
-              {k === 'smic' ? 'SMIC' : k === 'median' ? 'Salaire médian' : 'Cadre'}
-            </option>
-          ))}
-        </select>
+        <span className="text-sm text-muted-foreground">Cas-type</span>
+        <Select onValueChange={onPreset}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue placeholder="Choisir un préréglage…" />
+          </SelectTrigger>
+          <SelectContent>
+            {Object.keys(PRESETS).map((k) => (
+              <SelectItem key={k} value={k}>
+                {k === 'smic' ? 'SMIC' : k === 'median' ? 'Salaire médian' : 'Cadre'}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
 
       <div className="grid grid-cols-2 gap-3">
@@ -76,17 +77,18 @@ export function CareerForm({ params, onChange, onPreset }: Props) {
       </div>
 
       <label className="block">
-        <span className="text-sm text-neutral-500">Statut</span>
-        <select
-          value={params.status}
-          onChange={(e) => onChange({ status: e.target.value as Status })}
-          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
-        >
-          <option value="non-cadre">Non-cadre</option>
-          <option value="cadre">Cadre</option>
-        </select>
+        <span className="text-sm text-muted-foreground">Statut</span>
+        <Select value={params.status} onValueChange={(v) => onChange({ status: v as Status })}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="non-cadre">Non-cadre</SelectItem>
+            <SelectItem value="cadre">Cadre</SelectItem>
+          </SelectContent>
+        </Select>
       </label>
-      <p className="text-xs text-neutral-500">Montants en euros constants (réels). Barèmes indicatifs — cf. CLAUDE.md.</p>
-    </div>
+      <p className="text-xs text-muted-foreground">Montants en euros constants (réels). Barèmes indicatifs — cf. CLAUDE.md.</p>
+    </Card>
   )
 }

@@ -4,21 +4,24 @@ import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
+import { CHART } from './chartColors'
+import { Card } from '@/components/ui/card'
 
 const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
+const ratio2 = (n: number) => n.toFixed(2).replace('.', ',')
 const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
 const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
 
 function Panel({ title, desc, children, footer }: { title: string; desc: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-300 p-3 dark:border-neutral-700">
-      <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-200">{title}</h3>
-      <p className="mb-2 text-xs leading-snug text-neutral-500">{desc}</p>
+    <Card className="gap-0 p-3">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <p className="mb-2 text-xs leading-snug text-muted-foreground">{desc}</p>
       <div className="h-56">
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
       {footer}
-    </div>
+    </Card>
   )
 }
 
@@ -27,7 +30,7 @@ function SplitLines({ k, color, name }: { k: string; color: string; name: string
   return (
     <>
       <Line type="monotone" dataKey={`obs_${k}`} name={`${name} (observé)`} stroke={color} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
-      <Line type="monotone" dataKey={`proj_${k}`} name={`${name} (projeté)`} stroke={color} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls={false} isAnimationActive={false} />
+      <Line type="monotone" dataKey={`proj_${k}`} name={`${name} (projeté)`} stroke={color} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
     </>
   )
 }
@@ -97,6 +100,19 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
     return mergeObservedProjected(observed, projected, ['cumul'])
   }, [finance, series])
 
+  // Fertility: observed ICF (reality) vs the scenario's assumption (series tfr). These
+  // are two DIFFERENT series, not one split — the gap at the base year (1,53 observed vs
+  // 1,8 assumed) is the whole point, so they are NOT anchored/merged the usual way.
+  const fertility = useMemo(() => {
+    const f = historical.demography.fertility
+    const obs = new Map(f.years.map((y, i) => [y, f.icf[i]]))
+    const proj = new Map(series.map((d) => [d.year, Number(d.tfr.toFixed(3))]))
+    const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
+    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
+  }, [series])
+  const fertilityNow = historical.demography.fertility.icf.at(-1) ?? 1.53
+  const fertilityAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.tfr ?? 1.8
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Panel
@@ -122,7 +138,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <ReferenceLine y={0} stroke="#888" />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="soldePctGdp" color="#ef4444" name="Solde" />
+          <SplitLines k="soldePctGdp" color={CHART.danger} name="Solde" />
         </LineChart>
       </Panel>
 
@@ -146,7 +162,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <YAxis tickFormatter={ratio1} width={40} stroke="#888" domain={[0, 'auto']} />
           {frontier()}
           <Tooltip formatter={(v) => `${ratio1(Number(v))} cotisant(s) / retraité`} />
-          <SplitLines k="activePerRetiree" color="#f59e0b" name="Cotisants/retraité" />
+          <SplitLines k="activePerRetiree" color={CHART.amber} name="Cotisants/retraité" />
         </LineChart>
       </Panel>
 
@@ -161,8 +177,8 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} stroke="#888" />
           {frontier()}
           <Tooltip formatter={(v) => millions(Number(v))} />
-          <SplitLines k="contributors" color="#3b82f6" name="Cotisants" />
-          <SplitLines k="retirees" color="#ec4899" name="Retraités" />
+          <SplitLines k="contributors" color={CHART.blue} name="Cotisants" />
+          <SplitLines k="retirees" color={CHART.pink} name="Retraités" />
         </LineChart>
       </Panel>
 
@@ -187,15 +203,54 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <ReferenceLine y={0} stroke="#888" />
           <ReferenceLine
             y={-anchors.reservesPctGdp}
-            stroke="#a855f7"
+            stroke={CHART.violet}
             strokeDasharray="4 3"
-            label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: '#a855f7' }}
+            label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
           />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="cumul" color="#a855f7" name="Solde cumulé" />
+          <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
         </LineChart>
       </Panel>
+
+      <div className="md:col-span-2">
+        <Panel
+          title="Fécondité : réalité observée vs hypothèse INSEE"
+          desc={`Nombre d'enfants par femme. Tous les scénarios INSEE (dont le central) tablent sur ${ratio2(fertilityAssumed)} à long terme — mais en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse de fécondité plus haute que la réalité rend les projections (cotisants futurs, solde) probablement optimistes.`}
+          footer={
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
+                </svg>
+                fécondité observée (INSEE, jusqu'à {LAST_OBSERVED_YEAR + 1})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
+                </svg>
+                hypothèse du scénario ({ratio2(fertilityAssumed)})
+              </span>
+            </p>
+          }
+        >
+          <LineChart data={fertility}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <XAxis dataKey="year" stroke="#888" />
+            <YAxis tickFormatter={ratio1} width={32} stroke="#888" domain={[1.3, 2.2]} />
+            <ReferenceLine
+              y={2.1}
+              stroke={CHART.muted}
+              strokeDasharray="2 3"
+              label={{ value: 'renouvellement des générations (2,1)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+            />
+            {frontier(LAST_OBSERVED_YEAR + 1)}
+            <Tooltip formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
+            <Line type="monotone" dataKey="observed" name="Fécondité observée" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="assumption" name="Hypothèse INSEE" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </div>
     </div>
   )
 }

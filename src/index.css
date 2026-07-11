@@ -1,7 +1,87 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
 
+/* ── MyDashboard « Light brutalist » theme ─────────────────────────────
+   Flat surfaces, hard borders, no radius, no shadow. Display: Syne.
+   Body/mono: Space Mono. Palette from ~/Desktop/mytheme.md.
+   Light-only: no .dark block, so shadcn's dark: variants never activate. */
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
+
+  --background: #f7f7f5;
+  --foreground: #0a0a0a;
+  --card: #eeeee8;
+  --card-foreground: #0a0a0a;
+  --popover: #f7f7f5;
+  --popover-foreground: #0a0a0a;
+  --primary: #1a56db;
+  --primary-foreground: #ffffff;
+  --secondary: #eeeee8;
+  --secondary-foreground: #0a0a0a;
+  --muted: #eeeee8;
+  --muted-foreground: #777777;
+  --accent: #eeeee8;
+  --accent-foreground: #0a0a0a;
+  --destructive: #cc2222;
+  --success: #1a7a4a;
+  --border: #0a0a0a;
+  --input: #0a0a0a;
+  --ring: #1a56db;
+
+  /* Chart series — on-brand, mirrors src/ui/chartColors.ts (kept in sync). */
+  --chart-1: #1a56db;
+  --chart-2: #cc2222;
+  --chart-3: #1a7a4a;
+  --chart-4: #7c3aed;
+  --chart-5: #b45309;
+
+  --radius: 0rem;
+}
+
+@theme inline {
+  --font-sans: 'Space Mono', ui-monospace, monospace;
+  --font-mono: 'Space Mono', ui-monospace, monospace;
+  --font-heading: 'Syne', var(--font-sans);
+  --color-success: var(--success);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: 0rem;
+  --radius-md: 0rem;
+  --radius-lg: 0rem;
+  --radius-xl: 0rem;
+  --radius-2xl: 0rem;
+  --radius-3xl: 0rem;
+  --radius-4xl: 0rem;
 }
 
 html,
@@ -9,4 +89,29 @@ body,
 #root {
   margin: 0;
   min-height: 100vh;
+}
+
+/* ponytail: force the flat brutalist look globally instead of editing every
+   shadcn component. Zero the *decorative* shadow var only (--tw-shadow), so
+   Tailwind's focus ring (--tw-ring-shadow, same box-shadow) stays visible. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+  --tw-shadow: 0 0 #0000 !important;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground font-sans;
+  }
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-heading);
+  }
 }

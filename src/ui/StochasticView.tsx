@@ -4,9 +4,13 @@ import { historical } from '../data/loader'
 import type { BeyondDataPolicy } from '../data/schema'
 import type { FanMetric } from '../engine/scenarios/fanchart'
 import type { PolicyParams } from '../engine/types'
-import { useStochastic } from '../hooks/useStochastic'
+import { useStochastic } from '../hooks/useEngine'
 import { frontier, PROJECTED_DASH } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
+import { CHART } from './chartColors'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const METRICS: { id: FanMetric; label: string; fmt: (v: number) => string }[] = [
   { id: 'solde', label: 'Solde (% PIB)', fmt: (v) => `${(v * 100).toFixed(2)} %` },
@@ -62,42 +66,42 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-4">
-        <div className="flex gap-1">
+        <div className="flex flex-wrap gap-1">
           {METRICS.map((x) => (
-            <button
+            <Button
               key={x.id}
               type="button"
+              size="sm"
+              variant={metric === x.id ? 'default' : 'outline'}
               onClick={() => setMetric(x.id)}
-              className={`rounded-full border px-3 py-1 text-sm ${
-                metric === x.id ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500' : 'border-neutral-300 text-neutral-500 dark:border-neutral-700'
-              }`}
             >
               {x.label}
-            </button>
+            </Button>
           ))}
         </div>
-        <label className="flex items-center gap-2 text-sm text-neutral-500">
+        <label className="flex items-center gap-2 text-sm text-muted-foreground">
           Tirages
-          <select
-            value={draws}
-            onChange={(e) => setDraws(Number(e.target.value))}
-            className="rounded border border-neutral-300 bg-transparent p-1 dark:border-neutral-700"
-          >
-            {DRAWS.map((d) => (
-              <option key={d} value={d}>
-                {d}
-              </option>
-            ))}
-          </select>
+          <Select value={String(draws)} onValueChange={(v) => setDraws(Number(v))}>
+            <SelectTrigger size="sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {DRAWS.map((d) => (
+                <SelectItem key={d} value={String(d)}>
+                  {d}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </label>
-        {computing && <span className="text-sm text-neutral-500">calcul…</span>}
+        {computing && <span className="text-sm text-muted-foreground">calcul…</span>}
       </div>
 
-      <div className="rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
-        <h3 className="text-sm font-medium text-neutral-500">
+      <Card className="gap-0 p-4">
+        <h3 className="text-sm font-medium text-muted-foreground">
           {m.label} — faisceau stochastique (Lee-Carter mortalité + fécondité/migration)
         </h3>
-        <p className="mb-2 text-xs text-neutral-500">
+        <p className="mb-2 text-xs text-muted-foreground">
           Trait plein : la série réellement observée. Au-delà, bandes p5–p95 et p25–p75, médiane p50 (pointillés) ·{' '}
           {draws} tirages. La médiane suit le central calé ; les volatilités fécondité/migration sont des hypothèses (§6.3).
         </p>
@@ -110,21 +114,21 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
               {metric === 'solde' && <ReferenceLine y={0} stroke="#888" />}
               {observedCount > 0 && frontier(data[observedCount - 1].year)}
               <Tooltip formatter={(v) => (Array.isArray(v) ? `${m.fmt(v[0])} … ${m.fmt(v[1])}` : m.fmt(Number(v)))} labelFormatter={(y) => `${y}`} />
-              <Area dataKey="outer" stroke="none" fill="#6366f1" fillOpacity={0.15} connectNulls={false} isAnimationActive={false} />
-              <Area dataKey="inner" stroke="none" fill="#6366f1" fillOpacity={0.3} connectNulls={false} isAnimationActive={false} />
-              <Line dataKey="p50" name="Médiane projetée" stroke="#6366f1" strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} isAnimationActive={false} />
-              <Line dataKey="observed" name="Observé" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+              <Area dataKey="outer" stroke="none" fill={CHART.primary} fillOpacity={0.15} connectNulls={false} isAnimationActive={false} />
+              <Area dataKey="inner" stroke="none" fill={CHART.primary} fillOpacity={0.3} connectNulls={false} isAnimationActive={false} />
+              <Line dataKey="p50" name="Médiane projetée" stroke={CHART.primary} strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} isAnimationActive={false} />
+              <Line dataKey="observed" name="Observé" stroke={CHART.primary} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
         {observedCount > 0 && <ObservedProjectedLegend projectedLabel="médiane projetée" until={data[observedCount - 1].year} />}
         {last?.outer != null && last.p50 != null && (
-          <div className="mt-2 text-sm text-neutral-500">
-            En {last.year} : médiane <span className="font-semibold text-neutral-800 dark:text-neutral-100">{m.fmt(last.p50)}</span>{' '}
+          <div className="mt-2 text-sm text-muted-foreground">
+            En {last.year} : médiane <span className="font-semibold text-foreground">{m.fmt(last.p50)}</span>{' '}
             · intervalle p5–p95 {m.fmt(last.outer[0])} … {m.fmt(last.outer[1])}
           </div>
         )}
-      </div>
+      </Card>
     </div>
   )
 }

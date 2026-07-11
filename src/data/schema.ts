@@ -66,6 +66,9 @@ export interface HistoricalData {
     years: number[]
     ratio2064over65: (number | null)[]
     share65: { years: number[]; values: number[] }
+    /** Observed total fertility rate (ICF), France métropolitaine — contrasts with the
+     *  flat 1.8 the INSEE scenarios assume. */
+    fertility: { years: number[]; icf: number[] }
   }
   /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
   anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }

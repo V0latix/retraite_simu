@@ -43,6 +43,7 @@ export interface YearResult {
   pyramid: { H: number[]; F: number[] } // headcount by age
   dependencyDemographic: number // 65+ / [20-64]
   dependencySystem: number // retirees / contributors
+  tfr: number // indicateur conjoncturel de fécondité (Σ fertility, ages 15-50)
   contributors: number
   retirees: number
   avgWage: number

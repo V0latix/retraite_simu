@@ -4,22 +4,24 @@ import corRef from '../data/corReference.json'
 import { historical } from '../data/loader'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
-import { useCompare } from '../hooks/useCompare'
+import { useCompare } from '../hooks/useEngine'
 import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
+import { CHART, SERIES } from './chartColors'
+import { Button } from '@/components/ui/button'
+import { Card } from '@/components/ui/card'
 
 const cor = corRef as CorReference
 const pct1 = (n: number) => `${(n * 100).toFixed(1)} %`
-const COLORS = ['#6366f1', '#ec4899', '#f59e0b', '#10b981', '#3b82f6', '#a855f7', '#ef4444']
 
 function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
-      <h3 className="text-sm font-medium text-neutral-500">{title}</h3>
-      {subtitle && <p className="mb-2 text-xs text-neutral-500">{subtitle}</p>}
+    <Card className="gap-0 p-4">
+      <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
+      {subtitle && <p className="mb-2 text-xs text-muted-foreground">{subtitle}</p>}
       <div className="h-64">
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   )
 }
 
@@ -63,23 +65,20 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
     <div className="space-y-6">
       <div className="flex flex-wrap gap-2">
         {SCENARIO_IDS.map((id) => (
-          <button
+          <Button
             key={id}
             type="button"
+            size="sm"
+            variant={selected.includes(id) ? 'default' : 'outline'}
             onClick={() => toggle(id)}
-            className={`rounded-full border px-3 py-1 text-sm ${
-              selected.includes(id)
-                ? 'border-indigo-500 bg-indigo-500/10 text-indigo-500'
-                : 'border-neutral-300 text-neutral-500 dark:border-neutral-700'
-            }`}
           >
             {SCENARIO_LABELS[id]}
-          </button>
+          </Button>
         ))}
       </div>
 
       {computing && central.length === 0 ? (
-        <p className="text-sm text-neutral-500">Calcul…</p>
+        <p className="text-sm text-muted-foreground">Calcul…</p>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Panel
@@ -94,9 +93,9 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
               {frontier()}
               <Tooltip formatter={(v) => (v == null ? '—' : `${Number(v).toFixed(2)} % PIB`)} />
               {/* Same hue as the model: one series, two regimes — solid where measured, dashed where projected. */}
-              <Line type="monotone" dataKey="observed" name="Observé" stroke="#6366f1" strokeWidth={2} dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="model" name="Modèle" stroke="#6366f1" strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} />
-              <Line type="monotone" dataKey="cor" name="COR" stroke="#ef4444" strokeWidth={2} strokeDasharray="5 4" connectNulls dot={{ r: 3 }} />
+              <Line type="monotone" dataKey="observed" name="Observé" stroke={CHART.primary} strokeWidth={2} dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="model" name="Modèle" stroke={CHART.primary} strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} />
+              <Line type="monotone" dataKey="cor" name="COR" stroke={CHART.danger} strokeWidth={2} strokeDasharray="5 4" connectNulls dot={{ r: 3 }} />
             </LineChart>
           </Panel>
 
@@ -111,30 +110,30 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
               <ReferenceLine y={0} stroke="#888" />
               <Tooltip formatter={(v, name) => [`${Number(v).toFixed(2)} %`, SCENARIO_LABELS[name as ScenarioId] ?? name]} />
               {selected.map((id, i) => (
-                <Line key={id} type="monotone" dataKey={id} name={id} stroke={COLORS[i % COLORS.length]} strokeWidth={2} dot={false} />
+                <Line key={id} type="monotone" dataKey={id} name={id} stroke={SERIES[i % SERIES.length]} strokeWidth={2} dot={false} />
               ))}
             </LineChart>
           </Panel>
         </div>
       )}
 
-      <div className="rounded-lg border border-neutral-300 p-4 text-sm dark:border-neutral-700">
-        <h3 className="mb-2 font-medium">Écart modèle − COR (solde, points de PIB)</h3>
+      <Card className="gap-2 p-4 text-sm">
+        <h3 className="font-medium">Écart modèle − COR (solde, points de PIB)</h3>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
           {validation
             .filter((v) => v.cor != null)
             .map((v) => (
               <div key={v.year} className="text-center">
-                <div className="text-neutral-500">{v.year}</div>
+                <div className="text-muted-foreground">{v.year}</div>
                 <div className="font-semibold tabular-nums">{((v.model ?? 0) - (v.cor ?? 0)).toFixed(1)} pt</div>
               </div>
             ))}
         </div>
-        <p className="mt-2 text-xs text-neutral-500">
+        <p className="text-xs text-muted-foreground">
           Base {cor.points[0].year} calée sur COR ; endpoint 2070 proche ({pct1(cor.points.at(-1)!.soldePctGdp)} COR). Le
           creux intermédiaire reflète les simplifications du modèle, pas une donnée.
         </p>
-      </div>
+      </Card>
     </div>
   )
 }
