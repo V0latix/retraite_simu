@@ -76,14 +76,26 @@ function App() {
       </header>
 
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)} className="mb-6">
-        {/* Single scrollable row: the 4 French labels never fit at 375px, so let them
-            scroll horizontally rather than wrap (the line variant's -5px underline gets
-            clipped by any overflow, so use the segmented variant here). */}
-        <TabsList className="!h-auto w-full max-w-full justify-start gap-1 overflow-x-auto border border-border p-1">
-          <TabsTrigger className="flex-none shrink-0" value="macro">Vue macro</TabsTrigger>
-          <TabsTrigger className="flex-none shrink-0" value="micro">Vue micro (ma pension)</TabsTrigger>
-          <TabsTrigger className="flex-none shrink-0" value="comparison">Validation &amp; comparaison</TabsTrigger>
-          <TabsTrigger className="flex-none shrink-0" value="stochastic">Aléa (fan chart)</TabsTrigger>
+        {/* Each tab is styled as a discrete bordered button (same visual language as the
+            scenario toggles), so it clearly reads as clickable; active = solid primary.
+            Single scrollable row — the 4 French labels never fit at 375px, so scroll
+            rather than wrap. `!` overrides beat the trigger's baked-in active styles. */}
+        <TabsList className="!h-auto w-full max-w-full justify-start gap-1.5 overflow-x-auto border-0 bg-transparent p-0">
+          {(['macro', 'micro', 'comparison', 'stochastic'] as const).map((v) => (
+            <TabsTrigger
+              key={v}
+              value={v}
+              className="flex-none shrink-0 border border-border! bg-card px-3 py-1.5 font-medium text-foreground/70 hover:text-foreground data-active:border-primary! data-active:bg-primary! data-active:text-primary-foreground!"
+            >
+              {v === 'macro'
+                ? 'Vue macro'
+                : v === 'micro'
+                  ? 'Vue micro (ma pension)'
+                  : v === 'comparison'
+                    ? 'Validation & comparaison'
+                    : 'Aléa (fan chart)'}
+            </TabsTrigger>
+          ))}
         </TabsList>
       </Tabs>
 

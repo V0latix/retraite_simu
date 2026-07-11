@@ -85,8 +85,8 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
           />
           <Area type="monotone" dataKey="obs_cumulative" name="Cumul total" stroke={CHART.primary} fill={CHART.primary} fillOpacity={0.22} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
           <Area type="monotone" dataKey="obs_cumulEmployee" name="Part salariale" stroke={CHART.primarySoft} fill={CHART.primarySoft} fillOpacity={0.35} strokeWidth={1.5} connectNulls={false} isAnimationActive={false} />
-          <Area type="monotone" dataKey="proj_cumulative" name="Cumul total" stroke={CHART.primary} fill={CHART.primary} fillOpacity={0.1} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls={false} isAnimationActive={false} />
-          <Area type="monotone" dataKey="proj_cumulEmployee" name="Part salariale" stroke={CHART.primarySoft} fill={CHART.primarySoft} fillOpacity={0.18} strokeWidth={1.5} strokeDasharray={PROJECTED_DASH} connectNulls={false} isAnimationActive={false} />
+          <Area type="monotone" dataKey="proj_cumulative" name="Cumul total" stroke={CHART.primary} fill={CHART.primary} fillOpacity={0.1} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+          <Area type="monotone" dataKey="proj_cumulEmployee" name="Part salariale" stroke={CHART.primarySoft} fill={CHART.primarySoft} fillOpacity={0.18} strokeWidth={1.5} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
         </AreaChart>
       </Card>
 

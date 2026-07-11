@@ -103,6 +103,11 @@ export function project(
     const nRetirees = retirees(state, p.legalAge)
     let benefits = nRetirees * avgPension
 
+    // Total fertility rate = sum of age-specific fertility over childbearing ages.
+    // A display output (fertility chart); it does not feed the projection.
+    let tfr = 0
+    for (let a = 15; a <= 50; a++) tfr += h.fertility(year, a)
+
     // Anchor GDP and shares to COR at the base year (from raw benefits — the
     // calibration multiplier is 1 at the base year, so this is unaffected).
     if (year === baseYear) {
@@ -136,6 +141,7 @@ export function project(
       pyramid: { H: Array.from(state.H), F: Array.from(state.F) },
       dependencyDemographic: dependencyDemographic(state),
       dependencySystem: contrib > 0 ? nRetirees / contrib : 0,
+      tfr,
       contributors: contrib,
       retirees: nRetirees,
       avgWage,

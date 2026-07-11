@@ -33,6 +33,21 @@ describe('mergeObservedProjected', () => {
     expect(rows.find((r) => r.year === 2023)?.obs_v).toBeNull()
   })
 
+  it('anchors the projection on the last real observed year when the frontier itself is a hole', () => {
+    // Retirees lag a year: the value at the join year (2024) is null, the last real
+    // point is 2023 — the dashed line must start there so it meets the solid line.
+    const rows = mergeObservedProjected(
+      [{ year: 2023, v: 5 }, { year: 2024, v: null }],
+      [{ year: 2025, v: 10 }],
+      ['v'],
+      2024,
+    )
+    expect(rows.map((r) => r.year)).toEqual([2023, 2024, 2025])
+    expect(rows.map((r) => r.obs_v)).toEqual([5, null, null])
+    // Anchor at 2023 carries the observed value into the projected field; 2025 is the model.
+    expect(rows.map((r) => r.proj_v)).toEqual([5, null, 10])
+  })
+
   it('handles several keys at once', () => {
     const rows = mergeObservedProjected(
       [{ year: 2024, a: 1, b: 2 }],

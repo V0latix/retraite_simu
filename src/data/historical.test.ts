@@ -42,6 +42,16 @@ describe('historical.json', () => {
     expect(anchors.reservesPctGdp).toBeCloseTo(anchors.reserves2024 / anchors.gdp2024, 5)
   })
 
+  it('carries the observed fertility série ending below the 1,8 INSEE assumption', () => {
+    const { years, icf } = demography.fertility
+    expect(years).toHaveLength(icf.length)
+    expect(strictlyIncreasing(years)).toBe(true)
+    expect(years.at(-1)).toBe(2025)
+    expect(icf.at(-1)).toBeCloseTo(1.53, 2) // 2025, France métropolitaine (INSEE)
+    expect(Math.max(...icf)).toBeLessThan(2.1) // stays below génération-renewal threshold
+    for (const v of icf) expect(Number.isFinite(v)).toBe(true)
+  })
+
   it('shows the 65+ share rising over the observed period', () => {
     const { values } = demography.share65
     expect(values[0]).toBeGreaterThan(0.1)

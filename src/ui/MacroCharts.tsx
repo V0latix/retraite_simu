@@ -8,6 +8,7 @@ import { CHART } from './chartColors'
 import { Card } from '@/components/ui/card'
 
 const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
+const ratio2 = (n: number) => n.toFixed(2).replace('.', ',')
 const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
 const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
 
@@ -29,7 +30,7 @@ function SplitLines({ k, color, name }: { k: string; color: string; name: string
   return (
     <>
       <Line type="monotone" dataKey={`obs_${k}`} name={`${name} (observé)`} stroke={color} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
-      <Line type="monotone" dataKey={`proj_${k}`} name={`${name} (projeté)`} stroke={color} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls={false} isAnimationActive={false} />
+      <Line type="monotone" dataKey={`proj_${k}`} name={`${name} (projeté)`} stroke={color} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
     </>
   )
 }
@@ -98,6 +99,19 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       })
     return mergeObservedProjected(observed, projected, ['cumul'])
   }, [finance, series])
+
+  // Fertility: observed ICF (reality) vs the scenario's assumption (series tfr). These
+  // are two DIFFERENT series, not one split — the gap at the base year (1,53 observed vs
+  // 1,8 assumed) is the whole point, so they are NOT anchored/merged the usual way.
+  const fertility = useMemo(() => {
+    const f = historical.demography.fertility
+    const obs = new Map(f.years.map((y, i) => [y, f.icf[i]]))
+    const proj = new Map(series.map((d) => [d.year, Number(d.tfr.toFixed(3))]))
+    const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
+    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
+  }, [series])
+  const fertilityNow = historical.demography.fertility.icf.at(-1) ?? 1.53
+  const fertilityAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.tfr ?? 1.8
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -198,6 +212,45 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
         </LineChart>
       </Panel>
+
+      <div className="md:col-span-2">
+        <Panel
+          title="Fécondité : réalité observée vs hypothèse INSEE"
+          desc={`Nombre d'enfants par femme. Tous les scénarios INSEE (dont le central) tablent sur ${ratio2(fertilityAssumed)} à long terme — mais en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse de fécondité plus haute que la réalité rend les projections (cotisants futurs, solde) probablement optimistes.`}
+          footer={
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
+                </svg>
+                fécondité observée (INSEE, jusqu'à {LAST_OBSERVED_YEAR + 1})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
+                </svg>
+                hypothèse du scénario ({ratio2(fertilityAssumed)})
+              </span>
+            </p>
+          }
+        >
+          <LineChart data={fertility}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <XAxis dataKey="year" stroke="#888" />
+            <YAxis tickFormatter={ratio1} width={32} stroke="#888" domain={[1.3, 2.2]} />
+            <ReferenceLine
+              y={2.1}
+              stroke={CHART.muted}
+              strokeDasharray="2 3"
+              label={{ value: 'renouvellement des générations (2,1)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+            />
+            {frontier(LAST_OBSERVED_YEAR + 1)}
+            <Tooltip formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
+            <Line type="monotone" dataKey="observed" name="Fécondité observée" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="assumption" name="Hypothèse INSEE" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </div>
     </div>
   )
 }

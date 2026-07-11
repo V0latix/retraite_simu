@@ -22,12 +22,16 @@ export type MergedRow = { year: number } & Record<string, number | null>
  * Fold observed and projected series into one row-per-year array carrying `obs_<key>`
  * and `proj_<key>` fields, so a chart can draw two <Line>s over a single dataset.
  *
- * The join year is present in BOTH fields — otherwise the solid and dashed segments
- * would be separated by a visible gap. When the model has no value there (it starts
- * the year after), the observed value seeds the projection. This is exactly what the
- * COR does in its own workbooks: the "Obs" and "Sc. Ref" rows share the join year.
+ * The projected line is anchored, PER KEY, on that key's last *real* observed year
+ * (the latest year ≤ joinYear whose value isn't null), not on a fixed frontier. This
+ * matters when a series has a hole at the nominal join year — e.g. the retirees count
+ * lags a year behind, so `activePerRetiree` is null at 2024 and the last measured point
+ * is 2023. Seeding the dashed line at that real point makes the solid and dashed
+ * segments meet instead of leaving a gap (the COR splices its own workbooks the same way).
  *
- * Callers must pass `connectNulls={false}` so the `null` halves are not bridged.
+ * The projected line should be drawn with `connectNulls={true}` so it bridges the empty
+ * frontier year (e.g. 2024) from the anchor to the first model year; the observed line
+ * keeps `connectNulls={false}` to preserve genuine historical holes.
  */
 export function mergeObservedProjected(
   observed: readonly Row[],
@@ -39,13 +43,22 @@ export function mergeObservedProjected(
   const projBy = new Map(projected.map((r) => [r.year, r]))
   const years = [...new Set([...obsBy.keys(), ...projBy.keys()])].sort((a, b) => a - b)
 
+  // Last observed year (≤ joinYear) that actually holds a value, per key.
+  const anchor: Record<string, number> = {}
+  for (const k of keys) {
+    let a = -Infinity
+    for (const r of observed) if (r.year <= joinYear && r[k] != null) a = Math.max(a, r.year)
+    anchor[k] = a
+  }
+
   return years.map((year) => {
     const row: MergedRow = { year }
     for (const k of keys) {
       const o = obsBy.get(year)?.[k] ?? null
       const p = projBy.get(year)?.[k] ?? null
-      row[`obs_${k}`] = year <= joinYear ? o : null
-      row[`proj_${k}`] = year > joinYear ? p : year === joinYear ? (p ?? o) : null
+      const a = anchor[k]
+      row[`obs_${k}`] = year <= a ? o : null
+      row[`proj_${k}`] = year > a ? p : year === a ? (p ?? o) : null
     }
     return row
   })
