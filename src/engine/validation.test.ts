@@ -21,12 +21,22 @@ describe('COR calibration', () => {
     expect(r.gdp).toBeGreaterThan(0)
   })
 
-  it('2070 solde is in a broad band around COR (-1.4% PIB)', () => {
-    const r = at(series(), 2070)
-    expect(r.soldePctGdp).toBeGreaterThan(-0.02)
-    expect(r.soldePctGdp).toBeLessThan(-0.005)
-    expect(r.depensesPctGdp).toBeGreaterThan(0.13)
-    expect(r.depensesPctGdp).toBeLessThan(0.16)
+  // The central scenario is calibrated to track COR EEC at EVERY horizon, not just the
+  // endpoints — this pins the mid-century, which the raw taper used to overshoot to ~-2.5%.
+  it('central tracks the COR EEC solde across all horizons', () => {
+    const s = series()
+    const corSolde: Record<number, number> = { 2030: -0.0047, 2040: -0.0076, 2050: -0.0107, 2060: -0.0116, 2070: -0.0139 }
+    for (const [y, target] of Object.entries(corSolde)) {
+      expect(at(s, Number(y)).soldePctGdp).toBeCloseTo(target, 3)
+    }
+  })
+
+  it('central dépenses stay near the COR ~14% band (no mid-century overshoot)', () => {
+    for (const y of [2030, 2040, 2050, 2060, 2070]) {
+      const d = at(series(), y).depensesPctGdp
+      expect(d).toBeGreaterThan(0.135)
+      expect(d).toBeLessThan(0.145)
+    }
   })
 
   it('every year has finite % of GDP fields', () => {

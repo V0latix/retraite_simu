@@ -12,6 +12,7 @@
     { "year": 2030, "depensesPctGdp": 0.139, "ressourcesPctGdp": 0.1343, "soldePctGdp": -0.0047 },
     { "year": 2040, "depensesPctGdp": 0.141, "ressourcesPctGdp": 0.1334, "soldePctGdp": -0.0076 },
     { "year": 2050, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.1313, "soldePctGdp": -0.0107 },
+    { "year": 2060, "depensesPctGdp": 0.1412, "ressourcesPctGdp": 0.1296, "soldePctGdp": -0.0116 },
     { "year": 2070, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.1281, "soldePctGdp": -0.0139 }
   ]
 }
