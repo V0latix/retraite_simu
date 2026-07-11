@@ -108,6 +108,10 @@ export function project(
     let tfr = 0
     for (let a = 15; a <= 50; a++) tfr += h.fertility(year, a)
 
+    // Net migration = solde migratoire this year, all ages and sexes. Display output.
+    let netMigration = 0
+    for (let a = 0; a <= OMEGA; a++) netMigration += h.migration(year, a, 'H') + h.migration(year, a, 'F')
+
     // Anchor GDP and shares to COR at the base year (from raw benefits — the
     // calibration multiplier is 1 at the base year, so this is unaffected).
     if (year === baseYear) {
@@ -142,6 +146,7 @@ export function project(
       dependencyDemographic: dependencyDemographic(state),
       dependencySystem: contrib > 0 ? nRetirees / contrib : 0,
       tfr,
+      netMigration,
       contributors: contrib,
       retirees: nRetirees,
       avgWage,

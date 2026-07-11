@@ -3,6 +3,7 @@ import initialPyramid from '../data/initialPyramid.json'
 import leeCarter from '../data/leeCarter.json'
 import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
 import { SCENARIO_IDS, type BeyondDataPolicy, type InitialPyramid, type LeeCarterFit, type ScenarioData, type ScenarioId } from '../data/schema'
+import { buildPragmatique } from '../data/pragmatique'
 import { runStochastic, type FanResult } from '../engine/scenarios/fanchart'
 import { buildMicroContext } from '../engine/micro/coupling'
 import { computePension } from '../engine/micro/pension'
@@ -63,6 +64,8 @@ const scenarioLoaders = import.meta.glob<{ default: ScenarioData }>('../data/sce
 const state0 = buildInitialState(initialPyramid as InitialPyramid)
 
 function loadScenario(id: ScenarioId): Promise<ScenarioData> {
+  // « Pragmatique » has no JSON file: it is derived from the central scenario at load time.
+  if (id === 'pragmatique') return loadScenario('central').then(buildPragmatique)
   return scenarioLoaders[`../data/scenarios/${id}.json`]().then((m) => m.default)
 }
 

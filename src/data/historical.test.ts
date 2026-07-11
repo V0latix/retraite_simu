@@ -52,6 +52,17 @@ describe('historical.json', () => {
     for (const v of icf) expect(Number.isFinite(v)).toBe(true)
   })
 
+  it('carries the observed net migration série, well above the +70k INSEE assumption', () => {
+    const { years, solde } = demography.migration
+    expect(years).toHaveLength(solde.length)
+    expect(strictlyIncreasing(years)).toBe(true)
+    expect(years.at(-1)).toBe(2025)
+    for (const v of solde) {
+      expect(Number.isFinite(v)).toBe(true)
+      expect(v).toBeGreaterThan(70000) // recent observed solde is above the assumed +70k
+    }
+  })
+
   it('shows the 65+ share rising over the observed period', () => {
     const { values } = demography.share65
     expect(values[0]).toBeGreaterThan(0.1)
