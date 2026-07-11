@@ -1,5 +1,8 @@
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
+import { Card } from '@/components/ui/card'
+import { Slider as UiSlider } from '@/components/ui/slider'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 interface Props {
   scenarioId: ScenarioId
@@ -16,6 +19,12 @@ const BEYOND_LABELS: Record<BeyondDataPolicy, string> = {
   hold: 'Geler (hold)',
   trend: 'Prolonger la tendance (trend)',
   converge: 'Converger (converge)',
+}
+
+const INDEXATION_LABELS: Record<Indexation, string> = {
+  prices: 'Prix',
+  wages: 'Salaires',
+  mix: 'Mixte',
 }
 
 // Hypothèses des variantes INSEE « Projections de population 2021-2070 ». Chaque variante ne
@@ -50,18 +59,10 @@ function Slider({
   return (
     <label className="block">
       <div className="flex justify-between text-sm">
-        <span className="text-neutral-500">{label}</span>
+        <span className="text-muted-foreground">{label}</span>
         <span className="font-medium tabular-nums">{fmt(value)}</span>
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onChange={(e) => onChange(Number(e.target.value))}
-        className="w-full accent-indigo-500"
-      />
+      <UiSlider className="mt-2" min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} />
     </label>
   )
 }
@@ -77,21 +78,22 @@ export function Levers({
   onHorizon,
 }: Props) {
   return (
-    <div className="space-y-4 rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
+    <Card className="gap-4 p-4">
       <label className="block">
-        <span className="text-sm text-neutral-500">Scénario INSEE</span>
-        <select
-          value={scenarioId}
-          onChange={(e) => onScenario(e.target.value as ScenarioId)}
-          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
-        >
-          {SCENARIO_IDS.map((id) => (
-            <option key={id} value={id}>
-              {SCENARIO_LABELS[id]}
-            </option>
-          ))}
-        </select>
-        <p className="mt-1.5 text-xs leading-snug text-neutral-500">{SCENARIO_DESCRIPTIONS[scenarioId]}</p>
+        <span className="text-sm text-muted-foreground">Scénario INSEE</span>
+        <Select value={scenarioId} onValueChange={(v) => onScenario(v as ScenarioId)}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {SCENARIO_IDS.map((id) => (
+              <SelectItem key={id} value={id}>
+                {SCENARIO_LABELS[id]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{SCENARIO_DESCRIPTIONS[scenarioId]}</p>
       </label>
 
       <h2 className="text-lg font-semibold">Leviers de réforme</h2>
@@ -121,16 +123,19 @@ export function Levers({
         onChange={(v) => onPolicy({ contributionRate: v })}
       />
       <label className="block">
-        <span className="text-sm text-neutral-500">Règle d'indexation</span>
-        <select
-          value={policy.indexation}
-          onChange={(e) => onPolicy({ indexation: e.target.value as Indexation })}
-          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
-        >
-          <option value="prices">Prix</option>
-          <option value="wages">Salaires</option>
-          <option value="mix">Mixte</option>
-        </select>
+        <span className="text-sm text-muted-foreground">Règle d'indexation</span>
+        <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(INDEXATION_LABELS) as Indexation[]).map((k) => (
+              <SelectItem key={k} value={k}>
+                {INDEXATION_LABELS[k]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
       <Slider
         label="Horizon"
@@ -141,19 +146,20 @@ export function Levers({
         onChange={onHorizon}
       />
       <label className="block">
-        <span className="text-sm text-neutral-500">Extrapolation après 2070</span>
-        <select
-          value={beyondPolicy}
-          onChange={(e) => onBeyond(e.target.value as BeyondDataPolicy)}
-          className="mt-1 w-full rounded border border-neutral-300 bg-transparent p-2 dark:border-neutral-700"
-        >
-          {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
-            <option key={b} value={b}>
-              {BEYOND_LABELS[b]}
-            </option>
-          ))}
-        </select>
+        <span className="text-sm text-muted-foreground">Extrapolation après 2070</span>
+        <Select value={beyondPolicy} onValueChange={(v) => onBeyond(v as BeyondDataPolicy)}>
+          <SelectTrigger className="mt-1 w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
+              <SelectItem key={b} value={b}>
+                {BEYOND_LABELS[b]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </label>
-    </div>
+    </Card>
   )
 }

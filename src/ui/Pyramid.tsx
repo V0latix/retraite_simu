@@ -1,4 +1,5 @@
 import { Bar, BarChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { CHART } from './chartColors'
 
 const fmt = (n: number) => `${Math.round(Math.abs(n) / 1000)}k`
 
@@ -19,15 +20,13 @@ export function Pyramid({ H, F, observed, champ }: PyramidData) {
     <div>
       <div className="mb-1 flex items-center gap-2 text-xs">
         <span
-          className={`rounded px-1.5 py-0.5 font-medium ${
-            observed
-              ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
-              : 'bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300'
+          className={`border px-1.5 py-0.5 font-medium ${
+            observed ? 'border-success text-success' : 'border-primary text-primary'
           }`}
         >
           {observed ? 'observé' : 'projeté'}
         </span>
-        <span className="text-neutral-500">
+        <span className="text-muted-foreground">
           {observed ? `INSEE, estimations de population — ${champ}` : 'projection du modèle'}
         </span>
       </div>
@@ -40,8 +39,8 @@ export function Pyramid({ H, F, observed, champ }: PyramidData) {
               formatter={(v, name) => [fmt(Number(v)), name === 'H' ? 'Hommes' : 'Femmes']}
               labelFormatter={(a) => `${a} ans`}
             />
-            <Bar dataKey="H" stackId="s" fill={observed ? '#2563eb' : '#3b82f6'} isAnimationActive={false} />
-            <Bar dataKey="F" stackId="s" fill={observed ? '#db2777' : '#ec4899'} isAnimationActive={false} />
+            <Bar dataKey="H" stackId="s" fill={CHART.primary} isAnimationActive={false} />
+            <Bar dataKey="F" stackId="s" fill={CHART.pink} isAnimationActive={false} />
           </BarChart>
         </ResponsiveContainer>
       </div>

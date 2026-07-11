@@ -4,6 +4,8 @@ import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
+import { CHART } from './chartColors'
+import { Card } from '@/components/ui/card'
 
 const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
 const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
@@ -11,14 +13,14 @@ const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
 
 function Panel({ title, desc, children, footer }: { title: string; desc: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-neutral-300 p-3 dark:border-neutral-700">
-      <h3 className="text-sm font-medium text-neutral-700 dark:text-neutral-200">{title}</h3>
-      <p className="mb-2 text-xs leading-snug text-neutral-500">{desc}</p>
+    <Card className="gap-0 p-3">
+      <h3 className="text-sm font-medium">{title}</h3>
+      <p className="mb-2 text-xs leading-snug text-muted-foreground">{desc}</p>
       <div className="h-56">
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
       {footer}
-    </div>
+    </Card>
   )
 }
 
@@ -122,7 +124,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <ReferenceLine y={0} stroke="#888" />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="soldePctGdp" color="#ef4444" name="Solde" />
+          <SplitLines k="soldePctGdp" color={CHART.danger} name="Solde" />
         </LineChart>
       </Panel>
 
@@ -146,7 +148,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <YAxis tickFormatter={ratio1} width={40} stroke="#888" domain={[0, 'auto']} />
           {frontier()}
           <Tooltip formatter={(v) => `${ratio1(Number(v))} cotisant(s) / retraité`} />
-          <SplitLines k="activePerRetiree" color="#f59e0b" name="Cotisants/retraité" />
+          <SplitLines k="activePerRetiree" color={CHART.amber} name="Cotisants/retraité" />
         </LineChart>
       </Panel>
 
@@ -161,8 +163,8 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} stroke="#888" />
           {frontier()}
           <Tooltip formatter={(v) => millions(Number(v))} />
-          <SplitLines k="contributors" color="#3b82f6" name="Cotisants" />
-          <SplitLines k="retirees" color="#ec4899" name="Retraités" />
+          <SplitLines k="contributors" color={CHART.blue} name="Cotisants" />
+          <SplitLines k="retirees" color={CHART.pink} name="Retraités" />
         </LineChart>
       </Panel>
 
@@ -187,13 +189,13 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
           <ReferenceLine y={0} stroke="#888" />
           <ReferenceLine
             y={-anchors.reservesPctGdp}
-            stroke="#a855f7"
+            stroke={CHART.violet}
             strokeDasharray="4 3"
-            label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: '#a855f7' }}
+            label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
           />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="cumul" color="#a855f7" name="Solde cumulé" />
+          <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
         </LineChart>
       </Panel>
     </div>

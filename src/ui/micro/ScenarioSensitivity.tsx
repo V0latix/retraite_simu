@@ -1,6 +1,8 @@
 import { Bar, BarChart, CartesianGrid, Cell, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { SCENARIO_LABELS, type ScenarioId } from '../../data/schema'
 import type { PensionBreakdown } from '../../engine/micro/types'
+import { CHART } from '../chartColors'
+import { Card } from '@/components/ui/card'
 
 interface Row {
   scenarioId: ScenarioId
@@ -17,11 +19,11 @@ export function ScenarioSensitivity({ rows, selected }: { rows: Row[]; selected:
   }))
 
   return (
-    <div className="rounded-lg border border-neutral-300 p-4 dark:border-neutral-700">
-      <h3 className="mb-1 text-sm font-medium text-neutral-500">
+    <Card className="gap-0 p-4">
+      <h3 className="mb-1 text-sm font-medium text-muted-foreground">
         Sensibilité au scénario macro — pension annuelle (€), même carrière
       </h3>
-      <p className="mb-3 text-xs text-neutral-500">
+      <p className="mb-3 text-xs text-muted-foreground">
         Une démographie plus dégradée pèse sur la valeur du point → complémentaire plus faible (§5.4).
       </p>
       <div className="h-64">
@@ -35,12 +37,12 @@ export function ScenarioSensitivity({ rows, selected }: { rows: Row[]; selected:
             />
             <Bar dataKey="total" isAnimationActive={false}>
               {data.map((d) => (
-                <Cell key={d.id} fill={d.id === selected ? '#6366f1' : '#94a3b8'} />
+                <Cell key={d.id} fill={d.id === selected ? CHART.primary : CHART.muted} />
               ))}
             </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>
-    </div>
+    </Card>
   )
 }

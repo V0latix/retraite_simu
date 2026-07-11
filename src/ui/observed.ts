@@ -8,6 +8,7 @@
 import { createElement } from 'react'
 import { ReferenceLine } from 'recharts'
 import { LAST_OBSERVED_YEAR } from '../data/loader'
+import { CHART } from './chartColors'
 
 export { LAST_OBSERVED_YEAR }
 
@@ -67,8 +68,8 @@ export function toRows(years: readonly number[], values: Record<string, readonly
 export function frontier(year: number = LAST_OBSERVED_YEAR, label = 'projection →') {
   return createElement(ReferenceLine, {
     x: year,
-    stroke: '#94a3b8',
+    stroke: CHART.muted,
     strokeDasharray: '2 3',
-    label: { value: label, position: 'insideTopLeft', fontSize: 10, fill: '#94a3b8' },
+    label: { value: label, position: 'insideTopLeft', fontSize: 10, fill: CHART.muted },
   })
 }
