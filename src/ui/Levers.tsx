@@ -37,6 +37,8 @@ const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
   'mortality-high': 'Espérance de vie basse : gains de longévité plus lents (~86 ans en 2070). Retraités moins nombreux et moins longtemps → solde moins dégradé.',
   'migration-high': 'Solde migratoire haut : +120 000/an. Les migrants sont surtout des actifs → davantage de cotisants, ratio mieux soutenu.',
   'migration-low': 'Solde migratoire bas : +20 000/an. Moins d’apport d’actifs → cotisants plus rares, ratio plus dégradé.',
+  pragmatique:
+    'Hors scénarios INSEE : fécondité et migration calées sur les tendances réellement observées — fécondité ~1,5 en baisse (vs 1,8) et solde migratoire ~+176 000/an (vs +70 000). L’état démographique réel : natalité basse (moins de futurs cotisants) mais immigration forte (plus d’actifs) — les deux se compensent en partie.',
 }
 
 function Slider({

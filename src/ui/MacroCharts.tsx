@@ -11,6 +11,7 @@ const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
 const ratio2 = (n: number) => n.toFixed(2).replace('.', ',')
 const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
 const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
+const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v / 1000))} 000/an`
 
 function Panel({ title, desc, children, footer }: { title: string; desc: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
@@ -112,6 +113,20 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
   }, [series])
   const fertilityNow = historical.demography.fertility.icf.at(-1) ?? 1.53
   const fertilityAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.tfr ?? 1.8
+
+  // Migration: same idea as fertility — observed solde migratoire vs the scenario's
+  // assumption (series netMigration). The gap (observed ≈ +176k vs +70k assumed) is the point.
+  const migration = useMemo(() => {
+    const m = historical.demography.migration
+    const obs = new Map(m.years.map((y, i) => [y, m.solde[i]]))
+    const proj = new Map(series.map((d) => [d.year, Math.round(d.netMigration)]))
+    const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
+    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
+  }, [series])
+  const migrationObs = historical.demography.migration
+  const migrationNow = migrationObs.solde.at(-1) ?? 176000
+  const migrationAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.netMigration ?? 70000
+  const migrationFrom = migrationObs.years[0]
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -215,8 +230,8 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
 
       <div className="md:col-span-2">
         <Panel
-          title="Fécondité : réalité observée vs hypothèse INSEE"
-          desc={`Nombre d'enfants par femme. Tous les scénarios INSEE (dont le central) tablent sur ${ratio2(fertilityAssumed)} à long terme — mais en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse de fécondité plus haute que la réalité rend les projections (cotisants futurs, solde) probablement optimistes.`}
+          title="Fécondité : réalité observée vs hypothèse du scénario"
+          desc={`Nombre d'enfants par femme. Le scénario sélectionné retient ${ratio2(fertilityAssumed)} à long terme, alors qu'en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse plus haute que la réalité rend les projections (cotisants futurs, solde) optimistes ; le scénario « Pragmatique » colle à la tendance observée.`}
           footer={
             <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -248,6 +263,45 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
             <Tooltip formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Fécondité observée" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="assumption" name="Hypothèse INSEE" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </div>
+
+      <div className="md:col-span-2">
+        <Panel
+          title="Immigration : solde migratoire observé vs hypothèse du scénario"
+          desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario sélectionné retient ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde bien plus élevé récemment (${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}). Une immigration réelle plus forte que l'hypothèse ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. Mesure incertaine et révisée par l'INSEE.`}
+          footer={
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
+                </svg>
+                solde observé (INSEE, {migrationFrom}–{LAST_OBSERVED_YEAR + 1})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
+                </svg>
+                hypothèse du scénario ({signedK(migrationAssumed)})
+              </span>
+            </p>
+          }
+        >
+          <LineChart data={migration}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <XAxis dataKey="year" stroke="#888" />
+            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke="#888" domain={[0, 'auto']} />
+            <ReferenceLine
+              y={70000}
+              stroke={CHART.muted}
+              strokeDasharray="2 3"
+              label={{ value: 'hyp. INSEE central (+70k)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
+            />
+            {frontier(LAST_OBSERVED_YEAR + 1)}
+            <Tooltip formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
+            <Line type="monotone" dataKey="observed" name="Solde observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="assumption" name="Hypothèse migration" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
       </div>

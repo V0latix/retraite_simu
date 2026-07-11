@@ -69,6 +69,9 @@ export interface HistoricalData {
     /** Observed total fertility rate (ICF), France métropolitaine — contrasts with the
      *  flat 1.8 the INSEE scenarios assume. */
     fertility: { years: number[]; icf: number[] }
+    /** Observed net migration (solde migratoire), INSEE Bilan démographique — contrasts
+     *  with the +70k/an the INSEE projections assume. Persons/year. */
+    migration: { years: number[]; solde: number[] }
   }
   /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
   anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }
@@ -100,6 +103,7 @@ export const SCENARIO_IDS = [
   'mortality-high',
   'migration-high',
   'migration-low',
+  'pragmatique',
 ] as const
 export type ScenarioId = (typeof SCENARIO_IDS)[number]
 
@@ -111,4 +115,5 @@ export const SCENARIO_LABELS: Record<ScenarioId, string> = {
   'mortality-high': 'Espérance de vie basse',
   'migration-high': 'Migration haute',
   'migration-low': 'Migration basse',
+  pragmatique: 'Pragmatique (tendances observées)',
 }
