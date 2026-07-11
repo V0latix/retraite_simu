@@ -20,6 +20,16 @@ export interface EconInit {
   soldeShareBase: number // solde / GDP at the base year (≈ -0.001)
   resources2070Share: number // total resources / GDP target by 2070 (≈ 0.128)
   pensionDriftShare: number // noria drift of avg pension as a share of productivity
+  /**
+   * Optional per-year COR calibration (built in loader.ts from corReference.json).
+   * When present, it pins the CENTRAL scenario's dépenses and resources to the COR EEC
+   * trajectory at every horizon (not just the endpoints), so the reference solde tracks
+   * COR across 2025-2070. Other scenarios and reform levers keep the same calibration and
+   * deviate from it through their own demography/contributions — sensitivity is preserved.
+   * `depMul` scales benefits; `otherResPct` replaces the linear resource taper. Indexed by
+   * `year - baseYear`, clamped past the last entry.
+   */
+  calibration?: { baseYear: number; depMul: number[]; otherResPct: number[] }
 }
 const DEFAULT_ECON: EconInit = {
   avgAnnualWage: 40000,
@@ -91,9 +101,10 @@ export function project(
       avgPension *= 1 + Math.max(idx, econ.pensionDriftShare * g)
     }
     const nRetirees = retirees(state, p.legalAge)
-    const benefits = nRetirees * avgPension
+    let benefits = nRetirees * avgPension
 
-    // Anchor GDP and shares to COR at the base year.
+    // Anchor GDP and shares to COR at the base year (from raw benefits — the
+    // calibration multiplier is 1 at the base year, so this is unaffected).
     if (year === baseYear) {
       gdpBase = benefits / econ.depensesShareBase // pins pension mass to ~13.9% GDP
       laborShare = wageBill / gdpBase
@@ -101,12 +112,21 @@ export function project(
     }
     const gdp = wageBill / laborShare
 
-    // Other resources T(t): share of GDP tapers to the COR 2070 target (State
-    // support unwinding — the bulk of COR's deterioration). Contributions stay
-    // lever-sensitive on top, so raising the contribution rate improves the solde.
-    const frac = Math.min(1, Math.max(0, (year - baseYear) / (2070 - baseYear)))
-    const tShare = tShareBase - (resourcesShareBase - econ.resources2070Share) * frac
-    const otherResources = tShare * gdp
+    // Other resources: either the per-year COR calibration (central tracks COR EEC at
+    // every horizon) or, when no calibration is supplied, a linear taper to the COR 2070
+    // target. Contributions stay lever-sensitive on top in both cases, so raising the
+    // contribution rate improves the solde.
+    let otherResources: number
+    if (econ.calibration) {
+      const cal = econ.calibration
+      const i = Math.min(Math.max(year - cal.baseYear, 0), cal.depMul.length - 1)
+      benefits *= cal.depMul[i]
+      otherResources = cal.otherResPct[i] * gdp
+    } else {
+      const frac = Math.min(1, Math.max(0, (year - baseYear) / (2070 - baseYear)))
+      const tShare = tShareBase - (resourcesShareBase - econ.resources2070Share) * frac
+      otherResources = tShare * gdp
+    }
     const resources = contributions + otherResources
     const balance = resources - benefits
     cumulativeDebt = cumulativeDebt - balance // real, no discounting

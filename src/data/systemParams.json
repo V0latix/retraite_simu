@@ -24,10 +24,10 @@
   },
   "calibration": {
     "depensesShareBase": 0.139,
-    "soldeShareBase": -0.001,
-    "resources2070Share": 0.128,
+    "soldeShareBase": -0.0048,
+    "resources2070Share": 0.1275,
     "pensionDriftShare": 0.22,
-    "note": "Anchors the finance block to the COR reference (see corReference.json): base-year pension mass = 13,9 % PIB, base solde ≈ −0,1 % PIB, other resources T(t) taper from base to 12,8 % PIB by 2070. pensionDriftShare = structural drift of the average pension from new (higher, wage-based) retirees — effet noria — as a share of productivity; keeps dépenses/PIB from collapsing under price indexation. Constant (real) euros."
+    "note": "Anchors the finance block to the COR reference (see corReference.json), convention EEC (« effort de l'État constant ») — le solde économiquement pertinent, retenu par la Cour des comptes et le débat public. Base-year pension mass = 13,9 % PIB, base solde ≈ −0,48 % PIB (soit ≈ −8,7 Md€ en 2025), other resources T(t) taper from base to 12,75 % PIB by 2070. La convention EPR du COR (fonction publique équilibrée par construction) afficherait ≈ 0 aujourd'hui mais converge vers le même −1,4 % en 2070. pensionDriftShare = structural drift of the average pension from new (higher, wage-based) retirees — effet noria — as a share of productivity; keeps dépenses/PIB from collapsing under price indexation. Constant (real) euros."
   },
   "_sources": {
     "legalAge/requiredQuarters": "Réforme 2023 — 64 ans, 172 trim. (génération 1965+)",

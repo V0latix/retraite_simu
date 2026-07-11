@@ -1,17 +1,18 @@
 {
   "meta": {
-    "source": "COR — Conseil d'orientation des retraites, rapport annuel « Évolutions et perspectives des retraites en France », juin 2025 (scénario de référence)",
+    "source": "COR — Conseil d'orientation des retraites, rapport annuel « Évolutions et perspectives des retraites en France », juin 2025 (scénario de référence, convention EEC)",
     "url": "https://www.cor-retraites.fr/sites/default/files/2025-06/RA_2025_def_publi.pdf",
     "assumptions": "Démographie INSEE centrale (EV↑, ICF 1,8, solde migratoire +70 000/an) ; productivité ~0,7-1,0 %/an ; chômage 7 %.",
-    "note": "Solde tous régimes (base + complémentaires), FSV inclus, hors charges/produits financiers. Points-clés du rapport ; à re-vérifier au build.",
-    "retrieved": "2026-07-07"
+    "note": "Solde tous régimes (base + complémentaires), FSV inclus, hors charges/produits financiers. Convention EEC (« effort de l'État constant ») — neutralise les transferts d'équilibrage de l'État, donc le déficit à court terme est plus marqué que dans la convention EPR (« conforme à la législation ») du rapport principal. Les deux conventions convergent vers −1,4 % en 2070. Solde EEC extrait de Données_RA2025_Synthèse.xlsx (onglet « Solde en % », bloc données complémentaires, scénario de référence 0,7 %). Ressources = dépenses + solde.",
+    "retrieved": "2026-07-11"
   },
   "unit": "share of GDP",
   "points": [
-    { "year": 2025, "depensesPctGdp": 0.139, "ressourcesPctGdp": 0.138, "soldePctGdp": -0.001 },
-    { "year": 2030, "depensesPctGdp": 0.139, "ressourcesPctGdp": 0.137, "soldePctGdp": -0.002 },
-    { "year": 2040, "depensesPctGdp": 0.141, "ressourcesPctGdp": 0.134, "soldePctGdp": -0.007 },
-    { "year": 2050, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.131, "soldePctGdp": -0.011 },
-    { "year": 2070, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.128, "soldePctGdp": -0.014 }
+    { "year": 2025, "depensesPctGdp": 0.139, "ressourcesPctGdp": 0.1342, "soldePctGdp": -0.0048 },
+    { "year": 2030, "depensesPctGdp": 0.139, "ressourcesPctGdp": 0.1343, "soldePctGdp": -0.0047 },
+    { "year": 2040, "depensesPctGdp": 0.141, "ressourcesPctGdp": 0.1334, "soldePctGdp": -0.0076 },
+    { "year": 2050, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.1313, "soldePctGdp": -0.0107 },
+    { "year": 2060, "depensesPctGdp": 0.1412, "ressourcesPctGdp": 0.1296, "soldePctGdp": -0.0116 },
+    { "year": 2070, "depensesPctGdp": 0.142, "ressourcesPctGdp": 0.1281, "soldePctGdp": -0.0139 }
   ]
 }
