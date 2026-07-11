@@ -3,7 +3,7 @@ import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId }
 import { PRESETS } from '../../engine/micro/career'
 import type { CareerParams } from '../../engine/micro/types'
 import type { PolicyParams } from '../../engine/types'
-import { useMicro } from '../../hooks/useMicro'
+import { useMicro } from '../../hooks/useEngine'
 import { CareerCharts } from './CareerCharts'
 import { CareerForm } from './CareerForm'
 import { PensionResult } from './PensionResult'

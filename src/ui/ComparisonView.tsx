@@ -4,7 +4,7 @@ import corRef from '../data/corReference.json'
 import { historical } from '../data/loader'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
-import { useCompare } from '../hooks/useCompare'
+import { useCompare } from '../hooks/useEngine'
 import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
 
 const cor = corRef as CorReference

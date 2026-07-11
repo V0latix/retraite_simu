@@ -4,7 +4,7 @@ import { historical } from '../data/loader'
 import type { BeyondDataPolicy } from '../data/schema'
 import type { FanMetric } from '../engine/scenarios/fanchart'
 import type { PolicyParams } from '../engine/types'
-import { useStochastic } from '../hooks/useStochastic'
+import { useStochastic } from '../hooks/useEngine'
 import { frontier, PROJECTED_DASH } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
 
