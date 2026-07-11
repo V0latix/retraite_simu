@@ -87,7 +87,17 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       <Panel
         title="Solde annuel du système (% PIB)"
         desc="Cotisations encaissées moins pensions versées, rapportées à la richesse nationale (PIB). Observé par le COR jusqu'en 2024 ; au-delà, c'est notre modèle qui projette. Il se creuse avec le vieillissement."
-        footer={<ObservedProjectedLegend />}
+        footer={
+          <>
+            <ObservedProjectedLegend />
+            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+              Convention <b>EEC</b> (« effort de l'État constant ») : le déficit économiquement pertinent, ≈ −8,7 Md€ dès
+              2025 — cohérent avec la Cour des comptes. La convention <b>EPR</b> du rapport COR, qui suppose la fonction
+              publique équilibrée par l'État, afficherait ≈ 0 aujourd'hui ; les deux convergent vers −1,4 % en 2070. Les
+              deux coïncident sur les années observées, elles ne divergent qu'en projection.
+            </p>
+          </>
+        }
       >
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />

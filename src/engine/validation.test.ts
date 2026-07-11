@@ -12,11 +12,12 @@ const series = () => project(buildInitialState(pyr), buildHypotheses(data), 2070
 const at = (s: ReturnType<typeof series>, y: number) => s.find((r) => r.year === y)!
 
 describe('COR calibration', () => {
-  it('base year is pinned to the COR reference (dépenses ~13.9%, solde ~-0.1%)', () => {
+  // Base year is anchored to the COR *EEC* convention (effort de l'État constant):
+  // dépenses ~13.9% PIB, solde ~-0.48% PIB (~-8.7 Md€ in 2025), not the ~0 of the EPR headline.
+  it('base year is pinned to the COR EEC reference (dépenses ~13.9%, solde ~-0.48%)', () => {
     const r = at(series(), 2025)
     expect(r.depensesPctGdp).toBeCloseTo(0.139, 3)
-    expect(r.soldePctGdp).toBeGreaterThan(-0.004)
-    expect(r.soldePctGdp).toBeLessThan(0.001)
+    expect(r.soldePctGdp).toBeCloseTo(-0.0048, 3)
     expect(r.gdp).toBeGreaterThan(0)
   })
 
