@@ -18,6 +18,18 @@ const BEYOND_LABELS: Record<BeyondDataPolicy, string> = {
   converge: 'Converger (converge)',
 }
 
+// Hypothèses des variantes INSEE « Projections de population 2021-2070 ». Chaque variante ne
+// change qu'un seul levier par rapport au central ; les valeurs sont les cibles 2070.
+const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
+  central: 'Scénario de référence de l’INSEE (et du COR) : 1,8 enfant par femme, gains d’espérance de vie tendanciels, solde migratoire +70 000/an.',
+  'fertility-high': 'Comme le central, mais 2,0 enfants par femme. Plus de naissances → plus de cotisants… mais seulement après ~20 ans, le temps qu’ils entrent sur le marché du travail.',
+  'fertility-low': 'Comme le central, mais 1,6 enfant par femme. Moins de naissances → population active plus faible à long terme, ratio cotisants/retraité plus dégradé.',
+  'mortality-low': 'Espérance de vie haute : gains de longévité plus rapides (~92 ans à la naissance en 2070). On vit plus vieux → plus de retraités, plus longtemps → dépenses plus lourdes.',
+  'mortality-high': 'Espérance de vie basse : gains de longévité plus lents (~86 ans en 2070). Retraités moins nombreux et moins longtemps → solde moins dégradé.',
+  'migration-high': 'Solde migratoire haut : +120 000/an. Les migrants sont surtout des actifs → davantage de cotisants, ratio mieux soutenu.',
+  'migration-low': 'Solde migratoire bas : +20 000/an. Moins d’apport d’actifs → cotisants plus rares, ratio plus dégradé.',
+}
+
 function Slider({
   label,
   value,
@@ -79,6 +91,7 @@ export function Levers({
             </option>
           ))}
         </select>
+        <p className="mt-1.5 text-xs leading-snug text-neutral-500">{SCENARIO_DESCRIPTIONS[scenarioId]}</p>
       </label>
 
       <h2 className="text-lg font-semibold">Leviers de réforme</h2>

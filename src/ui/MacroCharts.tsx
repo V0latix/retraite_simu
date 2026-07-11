@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
-import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, toRows } from './observed'
+import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
 
 const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
@@ -34,6 +34,20 @@ function SplitLines({ k, color, name }: { k: string; color: string; name: string
 
 const CUMUL_FROM = 2002 // first year the COR publishes an observed balance
 
+/**
+ * The engine counts retirees as population 64+ and cotisants as occupied actives, which sit at
+ * a different LEVEL than COR's administrative headcounts (17.1 M retraités in 2024, incl. those
+ * who retired before 64, disability and survivor pensions). The finance block is calibrated to
+ * COR separately; the raw counts are not. So the projected headcounts are rebased onto the last
+ * observed value — the dashed line continues the observed one by the model's relative evolution
+ * instead of jumping to the model's own level. (The COR splices its projections the same way.)
+ */
+function rebaseFactor(observed: readonly Row[], projected: readonly Row[], key: string): number {
+  const oLast = [...observed].reverse().find((r) => r[key] != null)?.[key]
+  const pFirst = projected.find((r) => r.year > LAST_OBSERVED_YEAR && r[key] != null)?.[key]
+  return oLast != null && pFirst != null && pFirst !== 0 ? (oLast as number) / (pFirst as number) : 1
+}
+
 export function MacroCharts({ series }: { series: TimeSeries }) {
   const { finance, anchors } = historical
 
@@ -44,13 +58,14 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       contributors: finance.contributors,
       retirees: finance.retirees,
     })
-    const projected = series.map((d) => ({
-      year: d.year,
-      soldePctGdp: d.soldePctGdp,
-      activePerRetiree: d.retirees > 0 ? d.contributors / d.retirees : null,
-      contributors: d.contributors,
-      retirees: d.retirees,
-    }))
+    const projRaw = series.map((d) => ({ year: d.year, soldePctGdp: d.soldePctGdp, contributors: d.contributors, retirees: d.retirees }))
+    const kC = rebaseFactor(observed, projRaw, 'contributors')
+    const kR = rebaseFactor(observed, projRaw, 'retirees')
+    const projected = projRaw.map((d) => {
+      const contributors = d.contributors * kC
+      const retirees = d.retirees * kR
+      return { year: d.year, soldePctGdp: d.soldePctGdp, contributors, retirees, activePerRetiree: retirees > 0 ? contributors / retirees : null }
+    })
     return mergeObservedProjected(observed, projected, ['soldePctGdp', 'activePerRetiree', 'contributors', 'retirees'])
   }, [finance, series])
 
@@ -114,7 +129,16 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       <Panel
         title="Nombre de cotisants par retraité"
         desc="Combien d'actifs qui cotisent financent chaque retraité. Il est passé de ~2,1 en 2002 à ~1,8 aujourd'hui. Plus il baisse, plus chaque pension repose sur peu de cotisants."
-        footer={<ObservedProjectedLegend />}
+        footer={
+          <>
+            <ObservedProjectedLegend />
+            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+              La projection est recalée sur le dernier point observé : le modèle compte les retraités comme la population de
+              64 ans et plus, un peu en dessous du décompte administratif du COR (17,1 M, réversions et départs anticipés
+              inclus). On montre donc l'évolution du modèle à partir du niveau réel, pas son niveau absolu.
+            </p>
+          </>
+        }
       >
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
