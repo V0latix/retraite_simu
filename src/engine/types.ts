@@ -45,6 +45,7 @@ export interface YearResult {
   dependencySystem: number // retirees / contributors
   tfr: number // indicateur conjoncturel de fécondité (Σ fertility, ages 15-50)
   netMigration: number // solde migratoire (Σ migration, tous âges et sexes)
+  unemployment: number // taux de chômage retenu (fraction) — les chômeurs ne cotisent pas
   contributors: number
   retirees: number
   avgWage: number

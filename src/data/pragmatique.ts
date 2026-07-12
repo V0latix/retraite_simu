@@ -6,6 +6,9 @@ import type { ScenarioData } from './schema'
 //     linearly to 1,45 by 2040, then held — vs INSEE's flat 1,8.
 //   - Net migration: +176 000/an — INSEE Bilan démographique 2025 (moyenne 2023-2025,
 //     hors pic Ukraine 2022) — vs INSEE's +70 000/an.
+//   - Unemployment: 7,4 % — INSEE taux de chômage BIT, moyenne annuelle 2024 (dernier
+//     observé) — vs the model's flat 7 %. Unemployed are active but don't contribute, so
+//     a higher rate means fewer contributors (contributors × (1 − u) in project.ts).
 // Mortality is left at the central scenario's values (out of scope).
 //
 // Only the yearly totals (TFR, net migration) are rescaled; the age/sex profiles are
@@ -15,6 +18,7 @@ import type { ScenarioData } from './schema'
 const TFR_2025 = 1.53
 const TFR_2040 = 1.45
 const NET_MIGRATION = 176_000
+const UNEMPLOYMENT = 0.074 // taux de chômage BIT observé, moyenne annuelle 2024 (INSEE)
 
 /** Target total fertility rate: hold 1,53 to 2025, decline to 1,45 by 2040, then flat. */
 function targetTFR(year: number): number {
@@ -45,6 +49,7 @@ export function buildPragmatique(central: ScenarioData): ScenarioData {
     meta: { ...central.meta, scenario: 'pragmatique' },
     fertility,
     migration: { H: scaleSex(central.migration.H), F: scaleSex(central.migration.F) },
+    unemploymentTarget: UNEMPLOYMENT,
     // mortality unchanged
   }
 }

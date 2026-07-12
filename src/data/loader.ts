@@ -119,7 +119,7 @@ export function buildHypotheses(
     mortality: (y, age, sex: Sex) => atYear(data.mortality[sex], years, y, Math.min(age, OMEGA), beyond),
     migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond)),
     productivity: () => params.economy.productivity,
-    unemployment: () => params.economy.unemployment,
+    unemployment: () => data.unemploymentTarget ?? params.economy.unemployment,
     // Activity rate: COR-style hypothesis, ramps down toward the legal age.
     activityRate: (_y, age, legalAge) => {
       if (age < 20) return 0.25
