@@ -25,6 +25,12 @@ describe('buildPragmatique', () => {
     expect(netMig(prag, 2030)).toBeGreaterThan(netMig(data, 2030))
   })
 
+  it('holds unemployment at the observed recent level (7,4 %), above the model 7 %', () => {
+    expect(prag.unemploymentTarget).toBeCloseTo(0.074, 3)
+    expect(prag.unemploymentTarget).toBeGreaterThan(0.07) // above the flat model assumption
+    expect(data.unemploymentTarget).toBeUndefined() // central falls back to systemParams
+  })
+
   it('preserves the age/sex profiles and leaves mortality untouched', () => {
     expect(prag.years).toEqual(data.years)
     expect(prag.ages).toEqual(data.ages)

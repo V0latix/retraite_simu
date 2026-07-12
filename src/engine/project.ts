@@ -147,6 +147,7 @@ export function project(
       dependencySystem: contrib > 0 ? nRetirees / contrib : 0,
       tfr,
       netMigration,
+      unemployment: h.unemployment(year),
       contributors: contrib,
       retirees: nRetirees,
       avgWage,

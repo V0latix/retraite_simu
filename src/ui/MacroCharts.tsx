@@ -12,6 +12,7 @@ const ratio2 = (n: number) => n.toFixed(2).replace('.', ',')
 const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
 const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
 const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v / 1000))} 000/an`
+const pctPlain = (v: number, d = 1) => `${(v * 100).toFixed(d).replace('.', ',')} %`
 
 function Panel({ title, desc, children, footer }: { title: string; desc: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
@@ -127,6 +128,20 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
   const migrationNow = migrationObs.solde.at(-1) ?? 176000
   const migrationAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.netMigration ?? 70000
   const migrationFrom = migrationObs.years[0]
+
+  // Unemployment: observed BIT rate vs the scenario's flat assumption (series unemployment).
+  // The unemployed are active but don't contribute — they are already removed from cotisants
+  // (contributors × (1 − u) in the engine); this panel makes that assumption visible.
+  const unemployment = useMemo(() => {
+    const un = historical.demography.unemployment
+    const obs = new Map(un.years.map((y, i) => [y, un.rate[i]]))
+    const proj = new Map(series.map((d) => [d.year, d.unemployment]))
+    const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
+    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
+  }, [series])
+  const unemploymentObs = historical.demography.unemployment
+  const unemploymentNow = unemploymentObs.rate.at(-1) ?? 0.074
+  const unemploymentAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.unemployment ?? 0.07
 
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
@@ -302,6 +317,45 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
             <Tooltip formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Solde observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="assumption" name="Hypothèse migration" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </div>
+
+      <div className="md:col-span-2">
+        <Panel
+          title="Chômage : taux observé vs hypothèse du scénario"
+          desc={`Un chômeur est un actif qui ne cotise pas : il est déjà retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}, alors que le chômage observé (au sens du BIT) a oscillé entre 7 et 10 % ces 25 dernières années — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}. Le scénario « Pragmatique » colle au dernier niveau observé, quand les projections officielles supposent parfois un retour au plein emploi (4,5 %).`}
+          footer={
+            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
+                </svg>
+                chômage observé (INSEE, {unemploymentObs.years[0]}–{LAST_OBSERVED_YEAR})
+              </span>
+              <span className="flex items-center gap-1.5">
+                <svg width="20" height="6" aria-hidden>
+                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
+                </svg>
+                hypothèse du scénario ({pctPlain(unemploymentAssumed)})
+              </span>
+            </p>
+          }
+        >
+          <LineChart data={unemployment}>
+            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+            <XAxis dataKey="year" stroke="#888" />
+            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} stroke="#888" domain={[0.04, 0.11]} />
+            <ReferenceLine
+              y={0.045}
+              stroke={CHART.muted}
+              strokeDasharray="2 3"
+              label={{ value: 'hyp. COR favorable (4,5 %)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
+            />
+            {frontier(LAST_OBSERVED_YEAR + 1)}
+            <Tooltip formatter={(v) => (v == null ? '—' : pctPlain(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
+            <Line type="monotone" dataKey="observed" name="Chômage observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="assumption" name="Hypothèse chômage" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
       </div>

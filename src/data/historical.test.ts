@@ -63,6 +63,18 @@ describe('historical.json', () => {
     }
   })
 
+  it('carries the observed unemployment série (BIT), a rate in ]0,1[', () => {
+    const { years, rate } = demography.unemployment
+    expect(years).toHaveLength(rate.length)
+    expect(strictlyIncreasing(years)).toBe(true)
+    expect(rate.at(-1)).toBeCloseTo(0.074, 3) // 2024, INSEE
+    expect(Math.max(...rate)).toBeGreaterThan(0.1) // the 2013-2015 peak
+    for (const v of rate) {
+      expect(v).toBeGreaterThan(0)
+      expect(v).toBeLessThan(1)
+    }
+  })
+
   it('shows the 65+ share rising over the observed period', () => {
     const { values } = demography.share65
     expect(values[0]).toBeGreaterThan(0.1)

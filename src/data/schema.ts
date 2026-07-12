@@ -15,6 +15,10 @@ export interface ScenarioData {
   mortality: { H: number[][]; F: number[][] } // qx, probability in [0,1)
   fertility: number[][] // rate per woman, nonzero ages 15..50
   migration: { H: number[][]; F: number[][] } // net headcount by age
+  /** Optional flat unemployment rate (fraction) for this scenario. Absent in the INSEE
+   *  scenario JSONs → the engine falls back to systemParams economy.unemployment (7 %).
+   *  Set by the derived « Pragmatique » scenario to the observed recent level. */
+  unemploymentTarget?: number
 }
 
 export interface InitialPyramid {
@@ -72,6 +76,9 @@ export interface HistoricalData {
     /** Observed net migration (solde migratoire), INSEE Bilan démographique — contrasts
      *  with the +70k/an the INSEE projections assume. Persons/year. */
     migration: { years: number[]; solde: number[] }
+    /** Observed unemployment rate (taux de chômage BIT, moyenne annuelle), fraction —
+     *  contrasts with the flat 7 % the model assumes. */
+    unemployment: { years: number[]; rate: number[] }
   }
   /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
   anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }
