@@ -10,8 +10,6 @@ import { Levers } from './ui/Levers'
 import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
 import { MicroView } from './ui/micro/MicroView'
-import { ComparisonView } from './ui/ComparisonView'
-import { StochasticView } from './ui/StochasticView'
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
@@ -26,7 +24,7 @@ const sumAges = (H: number[], F: number[], lo: number, hi: number) => {
 }
 
 function App() {
-  const [view, setView] = useState<'macro' | 'micro' | 'comparison' | 'stochastic'>('macro')
+  const [view, setView] = useState<'macro' | 'micro'>('macro')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
   const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
   const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
@@ -71,7 +69,7 @@ function App() {
         <h1 className="text-2xl font-bold">Simulateur de retraite — France</h1>
         <p className="text-sm text-muted-foreground">
           Modèle macro + micro sur données INSEE (Projections 2021-2070), finance
-          calée COR ; mode stochastique Lee-Carter.
+          calée COR.
         </p>
       </header>
 
@@ -81,27 +79,19 @@ function App() {
             Single scrollable row — the 4 French labels never fit at 375px, so scroll
             rather than wrap. `!` overrides beat the trigger's baked-in active styles. */}
         <TabsList className="!h-auto w-full max-w-full justify-start gap-1.5 overflow-x-auto border-0 bg-transparent p-0">
-          {(['macro', 'micro', 'comparison', 'stochastic'] as const).map((v) => (
+          {(['macro', 'micro'] as const).map((v) => (
             <TabsTrigger
               key={v}
               value={v}
               className="flex-none shrink-0 border border-border! bg-card px-3 py-1.5 font-medium text-foreground/70 hover:text-foreground data-active:border-primary! data-active:bg-primary! data-active:text-primary-foreground!"
             >
-              {v === 'macro'
-                ? 'Vue macro'
-                : v === 'micro'
-                  ? 'Vue micro (ma pension)'
-                  : v === 'comparison'
-                    ? 'Validation & comparaison'
-                    : 'Aléa (fan chart)'}
+              {v === 'macro' ? 'Vue macro' : 'Vue micro (ma pension)'}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
       {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
-      {view === 'comparison' && <ComparisonView policy={policy} beyondPolicy={beyondPolicy} />}
-      {view === 'stochastic' && <StochasticView policy={policy} beyondPolicy={beyondPolicy} />}
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
