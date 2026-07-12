@@ -138,7 +138,10 @@ export function project(
     }
     const resources = contributions + otherResources
     const balance = resources - benefits
-    cumulativeDebt = cumulativeDebt - balance // real, no discounting
+    // Cumulated balance snowballs at the real interest rate: debt costs it, reserves earn
+    // it (symmetric). Interest affects ONLY this cumul — the annual solde stays untouched,
+    // so the COR calibration and the soldePctGdp comparison remain valid.
+    cumulativeDebt = cumulativeDebt * (1 + (p.realInterestRate ?? 0)) - balance
 
     series.push({
       year,

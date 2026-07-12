@@ -21,6 +21,12 @@ export interface PolicyParams {
   contributionRate: number
   indexation: Indexation
   targetReplacementRate?: number
+  /** Real interest rate applied to the cumulated balance (debt costs it, reserves earn it).
+   *  Affects ONLY cumulativeDebt — the annual solde stays COR-comparable. Fraction. */
+  realInterestRate?: number
+  /** Net emigration of young actives (ages 25-40), persons/year, subtracted from the
+   *  scenario's migration — today's contributors and tomorrow's parents both leave. */
+  workerExodus?: number
 }
 
 /**
