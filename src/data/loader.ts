@@ -22,7 +22,7 @@ export const DEFAULT_POLICY: PolicyParams = {
   requiredQuarters: params.policy.requiredQuarters,
   contributionRate: params.policy.contributionRate,
   indexation: params.policy.indexation as PolicyParams['indexation'],
-  realInterestRate: params.economy.realInterestRate,
+  realInterestRate: 0, // basic scenarios stay clean; the Pragmatique risk overlay sets these
   workerExodus: 0,
 }
 

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
+import { PRAGMATIQUE_RISK } from './data/pragmatique'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
@@ -63,6 +64,17 @@ function App() {
 
   const setP = (p: Partial<PolicyParams>) => setPolicy((prev) => ({ ...prev, ...p }))
 
+  // Exode & intérêt sur la dette ne jouent QUE dans le Pragmatique : changer de scénario
+  // (ré)applique le défaut du scénario — Pragmatique les allume, tout autre les remet à 0,
+  // laissant les scénarios INSEE/COR figés sur la référence.
+  const onScenario = (id: ScenarioId) => {
+    setScenarioId(id)
+    setPolicy((prev) => ({
+      ...prev,
+      ...(id === 'pragmatique' ? PRAGMATIQUE_RISK : { realInterestRate: 0, workerExodus: 0 }),
+    }))
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 text-foreground">
       <header className="mb-6">
@@ -72,6 +84,23 @@ function App() {
           calée COR.
         </p>
       </header>
+
+      <Card className="mb-6 gap-1 p-4 text-sm">
+        <div className="font-semibold">Qu'est-ce que le COR ?</div>
+        <p className="text-muted-foreground">
+          Le <b>Conseil d'orientation des retraites</b> est l'organisme public qui, depuis 2000, projette
+          l'équilibre du système de retraite français et publie chaque année le rapport de référence. Ce
+          simulateur cale ses trajectoires financières sur le rapport COR de juin 2025.{' '}
+          <a
+            href="https://fr.wikipedia.org/wiki/Conseil_d%27orientation_des_retraites"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-medium text-primary underline underline-offset-2"
+          >
+            En savoir plus (Wikipédia)
+          </a>
+        </p>
+      </Card>
 
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)} className="mb-6">
         {/* Each tab is styled as a discrete bordered button (same visual language as the
@@ -101,7 +130,7 @@ function App() {
             beyondPolicy={beyondPolicy}
             policy={policy}
             horizon={horizon}
-            onScenario={setScenarioId}
+            onScenario={onScenario}
             onBeyond={setBeyondPolicy}
             onPolicy={setP}
             onHorizon={setHorizon}
@@ -142,7 +171,9 @@ function App() {
 
           <section>
             <h2 className="mb-2 text-lg font-semibold">Trajectoires financières</h2>
-            {series.length > 0 && <MacroCharts series={series} realInterestRate={policy.realInterestRate} />}
+            {series.length > 0 && (
+              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} />
+            )}
           </section>
         </main>
       </div>
