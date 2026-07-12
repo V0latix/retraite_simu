@@ -20,8 +20,7 @@
   "economy": {
     "productivity": 0.01,
     "unemployment": 0.07,
-    "priceInflation": 0.018,
-    "realInterestRate": 0.015
+    "priceInflation": 0.018
   },
   "calibration": {
     "depensesShareBase": 0.139,
@@ -37,7 +36,7 @@
     "retirees": "≈ 17 M retraités de droit direct (DREES 2023-24)",
     "avgAnnualPension": "≈ 1 540 €/mois brut tous régimes (DREES) → 18 480 €/an",
     "productivity/unemployment": "Aligné COR (productivité ~1,0 %/an ; chômage 7 %)",
-    "realInterestRate": "Taux réel appliqué au solde cumulé (dette coûte, réserves rapportent) ≈ OAT 10 ans (~3,3 %) − inflation (~1,8 %) ≈ 1,5 % réel. Réglable dans l'UI (0-4 %).",
+    "realInterestRate": "Intérêt sur le solde cumulé : 0 pour les scénarios de base (calage COR intact) ; le scénario Pragmatique l'active à 3,3 % (OAT 10 ans nominale) — voir PRAGMATIQUE_RISK dans pragmatique.ts. Réglable dans l'UI (0-4 %).",
     "calibration": "Calage sur COR juin 2025, scénario de référence (dépenses/ressources/solde en % PIB)"
   }
 }

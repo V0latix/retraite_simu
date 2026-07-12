@@ -20,6 +20,17 @@ const TFR_2040 = 1.45
 const NET_MIGRATION = 176_000
 const UNEMPLOYMENT = 0.074 // taux de chômage BIT observé, moyenne annuelle 2024 (INSEE)
 
+/**
+ * Risk overlay carried by the Pragmatique scenario (applied as policy levers, adjustable in
+ * the UI). The basic INSEE/COR scenarios keep these at 0 so they stay pinned to the reference.
+ *  - realInterestRate 3,3 % : taux OAT 10 ans nominal, SANS retrancher l'inflation (cohérent
+ *    avec un modèle qui n'indexe pas les pensions sur l'inflation) — effet boule de neige sur
+ *    le solde cumulé.
+ *  - workerExodus 30 000/an : émigration nette de jeunes actifs 25-40 ans (surcouche de risque ;
+ *    le solde migratoire français observé reste positif). Visible sur le graphe migration.
+ */
+export const PRAGMATIQUE_RISK = { realInterestRate: 0.033, workerExodus: 30_000 }
+
 /** Target total fertility rate: hold 1,53 to 2025, decline to 1,45 by 2040, then flat. */
 function targetTFR(year: number): number {
   if (year <= 2025) return TFR_2025

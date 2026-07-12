@@ -38,7 +38,7 @@ const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
   'migration-high': 'Solde migratoire haut : +120 000/an. Les migrants sont surtout des actifs → davantage de cotisants, ratio mieux soutenu.',
   'migration-low': 'Solde migratoire bas : +20 000/an. Moins d’apport d’actifs → cotisants plus rares, ratio plus dégradé.',
   pragmatique:
-    'Hors scénarios INSEE : fécondité et migration calées sur les tendances réellement observées — fécondité ~1,5 en baisse (vs 1,8) et solde migratoire ~+176 000/an (vs +70 000). L’état démographique réel : natalité basse (moins de futurs cotisants) mais immigration forte (plus d’actifs) — les deux se compensent en partie.',
+    'Hors scénarios INSEE : fécondité et migration calées sur les tendances réellement observées — fécondité ~1,5 en baisse (vs 1,8) et solde migratoire ~+176 000/an (vs +70 000). Seul scénario à intégrer aussi les risques macro : intérêt sur la dette (boule de neige) et exode des jeunes actifs — réglables ci-dessous.',
 }
 
 function Slider({
@@ -170,36 +170,42 @@ export function Levers({
         </label>
       </Card>
 
-      {/* Carte 3 — les risques macro hors réforme : finances publiques et fuite des actifs. */}
-      <Card className="gap-4 p-4">
-        <h2 className="text-lg font-semibold">Contexte & risques</h2>
-        <Slider
-          label="Taux d'intérêt réel sur la dette"
-          value={policy.realInterestRate ?? 0}
-          min={0}
-          max={0.04}
-          step={0.0025}
-          fmt={(v) => `${(v * 100).toFixed(2).replace('.', ',')} %`}
-          onChange={(v) => onPolicy({ realInterestRate: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Les déficits cumulés portent intérêt (et les réserves rapportent) : effet boule de neige sur le
-          graphe « Solde cumulé ». Le solde annuel, comparable au COR, n'est pas modifié.
-        </p>
-        <Slider
-          label="Exode des jeunes actifs (25-40 ans)"
-          value={policy.workerExodus ?? 0}
-          min={0}
-          max={100000}
-          step={5000}
-          fmt={(v) => (v === 0 ? 'aucun' : `−${Math.round(v / 1000)} 000/an`)}
-          onChange={(v) => onPolicy({ workerExodus: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Émigration nette de jeunes actifs, retirée du solde migratoire du scénario : moins de cotisants
-          aujourd'hui, moins de naissances demain. Visible sur le graphe « Immigration » (pointillé).
-        </p>
-      </Card>
+      {/* Carte 3 — risques macro propres au Pragmatique : finances publiques + fuite des actifs.
+          Masquée pour les scénarios INSEE/COR, qui restent figés sur la référence. */}
+      {scenarioId === 'pragmatique' && (
+        <Card className="gap-4 p-4">
+          <h2 className="text-lg font-semibold">Contexte & risques</h2>
+          <p className="-mt-1 text-xs leading-snug text-muted-foreground">
+            Spécifiques au scénario Pragmatique : les scénarios INSEE/COR n'en tiennent pas compte.
+          </p>
+          <Slider
+            label="Taux d'intérêt sur la dette"
+            value={policy.realInterestRate ?? 0}
+            min={0}
+            max={0.04}
+            step={0.001}
+            fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
+            onChange={(v) => onPolicy({ realInterestRate: v })}
+          />
+          <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+            Les déficits cumulés portent intérêt (et les réserves rapportent) : effet boule de neige sur le
+            graphe « Solde cumulé ». Le solde annuel, comparable au COR, n'est pas modifié.
+          </p>
+          <Slider
+            label="Exode des jeunes actifs (25-40 ans)"
+            value={policy.workerExodus ?? 0}
+            min={0}
+            max={100000}
+            step={5000}
+            fmt={(v) => (v === 0 ? 'aucun' : `−${Math.round(v / 1000)} 000/an`)}
+            onChange={(v) => onPolicy({ workerExodus: v })}
+          />
+          <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+            Émigration nette de jeunes actifs, retirée du solde migratoire : moins de cotisants aujourd'hui,
+            moins de naissances demain. Tracée à part sur le graphe « Immigration ».
+          </p>
+        </Card>
+      )}
     </>
   )
 }

@@ -53,7 +53,15 @@ function rebaseFactor(observed: readonly Row[], projected: readonly Row[], key: 
   return oLast != null && pFirst != null && pFirst !== 0 ? (oLast as number) / (pFirst as number) : 1
 }
 
-export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeries; realInterestRate?: number }) {
+export function MacroCharts({
+  series,
+  realInterestRate = 0,
+  workerExodus = 0,
+}: {
+  series: TimeSeries
+  realInterestRate?: number
+  workerExodus?: number
+}) {
   const { finance, anchors } = historical
 
   const data = useMemo(() => {
@@ -117,18 +125,30 @@ export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeri
   const fertilityNow = historical.demography.fertility.icf.at(-1) ?? 1.53
   const fertilityAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.tfr ?? 1.8
 
-  // Migration: same idea as fertility — observed solde migratoire vs the scenario's
-  // assumption (series netMigration). The gap (observed ≈ +176k vs +70k assumed) is the point.
+  // Migration: observed solde migratoire (solid) vs the scenario's assumption, split into TWO
+  // dashed curves — immigration (the scenario's inflow) and, only when the Pragmatique risk
+  // overlay is on, the youth exodus drawn separately below zero. The engine already nets the
+  // exodus out of netMigration, so we add it back to recover the immigration line.
   const migration = useMemo(() => {
     const m = historical.demography.migration
     const obs = new Map(m.years.map((y, i) => [y, m.solde[i]]))
-    const proj = new Map(series.map((d) => [d.year, Math.round(d.netMigration)]))
+    const proj = new Map(
+      series.map((d) => [
+        d.year,
+        { immigration: Math.round(d.netMigration + workerExodus), exode: workerExodus > 0 ? -workerExodus : null },
+      ]),
+    )
     const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
-    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
-  }, [series])
+    return years.map((year) => ({
+      year,
+      observed: obs.get(year) ?? null,
+      immigration: proj.get(year)?.immigration ?? null,
+      exode: proj.get(year)?.exode ?? null,
+    }))
+  }, [series, workerExodus])
   const migrationObs = historical.demography.migration
   const migrationNow = migrationObs.solde.at(-1) ?? 176000
-  const migrationAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.netMigration ?? 70000
+  const migrationAssumed = (series.find((d) => d.year > LAST_OBSERVED_YEAR)?.netMigration ?? 70000) + workerExodus
   const migrationFrom = migrationObs.years[0]
 
   // Unemployment: observed BIT rate vs the scenario's flat assumption (series unemployment).
@@ -287,7 +307,7 @@ export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeri
       <div className="md:col-span-2">
         <Panel
           title="Immigration : solde migratoire observé vs hypothèse du scénario"
-          desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario sélectionné retient ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde bien plus élevé récemment (${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}). Une immigration réelle plus forte que l'hypothèse ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. Le levier « Exode des jeunes actifs » se lit ici : il abaisse le pointillé. Mesure incertaine et révisée par l'INSEE.`}
+          desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario retient une immigration de ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde de ${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}. Une immigration forte ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. ${workerExodus > 0 ? `Le scénario Pragmatique retire en plus un exode de ${signedK(-workerExodus)} de jeunes actifs (courbe orange) : le solde net est d'autant plus faible.` : ''} Mesure incertaine et révisée par l'INSEE.`}
           footer={
             <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">
@@ -300,15 +320,23 @@ export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeri
                 <svg width="20" height="6" aria-hidden>
                   <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
                 </svg>
-                hypothèse du scénario ({signedK(migrationAssumed)})
+                immigration (hyp. {signedK(migrationAssumed)})
               </span>
+              {workerExodus > 0 && (
+                <span className="flex items-center gap-1.5">
+                  <svg width="20" height="6" aria-hidden>
+                    <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.amber} strokeWidth="2" strokeDasharray="5 4" />
+                  </svg>
+                  exode jeunes actifs ({signedK(-workerExodus)})
+                </span>
+              )}
             </p>
           }
         >
           <LineChart data={migration}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
             <XAxis dataKey="year" stroke="#888" />
-            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke="#888" domain={[0, 'auto']} />
+            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke="#888" domain={[(min: number) => Math.min(0, min), 'auto']} />
             <ReferenceLine
               y={70000}
               stroke={CHART.muted}
@@ -318,7 +346,8 @@ export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeri
             {frontier(LAST_OBSERVED_YEAR + 1)}
             <Tooltip formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Solde observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="assumption" name="Hypothèse migration" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+            <Line type="monotone" dataKey="immigration" name="Immigration (hyp.)" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+            <Line type="monotone" dataKey="exode" name="Exode jeunes actifs" stroke={CHART.amber} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
       </div>
