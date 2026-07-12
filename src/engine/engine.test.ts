@@ -37,4 +37,23 @@ describe('project', () => {
     const y = base.length - 1
     expect(reform[y].retirees).toBeLessThan(base[y].retirees)
   })
+
+  it('interest snowballs the cumulated debt but never touches the annual solde', () => {
+    const noRate = project(state0(), buildHypotheses(data, { realInterestRate: 0 }), 2070, ECON_INIT)
+    const withRate = project(state0(), buildHypotheses(data, { realInterestRate: 0.02 }), 2070, ECON_INIT)
+    const y = noRate.length - 1
+    // Deficits dominate → the cumul is negative; interest makes it strictly worse.
+    expect(withRate[y].cumulativeDebt).toBeGreaterThan(noRate[y].cumulativeDebt)
+    // The annual solde is identical: interest affects ONLY the cumul (COR-comparable).
+    for (let i = 0; i < noRate.length; i++) expect(withRate[i].balance).toBe(noRate[i].balance)
+  })
+
+  it('worker exodus removes 25-40s: netMigration drops by the lever, solde 2050 degrades', () => {
+    const base = project(state0(), buildHypotheses(data, { workerExodus: 0 }), 2050, ECON_INIT)
+    const exodus = project(state0(), buildHypotheses(data, { workerExodus: 50000 }), 2050, ECON_INIT)
+    const y = base.length - 1
+    expect(exodus[y].netMigration).toBeCloseTo(base[y].netMigration - 50000, 0)
+    expect(exodus[y].soldePctGdp).toBeLessThan(base[y].soldePctGdp)
+    expect(exodus[y].contributors).toBeLessThan(base[y].contributors)
+  })
 })

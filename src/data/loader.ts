@@ -22,6 +22,8 @@ export const DEFAULT_POLICY: PolicyParams = {
   requiredQuarters: params.policy.requiredQuarters,
   contributionRate: params.policy.contributionRate,
   indexation: params.policy.indexation as PolicyParams['indexation'],
+  realInterestRate: params.economy.realInterestRate,
+  workerExodus: 0,
 }
 
 /** Economic seeds + base-year COR anchors (kept in data). Calibration is layered on below. */
@@ -114,10 +116,14 @@ export function buildHypotheses(
 ): HypothesisSet {
   const merged: PolicyParams = { ...DEFAULT_POLICY, ...policy }
   const { years } = data
+  // « Exode des actifs » lever: net emigration of workerExodus persons/year, spread
+  // uniformly over ages 25-40 (16 ages) and both sexes — 32 equal slices.
+  const exodusPerSlice = (merged.workerExodus ?? 0) / 32
+  const exodus = (age: number) => (age >= 25 && age <= 40 ? exodusPerSlice : 0)
   return {
     fertility: (y, age) => (age < 15 || age > 50 ? 0 : atYear(data.fertility, years, y, age, beyond)),
     mortality: (y, age, sex: Sex) => atYear(data.mortality[sex], years, y, Math.min(age, OMEGA), beyond),
-    migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond)),
+    migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond) - exodus(age)),
     productivity: () => params.economy.productivity,
     unemployment: () => data.unemploymentTarget ?? params.economy.unemployment,
     // Activity rate: COR-style hypothesis, ramps down toward the legal age.

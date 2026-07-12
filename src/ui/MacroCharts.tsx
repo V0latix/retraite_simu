@@ -53,7 +53,7 @@ function rebaseFactor(observed: readonly Row[], projected: readonly Row[], key: 
   return oLast != null && pFirst != null && pFirst !== 0 ? (oLast as number) / (pFirst as number) : 1
 }
 
-export function MacroCharts({ series }: { series: TimeSeries }) {
+export function MacroCharts({ series, realInterestRate = 0 }: { series: TimeSeries; realInterestRate?: number }) {
   const { finance, anchors } = historical
 
   const data = useMemo(() => {
@@ -92,15 +92,17 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       observed.push({ year, cumul: Number((cumulBn / gdp).toFixed(5)) })
     })
 
+    // Projected leg: the running cumul snowballs at the chosen real interest rate —
+    // debt costs it, reserves earn it. History is left as measured (no rewriting).
     let cumulEur = cumulBn * 1e9
     const projected = series
       .filter((d) => d.year > LAST_OBSERVED_YEAR)
       .map((d) => {
-        cumulEur += d.balance
+        cumulEur = cumulEur * (1 + realInterestRate) + d.balance
         return { year: d.year, cumul: Number((cumulEur / d.gdp).toFixed(5)) }
       })
     return mergeObservedProjected(observed, projected, ['cumul'])
-  }, [finance, series])
+  }, [finance, series, realInterestRate])
 
   // Fertility: observed ICF (reality) vs the scenario's assumption (series tfr). These
   // are two DIFFERENT series, not one split — the gap at the base year (1,53 observed vs
@@ -214,7 +216,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
 
       <Panel
         title={`Solde cumulé depuis ${CUMUL_FROM} (% PIB)`}
-        desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date.`}
+        desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date. En projection, le cumul porte intérêt au taux réel choisi (${(realInterestRate * 100).toFixed(2).replace('.', ',')} %) : la dette coûte, les réserves rapportent — l'effet boule de neige du levier « Contexte & risques ».`}
         footer={
           <>
             <ObservedProjectedLegend />
@@ -285,7 +287,7 @@ export function MacroCharts({ series }: { series: TimeSeries }) {
       <div className="md:col-span-2">
         <Panel
           title="Immigration : solde migratoire observé vs hypothèse du scénario"
-          desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario sélectionné retient ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde bien plus élevé récemment (${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}). Une immigration réelle plus forte que l'hypothèse ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. Mesure incertaine et révisée par l'INSEE.`}
+          desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario sélectionné retient ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde bien plus élevé récemment (${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}). Une immigration réelle plus forte que l'hypothèse ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. Le levier « Exode des jeunes actifs » se lit ici : il abaisse le pointillé. Mesure incertaine et révisée par l'INSEE.`}
           footer={
             <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
               <span className="flex items-center gap-1.5">

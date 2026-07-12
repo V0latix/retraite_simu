@@ -142,7 +142,7 @@ function App() {
 
           <section>
             <h2 className="mb-2 text-lg font-semibold">Trajectoires financières</h2>
-            {series.length > 0 && <MacroCharts series={series} />}
+            {series.length > 0 && <MacroCharts series={series} realInterestRate={policy.realInterestRate} />}
           </section>
         </main>
       </div>

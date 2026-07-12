@@ -169,6 +169,37 @@ export function Levers({
           </Select>
         </label>
       </Card>
+
+      {/* Carte 3 — les risques macro hors réforme : finances publiques et fuite des actifs. */}
+      <Card className="gap-4 p-4">
+        <h2 className="text-lg font-semibold">Contexte & risques</h2>
+        <Slider
+          label="Taux d'intérêt réel sur la dette"
+          value={policy.realInterestRate ?? 0}
+          min={0}
+          max={0.04}
+          step={0.0025}
+          fmt={(v) => `${(v * 100).toFixed(2).replace('.', ',')} %`}
+          onChange={(v) => onPolicy({ realInterestRate: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Les déficits cumulés portent intérêt (et les réserves rapportent) : effet boule de neige sur le
+          graphe « Solde cumulé ». Le solde annuel, comparable au COR, n'est pas modifié.
+        </p>
+        <Slider
+          label="Exode des jeunes actifs (25-40 ans)"
+          value={policy.workerExodus ?? 0}
+          min={0}
+          max={100000}
+          step={5000}
+          fmt={(v) => (v === 0 ? 'aucun' : `−${Math.round(v / 1000)} 000/an`)}
+          onChange={(v) => onPolicy({ workerExodus: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Émigration nette de jeunes actifs, retirée du solde migratoire du scénario : moins de cotisants
+          aujourd'hui, moins de naissances demain. Visible sur le graphe « Immigration » (pointillé).
+        </p>
+      </Card>
     </>
   )
 }
