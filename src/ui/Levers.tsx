@@ -80,88 +80,95 @@ export function Levers({
   onHorizon,
 }: Props) {
   return (
-    <Card className="gap-4 p-4">
-      <label className="block">
-        <span className="text-sm text-muted-foreground">Scénario INSEE</span>
-        <Select value={scenarioId} onValueChange={(v) => onScenario(v as ScenarioId)}>
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {SCENARIO_IDS.map((id) => (
-              <SelectItem key={id} value={id}>
-                {SCENARIO_LABELS[id]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{SCENARIO_DESCRIPTIONS[scenarioId]}</p>
-      </label>
+    <>
+      {/* Carte 1 — le contexte démographique projeté (quel scénario, sur quel horizon). */}
+      <Card className="gap-4 p-4">
+        <h2 className="text-lg font-semibold">Scénario</h2>
+        <label className="block">
+          <span className="text-sm text-muted-foreground">Scénario INSEE</span>
+          <Select value={scenarioId} onValueChange={(v) => onScenario(v as ScenarioId)}>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SCENARIO_IDS.map((id) => (
+                <SelectItem key={id} value={id}>
+                  {SCENARIO_LABELS[id]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{SCENARIO_DESCRIPTIONS[scenarioId]}</p>
+        </label>
+        <Slider
+          label="Horizon"
+          value={horizon}
+          min={2030}
+          max={2100}
+          fmt={(v) => String(v)}
+          onChange={onHorizon}
+        />
+        <label className="block">
+          <span className="text-sm text-muted-foreground">Extrapolation après 2070</span>
+          <Select value={beyondPolicy} onValueChange={(v) => onBeyond(v as BeyondDataPolicy)}>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
+                <SelectItem key={b} value={b}>
+                  {BEYOND_LABELS[b]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      </Card>
 
-      <h2 className="text-lg font-semibold">Leviers de réforme</h2>
-      <Slider
-        label="Âge légal de départ"
-        value={policy.legalAge}
-        min={60}
-        max={70}
-        fmt={(v) => `${v} ans`}
-        onChange={(v) => onPolicy({ legalAge: v })}
-      />
-      <Slider
-        label="Durée requise"
-        value={policy.requiredQuarters}
-        min={160}
-        max={188}
-        fmt={(v) => `${v} trim.`}
-        onChange={(v) => onPolicy({ requiredQuarters: v })}
-      />
-      <Slider
-        label="Taux de cotisation"
-        value={policy.contributionRate}
-        min={0.2}
-        max={0.4}
-        step={0.005}
-        fmt={(v) => `${(v * 100).toFixed(1)}%`}
-        onChange={(v) => onPolicy({ contributionRate: v })}
-      />
-      <label className="block">
-        <span className="text-sm text-muted-foreground">Règle d'indexation</span>
-        <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(INDEXATION_LABELS) as Indexation[]).map((k) => (
-              <SelectItem key={k} value={k}>
-                {INDEXATION_LABELS[k]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
-      <Slider
-        label="Horizon"
-        value={horizon}
-        min={2030}
-        max={2100}
-        fmt={(v) => String(v)}
-        onChange={onHorizon}
-      />
-      <label className="block">
-        <span className="text-sm text-muted-foreground">Extrapolation après 2070</span>
-        <Select value={beyondPolicy} onValueChange={(v) => onBeyond(v as BeyondDataPolicy)}>
-          <SelectTrigger className="mt-1 w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
-              <SelectItem key={b} value={b}>
-                {BEYOND_LABELS[b]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </label>
-    </Card>
+      {/* Carte 2 — les leviers de réforme, qui recalculent le solde à démographie donnée. */}
+      <Card className="gap-4 p-4">
+        <h2 className="text-lg font-semibold">Leviers de réforme</h2>
+        <Slider
+          label="Âge légal de départ"
+          value={policy.legalAge}
+          min={60}
+          max={70}
+          fmt={(v) => `${v} ans`}
+          onChange={(v) => onPolicy({ legalAge: v })}
+        />
+        <Slider
+          label="Durée requise"
+          value={policy.requiredQuarters}
+          min={160}
+          max={188}
+          fmt={(v) => `${v} trim.`}
+          onChange={(v) => onPolicy({ requiredQuarters: v })}
+        />
+        <Slider
+          label="Taux de cotisation"
+          value={policy.contributionRate}
+          min={0.2}
+          max={0.4}
+          step={0.005}
+          fmt={(v) => `${(v * 100).toFixed(1)}%`}
+          onChange={(v) => onPolicy({ contributionRate: v })}
+        />
+        <label className="block">
+          <span className="text-sm text-muted-foreground">Règle d'indexation</span>
+          <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(Object.keys(INDEXATION_LABELS) as Indexation[]).map((k) => (
+                <SelectItem key={k} value={k}>
+                  {INDEXATION_LABELS[k]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </label>
+      </Card>
+    </>
   )
 }
