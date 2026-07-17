@@ -168,6 +168,20 @@ export function Levers({
             </SelectContent>
           </Select>
         </label>
+        <Slider
+          label="Croissance de la productivité"
+          value={policy.productivity ?? 0.01}
+          min={0.004}
+          max={0.02}
+          step={0.001}
+          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
+          onChange={(v) => onPolicy({ productivity: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Rythme de hausse des salaires réels. Les pensions étant indexées sur les prix, elles progressent
+          moins vite que les salaires : plus la productivité est forte, plus les dépenses baissent en part de
+          PIB et plus le solde s'améliore. Repère COR : 1,0 %/an (variantes 0,4 à 1,6 %).
+        </p>
       </Card>
 
       {/* Carte 3 — risques macro propres au Pragmatique : finances publiques + fuite des actifs.

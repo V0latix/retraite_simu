@@ -20,6 +20,9 @@ export interface PolicyParams {
   requiredQuarters: number
   contributionRate: number
   indexation: Indexation
+  /** Real productivity growth per year (= real wage growth). Economic hypothesis
+   *  exposed alongside the reform levers; drives wages, GDP and contributions. */
+  productivity?: number
   targetReplacementRate?: number
   /** Real interest rate applied to the cumulated balance (debt costs it, reserves earn it).
    *  Affects ONLY cumulativeDebt — the annual solde stays COR-comparable. Fraction. */

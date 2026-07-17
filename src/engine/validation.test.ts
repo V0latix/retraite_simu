@@ -53,6 +53,12 @@ describe('COR calibration', () => {
     expect(at(higher, 2070).soldePctGdp).toBeGreaterThan(at(base, 2070).soldePctGdp)
   })
 
+  it('higher productivity growth improves the long-run solde', () => {
+    const low = project(buildInitialState(pyr), buildHypotheses(data, { productivity: 0.006 }), 2070, ECON_INIT)
+    const high = project(buildInitialState(pyr), buildHypotheses(data, { productivity: 0.016 }), 2070, ECON_INIT)
+    expect(at(high, 2070).soldePctGdp).toBeGreaterThan(at(low, 2070).soldePctGdp)
+  })
+
   it('COR reference file is well-formed', () => {
     expect(corRef.points.length).toBeGreaterThanOrEqual(5)
     expect(corRef.points.at(-1)!.year).toBe(2070)

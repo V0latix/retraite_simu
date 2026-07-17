@@ -22,6 +22,7 @@ export const DEFAULT_POLICY: PolicyParams = {
   requiredQuarters: params.policy.requiredQuarters,
   contributionRate: params.policy.contributionRate,
   indexation: params.policy.indexation as PolicyParams['indexation'],
+  productivity: params.economy.productivity,
   realInterestRate: 0, // basic scenarios stay clean; the Pragmatique risk overlay sets these
   workerExodus: 0,
 }
@@ -124,7 +125,7 @@ export function buildHypotheses(
     fertility: (y, age) => (age < 15 || age > 50 ? 0 : atYear(data.fertility, years, y, age, beyond)),
     mortality: (y, age, sex: Sex) => atYear(data.mortality[sex], years, y, Math.min(age, OMEGA), beyond),
     migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond) - exodus(age)),
-    productivity: () => params.economy.productivity,
+    productivity: () => merged.productivity ?? params.economy.productivity,
     unemployment: () => data.unemploymentTarget ?? params.economy.unemployment,
     // Activity rate: COR-style hypothesis, ramps down toward the legal age.
     activityRate: (_y, age, legalAge) => {
