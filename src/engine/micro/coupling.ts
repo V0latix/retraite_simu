@@ -11,7 +11,7 @@ const BASE = params.baseYear
 const g = system.economy.productivity // real wage growth (productivity)
 
 /** Period life expectancy at an exact age, unisex average, from the scenario qx. */
-function periodLifeExpectancy(mortality: (year: number, age: number, sex: Sex) => number, age: number, year: number): number {
+export function periodLifeExpectancy(mortality: (year: number, age: number, sex: Sex) => number, age: number, year: number): number {
   let surv = 1
   let e = 0.5 // half-year mid-period correction
   for (let a = age; a < OMEGA; a++) {
