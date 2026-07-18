@@ -18,10 +18,13 @@ Idées priorisées pour le simulateur. Effort : **S** (quelques heures), **M**
   (jamais stockée mais déductible). `CareerCharts.tsx:63` isole déjà
   visuellement la part salarié.
 
-**Ce qui vaut le coup (S) :** surfacer la part employeur explicitement en micro,
-et ajouter les notions **salaire net / brut / super-brut** pour illustrer le
-« coût du travail » vs salaire perçu. Les données sont là, il ne manque que
-l'affichage (un champ `employer = total − employee` + un barème net/brut).
+~~**Ce qui vaut le coup (S) :** surfacer la part employeur explicitement en micro,
+et ajouter les notions salaire net / brut / super-brut pour illustrer le « coût du
+travail » vs salaire perçu.~~ ✅ **Fait.** `CareerCharts.tsx` : tuile « Dont part
+employeur » (`totalContributions − employeeContributions`) + carte « Coût du travail
+vs salaire perçu » (super-brut / brut / net sur le dernier salaire), **au titre de la
+retraite uniquement** — hors santé/chômage/CSG, non modélisés. Aucun changement moteur :
+tout est dérivé des champs `PensionBreakdown` existants.
 
 **Ce qui n'apporte rien tel quel :** splitter employeur/salarié au macro. Ça ne
 devient intéressant (L) qu'avec un **effet comportemental** : hausse des charges
@@ -30,35 +33,19 @@ réserver si on veut un simulateur « incidence économique », pas prioritaire.
 
 ---
 
-## 2. Nouveaux leviers macro (priorité haute)
-
-- ~~**Croissance de la productivité (S, fort impact).**~~ ✅ **Fait.** Curseur
-  dans `Levers.tsx` (carte « Leviers de réforme »), câblé via `PolicyParams.productivity`
-  (`types.ts`) → `buildHypotheses` (`loader.ts:127`). Plage 0,4–2,0 %/an, défaut
-  1,0 % (repère COR). Explication du mécanisme sous le curseur ; test de monotonie
-  dans `validation.test.ts`.
-- **Sous-indexation / gel temporaire des pensions (M).** Étendre `indexation`
-  (`types.ts:17`) avec une variante « prix − x pt » sur N années. Réforme
-  classique du débat public, aujourd'hui non modélisable.
-- **Âge légal indexé sur l'espérance de vie (M).** Remplacer `legalAge`
-  constant par une règle dynamique (âge qui monte avec l'EV). Réforme récurrente
-  des propositions officielles.
-
----
-
-## 3. Nouveaux scénarios
+## 2. Nouveaux scénarios
 
 - **Scénarios COR par productivité (M).** Aujourd'hui on n'a que les variantes
   démographiques INSEE + Pragmatique. Ajouter des scénarios calés sur le cadre
   COR (croissance) alignerait l'outil sur les publications officielles et
-  rendrait le levier §2 immédiatement lisible.
+  rendrait le levier de productivité immédiatement lisible.
 - **Choc conjoncturel ponctuel (S).** Variante « récession / pic de chômage »
   via `unemployment(year)` (déjà une fonction du temps), pour montrer la
   sensibilité de court terme du solde.
 
 ---
 
-## 4. Améliorations app / UX
+## 3. Améliorations app / UX
 
 - **Monter `ComparisonView` dans `App.tsx` (S, valeur gratuite).** Le composant
   de comparaison multi-scénarios est codé et testé mais **non branché** dans la
@@ -70,7 +57,7 @@ réserver si on veut un simulateur « incidence économique », pas prioritaire.
 
 ---
 
-## 5. Dette technique / ménage
+## 4. Dette technique / ménage
 
 - **`targetReplacementRate` (S).** Déclaré dans `PolicyParams` (`types.ts:19`)
   mais **jamais utilisé** par l'engine. Le câbler (piloter les pensions par un
