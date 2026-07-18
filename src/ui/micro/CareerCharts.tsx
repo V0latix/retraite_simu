@@ -26,6 +26,14 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
   const breakEven = b.total > 0 ? b.totalContributions / b.total : 0
   const lifeExp = b.lifeExpectancyAtRetirement // années de retraite espérées (qx du scénario)
   const paybackYears = Math.max(31, Math.ceil(lifeExp) + 2)
+  const employerTotal = b.totalContributions - b.employeeContributions
+  // Dernière année travaillée = référence pour l'illustration brut / net / super-brut,
+  // au titre de la retraite seule (le modèle ne connaît pas les autres cotisations).
+  const last = b.contributionsByYear[b.contributionsByYear.length - 1]
+  const lastEmployer = last.contribution - last.employee
+  const brut = last.salary
+  const netRetraite = brut - last.employee // brut − cotisation retraite salarié
+  const superBrut = brut + lastEmployer // brut + cotisation retraite employeur
   // Cumulative series: total and (running) employee share. Split at the base year —
   // but nothing here is "observed": even the past years use a salary the user typed.
   // Only the PASS and the contribution rates behind them are historical.
@@ -41,7 +49,7 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <UiCard className="gap-0 p-3">
           <div className="text-xs text-muted-foreground">Total cotisé (carrière)</div>
           <div className="text-lg font-semibold tabular-nums">{k(b.totalContributions)}</div>
@@ -53,15 +61,42 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
           <div className="text-xs text-muted-foreground">prélevé sur la fiche de paie</div>
         </UiCard>
         <UiCard className="gap-0 p-3">
+          <div className="text-xs text-muted-foreground">Dont part employeur</div>
+          <div className="text-lg font-semibold tabular-nums">{k(employerTotal)}</div>
+          <div className="text-xs text-muted-foreground">payé par l'entreprise</div>
+        </UiCard>
+        <UiCard className="gap-0 p-3">
           <div className="text-xs text-muted-foreground">Équilibre atteint après</div>
           <div className="text-lg font-semibold tabular-nums">{breakEven.toFixed(0)} ans</div>
           <div className="text-xs text-muted-foreground">de retraite (pension = cotisé)</div>
         </UiCard>
       </div>
 
+      <UiCard className="gap-0 p-4">
+        <h3 className="text-sm font-medium">Coût du travail vs salaire perçu</h3>
+        <p className="mb-3 text-xs leading-snug text-muted-foreground">
+          Sur votre dernier salaire ({last.year}), <strong>au titre de la retraite uniquement</strong> — hors santé,
+          chômage et CSG, non modélisés ici.
+        </p>
+        <div className="grid grid-cols-3 gap-3 text-center">
+          <div>
+            <div className="text-lg font-semibold tabular-nums">{eur(superBrut)}</div>
+            <div className="text-xs text-muted-foreground">super-brut (coût employeur)</div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold tabular-nums">{eur(brut)}</div>
+            <div className="text-xs text-muted-foreground">brut ← saisi</div>
+          </div>
+          <div>
+            <div className="text-lg font-semibold tabular-nums">{eur(netRetraite)}</div>
+            <div className="text-xs text-muted-foreground">net de cotisation retraite</div>
+          </div>
+        </div>
+      </UiCard>
+
       <Card
         title="Cotisations retraite cumulées sur la carrière"
-        desc={`Somme des cotisations retraite (employeur + salarié) versées année après année, en euros constants. La zone claire isole la part payée directement par le salarié. Le trait devient pointillé après ${BASE_YEAR} : au-delà, la carrière est projetée.`}
+        desc={`Somme des cotisations retraite (employeur + salarié) versées année après année, en euros constants. La zone claire isole la part payée directement par le salarié ; l'écart jusqu'au total est la part employeur. Le trait devient pointillé après ${BASE_YEAR} : au-delà, la carrière est projetée.`}
         footer={
           splitsCareer ? (
             <>

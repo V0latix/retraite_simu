@@ -88,7 +88,6 @@ export function CareerForm({ params, onChange, onPreset }: Props) {
           </SelectContent>
         </Select>
       </label>
-      <p className="text-xs text-muted-foreground">Montants en euros constants (réels). Barèmes indicatifs — cf. CLAUDE.md.</p>
     </Card>
   )
 }
