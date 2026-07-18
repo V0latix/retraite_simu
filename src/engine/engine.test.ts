@@ -56,4 +56,25 @@ describe('project', () => {
     expect(exodus[y].soldePctGdp).toBeLessThan(base[y].soldePctGdp)
     expect(exodus[y].contributors).toBeLessThan(base[y].contributors)
   })
+
+  it('sub-indexation erodes pensions during the window and improves the solde', () => {
+    const base = project(state0(), buildHypotheses(data), 2040, ECON_INIT)
+    const under = project(
+      state0(),
+      buildHypotheses(data, { underIndexation: 0.01, underIndexationYears: 10 }),
+      2040,
+      ECON_INIT,
+    )
+    const y = base.length - 1
+    // Same retirees (legalAge unchanged) ⇒ lower benefits means a lower average pension.
+    expect(under[y].benefits).toBeLessThan(base[y].benefits)
+    expect(under[y].soldePctGdp).toBeGreaterThan(base[y].soldePctGdp)
+  })
+
+  it('legal age indexed on life expectancy lowers the number of retirees', () => {
+    const base = project(state0(), buildHypotheses(data, { legalAgeLEShare: 0 }), 2070, ECON_INIT)
+    const indexed = project(state0(), buildHypotheses(data, { legalAgeLEShare: 0.66 }), 2070, ECON_INIT)
+    const y = base.length - 1
+    expect(indexed[y].retirees).toBeLessThan(base[y].retirees)
+  })
 })

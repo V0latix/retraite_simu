@@ -30,6 +30,14 @@ export interface PolicyParams {
   /** Net emigration of young actives (ages 25-40), persons/year, subtracted from the
    *  scenario's migration — today's contributors and tomorrow's parents both leave. */
   workerExodus?: number
+  /** Sub-indexation of pensions: points/year subtracted from the pension revaluation
+   *  (0.01 = pensions grow 1 pt slower than the base rule). ≥ inflation ⇒ real freeze. */
+  underIndexation?: number
+  /** Number of years, from BASE_YEAR, over which `underIndexation` applies. */
+  underIndexationYears?: number
+  /** Share (0-1) of life-expectancy gains since BASE_YEAR converted into extra working
+   *  years: effective legal age = legalAge + share × max(0, ΔLE). 0 ⇒ age stays fixed. */
+  legalAgeLEShare?: number
 }
 
 /**

@@ -2,6 +2,7 @@
 // Signature is identical in deterministic and stochastic mode:
 //   project(state0, hypothesisSet, horizon) => TimeSeries
 import { dependencyDemographic, stepDemography } from './demography'
+import { periodLifeExpectancy } from './micro/coupling'
 import { OMEGA, type HypothesisSet, type PopulationState, type TimeSeries } from './types'
 
 // ponytail: economy + pension-system math lives inline here for Phase 1/2.
@@ -87,7 +88,19 @@ export function project(
 
     // Economy (§4.2) — real wage grows with productivity.
     if (year > baseYear) avgWage *= 1 + h.productivity(year)
-    const contrib = contributors(state, h, year, p.legalAge)
+
+    // Legal age indexed on life expectancy (§2 lever): raise it by a share of the
+    // longevity gains since the base year. ponytail: LE recomputed each year (~45
+    // steps, negligible). Rounded to a whole year — the age bounds index by integer age.
+    let legalAge = p.legalAge
+    if (p.legalAgeLEShare) {
+      const gain =
+        periodLifeExpectancy(h.mortality, p.legalAge, year) -
+        periodLifeExpectancy(h.mortality, p.legalAge, baseYear)
+      legalAge = Math.round(p.legalAge + p.legalAgeLEShare * Math.max(0, gain))
+    }
+
+    const contrib = contributors(state, h, year, legalAge)
     const wageBill = contrib * avgWage
     const contributions = wageBill * p.contributionRate
 
@@ -98,9 +111,16 @@ export function project(
     if (year > baseYear) {
       const g = h.productivity(year)
       const idx = p.indexation === 'wages' ? g : p.indexation === 'mix' ? g / 2 : 0
-      avgPension *= 1 + Math.max(idx, econ.pensionDriftShare * g)
+      let growth = Math.max(idx, econ.pensionDriftShare * g)
+      // Sub-indexation / temporary freeze (§2 lever): pensions grow `underIndexation`
+      // points/year slower during the first `underIndexationYears`. ponytail: the cut
+      // also bites the noria drift (crude blend) — split stock/flux if it ever matters.
+      if (p.underIndexation && year - baseYear <= (p.underIndexationYears ?? 0)) {
+        growth -= p.underIndexation
+      }
+      avgPension *= 1 + growth
     }
-    const nRetirees = retirees(state, p.legalAge)
+    const nRetirees = retirees(state, legalAge)
     let benefits = nRetirees * avgPension
 
     // Total fertility rate = sum of age-specific fertility over childbearing ages.

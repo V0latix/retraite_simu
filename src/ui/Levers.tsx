@@ -137,6 +137,26 @@ export function Levers({
           onChange={(v) => onPolicy({ legalAge: v })}
         />
         <Slider
+          label="Âge légal indexé sur l'espérance de vie"
+          value={policy.legalAgeLEShare ?? 0}
+          min={0}
+          max={1}
+          step={0.05}
+          fmt={(v) => (v === 0 ? 'désactivé' : `${Math.round(v * 100)} %`)}
+          onChange={(v) => onPolicy({ legalAgeLEShare: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Plutôt que de figer l'âge de départ, on le fait <strong>monter avec l'espérance de
+          vie</strong> : chaque année, une fraction des années de vie gagnées depuis 2025 est
+          convertie en années de travail supplémentaires. À <em>0 %</em>, l'âge reste bloqué sur le
+          curseur ci-dessus ; à <em>100 %</em>, tout le gain de longévité est reporté sur l'âge de
+          départ. Plus la part est élevée, plus il y a de cotisants et moins de retraités : le solde
+          s'améliore. C'est une règle récurrente des propositions officielles (COR, rapports de
+          réforme), souvent calée autour de <strong>deux tiers</strong> des gains d'espérance de vie.
+          L'âge de départ effectif augmente donc au fil des années, au-delà de la valeur affichée pour
+          2025.
+        </p>
+        <Slider
           label="Durée requise"
           value={policy.requiredQuarters}
           min={160}
@@ -168,6 +188,35 @@ export function Levers({
             </SelectContent>
           </Select>
         </label>
+        <Slider
+          label="Sous-indexation des pensions"
+          value={policy.underIndexation ?? 0}
+          min={0}
+          max={0.015}
+          step={0.0025}
+          fmt={(v) => (v === 0 ? 'aucune' : `−${(v * 100).toFixed(2).replace('.', ',')} pt/an`)}
+          onChange={(v) => onPolicy({ underIndexation: v })}
+        />
+        <Slider
+          label="Durée de la sous-indexation"
+          value={policy.underIndexationYears ?? 0}
+          min={0}
+          max={10}
+          step={1}
+          fmt={(v) => (v === 0 ? 'aucune' : `${v} ans`)}
+          onChange={(v) => onPolicy({ underIndexationYears: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Par défaut les pensions sont revalorisées selon la <strong>règle d'indexation</strong>
+          ci-dessus (le plus souvent les prix, pour préserver le pouvoir d'achat). Ce levier retranche
+          quelques <strong>points par an</strong> à cette revalorisation pendant un nombre d'années
+          donné : « prix − 1 pt » signifie que les pensions progressent 1 point moins vite que
+          l'inflation. Si la coupe dépasse l'inflation, cela revient à un <strong>gel</strong> voire
+          une baisse en euros constants. L'effet est puissant car il porte sur <em>tout le stock</em>
+          de pensions : sur 10 ans, −1 pt/an érode d'environ 10 % la pension moyenne, ce qui allège
+          d'autant les dépenses en part de PIB et améliore le solde. C'est l'un des tours de vis les
+          plus utilisés dans le débat public, car indolore à court terme mais cumulatif.
+        </p>
         <Slider
           label="Croissance de la productivité"
           value={policy.productivity ?? 0.01}
