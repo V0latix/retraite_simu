@@ -136,6 +136,10 @@ export function Levers({
           fmt={(v) => `${v} ans`}
           onChange={(v) => onPolicy({ legalAge: v })}
         />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Le levier le plus direct : reculer l'âge ajoute des cotisants et retire des retraités.
+          +1&nbsp;an = chaque génération cotise un an de plus avant de basculer en retraite.
+        </p>
         <Slider
           label="Âge légal indexé sur l'espérance de vie"
           value={policy.legalAgeLEShare ?? 0}
@@ -146,15 +150,10 @@ export function Levers({
           onChange={(v) => onPolicy({ legalAgeLEShare: v })}
         />
         <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Plutôt que de figer l'âge de départ, on le fait <strong>monter avec l'espérance de
-          vie</strong> : chaque année, une fraction des années de vie gagnées depuis 2025 est
-          convertie en années de travail supplémentaires. À <em>0 %</em>, l'âge reste bloqué sur le
-          curseur ci-dessus ; à <em>100 %</em>, tout le gain de longévité est reporté sur l'âge de
-          départ. Plus la part est élevée, plus il y a de cotisants et moins de retraités : le solde
-          s'améliore. C'est une règle récurrente des propositions officielles (COR, rapports de
-          réforme), souvent calée autour de <strong>deux tiers</strong> des gains d'espérance de vie.
-          L'âge de départ effectif augmente donc au fil des années, au-delà de la valeur affichée pour
-          2025.
+          Au lieu de figer l'âge, on le fait <strong>monter avec l'espérance de vie</strong>. À
+          <em> 100 %</em>, chaque année de vie gagnée depuis 2025 devient une année de travail ; à
+          <em> 0 %</em>, l'âge reste bloqué sur le curseur ci-dessus. Les réformes officielles (COR)
+          calent souvent ce partage autour des <strong>deux tiers</strong>.
         </p>
         <Slider
           label="Durée requise"
@@ -164,6 +163,10 @@ export function Levers({
           fmt={(v) => `${v} trim.`}
           onChange={(v) => onPolicy({ requiredQuarters: v })}
         />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Trimestres cotisés exigés pour le taux plein (4&nbsp;trim. = 1&nbsp;an). En exiger davantage
+          repousse les départs ou accroît la décote → plus de cotisants, moins de dépenses.
+        </p>
         <Slider
           label="Taux de cotisation"
           value={policy.contributionRate}
@@ -173,6 +176,10 @@ export function Levers({
           fmt={(v) => `${(v * 100).toFixed(1)}%`}
           onChange={(v) => onPolicy({ contributionRate: v })}
         />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Levier de recette le plus direct : <strong>+5&nbsp;pts ≈ +1,4&nbsp;pt de PIB</strong> sur le
+          solde en 2070. En contrepartie, autant de pouvoir d'achat en moins pour les actifs.
+        </p>
         <label className="block">
           <span className="text-sm text-muted-foreground">Règle d'indexation</span>
           <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
@@ -207,15 +214,10 @@ export function Levers({
           onChange={(v) => onPolicy({ underIndexationYears: v })}
         />
         <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Par défaut les pensions sont revalorisées selon la <strong>règle d'indexation</strong>
-          ci-dessus (le plus souvent les prix, pour préserver le pouvoir d'achat). Ce levier retranche
-          quelques <strong>points par an</strong> à cette revalorisation pendant un nombre d'années
-          donné : « prix − 1 pt » signifie que les pensions progressent 1 point moins vite que
-          l'inflation. Si la coupe dépasse l'inflation, cela revient à un <strong>gel</strong> voire
-          une baisse en euros constants. L'effet est puissant car il porte sur <em>tout le stock</em>
-          de pensions : sur 10 ans, −1 pt/an érode d'environ 10 % la pension moyenne, ce qui allège
-          d'autant les dépenses en part de PIB et améliore le solde. C'est l'un des tours de vis les
-          plus utilisés dans le débat public, car indolore à court terme mais cumulatif.
+          Retrancher quelques points/an à la revalorisation des pensions (« prix&nbsp;−&nbsp;1&nbsp;pt »
+          = pensions 1&nbsp;point sous l'inflation). Effet puissant car il porte sur <em>tout le
+          stock</em> : <strong>−1&nbsp;pt/an pendant 10&nbsp;ans ≈ −10 %</strong> sur la pension
+          moyenne, donc autant de dépenses en moins. Indolore à court terme, mais cumulatif.
         </p>
         <Slider
           label="Croissance de la productivité"
@@ -227,9 +229,9 @@ export function Levers({
           onChange={(v) => onPolicy({ productivity: v })}
         />
         <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Rythme de hausse des salaires réels. Les pensions étant indexées sur les prix, elles progressent
-          moins vite que les salaires : plus la productivité est forte, plus les dépenses baissent en part de
-          PIB et plus le solde s'améliore. Repère COR : 1,0 %/an (variantes 0,4 à 1,6 %).
+          Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une
+          productivité plus forte réduit les dépenses en part de PIB et améliore le solde. Repère
+          COR : 1,0 %/an (variantes 0,4 à 1,6 %).
         </p>
       </Card>
 

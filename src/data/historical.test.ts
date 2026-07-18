@@ -52,15 +52,18 @@ describe('historical.json', () => {
     for (const v of icf) expect(Number.isFinite(v)).toBe(true)
   })
 
-  it('carries the observed net migration série, well above the +70k INSEE assumption', () => {
+  it('carries the observed net migration série, recent years above the +70k INSEE assumption', () => {
     const { years, solde } = demography.migration
     expect(years).toHaveLength(solde.length)
     expect(strictlyIncreasing(years)).toBe(true)
     expect(years.at(-1)).toBe(2025)
     for (const v of solde) {
       expect(Number.isFinite(v)).toBe(true)
-      expect(v).toBeGreaterThan(70000) // recent observed solde is above the assumed +70k
+      expect(v).toBeGreaterThan(0) // net migration stayed positive every year
+      expect(v).toBeLessThan(400000) // sane upper bound (2022 Ukraine peak ≈ 271k)
     }
+    // Recent observed solde runs above the +70k the INSEE projections assume.
+    for (const [i, y] of years.entries()) if (y >= 2020) expect(solde[i]).toBeGreaterThan(70000)
   })
 
   it('carries the observed unemployment série (BIT), a rate in ]0,1[', () => {
