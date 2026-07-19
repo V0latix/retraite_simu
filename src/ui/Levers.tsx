@@ -165,7 +165,8 @@ export function Levers({
         />
         <p className="-mt-2 text-xs leading-snug text-muted-foreground">
           Trimestres cotisés exigés pour le taux plein (4&nbsp;trim. = 1&nbsp;an). En exiger davantage
-          repousse les départs ou accroît la décote → plus de cotisants, moins de dépenses.
+          repousse l'âge effectif de départ → plus de cotisants, moins de retraités. (Le modèle ne
+          retient que ce recul des départs, pas le report vers la décote.)
         </p>
         <Slider
           label="Taux de cotisation"

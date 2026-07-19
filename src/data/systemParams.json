@@ -27,6 +27,7 @@
     "soldeShareBase": -0.0048,
     "resources2070Share": 0.1275,
     "pensionDriftShare": 0.22,
+    "quartersAgeShare": 0.5,
     "note": "Anchors the finance block to the COR reference (see corReference.json), convention EEC (« effort de l'État constant ») — le solde économiquement pertinent, retenu par la Cour des comptes et le débat public. Base-year pension mass = 13,9 % PIB, base solde ≈ −0,48 % PIB (soit ≈ −8,7 Md€ en 2025), other resources T(t) taper from base to 12,75 % PIB by 2070. La convention EPR du COR (fonction publique équilibrée par construction) afficherait ≈ 0 aujourd'hui mais converge vers le même −1,4 % en 2070. pensionDriftShare = structural drift of the average pension from new (higher, wage-based) retirees — effet noria — as a share of productivity; keeps dépenses/PIB from collapsing under price indexation. Constant (real) euros."
   },
   "_sources": {
@@ -36,6 +37,7 @@
     "retirees": "≈ 17 M retraités de droit direct (DREES 2023-24)",
     "avgAnnualPension": "≈ 1 540 €/mois brut tous régimes (DREES) → 18 480 €/an",
     "productivity/unemployment": "Aligné COR (productivité ~1,0 %/an ; chômage 7 %)",
+    "quartersAgeShare": "Élasticité comportementale approximative (0-1) : part des trimestres requis en plus, au-delà de la référence (172), convertie en années de travail effectives au macro. 0,5 = la moitié de l'allongement de durée se traduit par un recul de l'âge de sortie (le reste part en décote, non modélisé). Ordre de grandeur, à affiner.",
     "realInterestRate": "Intérêt sur le solde cumulé : 0 pour les scénarios de base (calage COR intact) ; le scénario Pragmatique l'active à 3,3 % (OAT 10 ans nominale) — voir PRAGMATIQUE_RISK dans pragmatique.ts. Réglable dans l'UI (0-4 %).",
     "calibration": "Calage sur COR juin 2025, scénario de référence (dépenses/ressources/solde en % PIB)"
   }

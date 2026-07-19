@@ -38,6 +38,14 @@ describe('project', () => {
     expect(reform[y].retirees).toBeLessThan(base[y].retirees)
   })
 
+  it('raising required quarters pushes back the exit age: more contributors, fewer retirees', () => {
+    const base = project(state0(), buildHypotheses(data, { requiredQuarters: 160 }), 2040, ECON_INIT)
+    const reform = project(state0(), buildHypotheses(data, { requiredQuarters: 188 }), 2040, ECON_INIT)
+    const y = base.length - 1
+    expect(reform[y].retirees).toBeLessThan(base[y].retirees)
+    expect(reform[y].contributors).toBeGreaterThan(base[y].contributors)
+  })
+
   it('interest snowballs the cumulated debt but never touches the annual solde', () => {
     const noRate = project(state0(), buildHypotheses(data, { realInterestRate: 0 }), 2070, ECON_INIT)
     const withRate = project(state0(), buildHypotheses(data, { realInterestRate: 0.02 }), 2070, ECON_INIT)

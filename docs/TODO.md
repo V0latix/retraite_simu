@@ -59,10 +59,14 @@ réserver si on veut un simulateur « incidence économique », pas prioritaire.
 
 ## 4. Dette technique / ménage
 
-- **`targetReplacementRate` (S).** Déclaré dans `PolicyParams` (`types.ts:19`)
-  mais **jamais utilisé** par l'engine. Le câbler (piloter les pensions par un
-  taux de remplacement cible) ou le supprimer — c'est un stub mort.
-- **`requiredQuarters` sans effet macro (M).** Le levier n'agit que sur l'engine
-  micro (`engine.worker.ts:82`), pas sur le solde macro. Décider si la réforme
-  de durée de cotisation doit se répercuter sur le nombre de cotisants/retraités
-  macro (cohérence attendue quand on bouge le curseur).
+- ~~**`targetReplacementRate` (S).** Stub mort déclaré dans `PolicyParams` mais
+  jamais lu.~~ ✅ **Fait.** Supprimé de `types.ts` (aucun usage ailleurs). YAGNI :
+  à recréer si un vrai pilotage des pensions par taux de remplacement cible est voulu.
+- ~~**`requiredQuarters` sans effet macro (M).**~~ ✅ **Fait.** Le levier « Durée
+  requise » agit désormais sur le solde macro via un **décalage d'âge de sortie
+  effectif** : `effectiveAge = legalAge + share × (requiredQuarters − quartersRef)/4`
+  (`project.ts`), appliqué aux mêmes bornes cotisants/retraités que `legalAge`. Réf =
+  172 trim. (`quartersRef`, depuis `systemParams.json`) ⇒ décalage nul au scénario de
+  référence, **calage COR intact**. `quartersAgeShare` (0,5, flaggé approximatif) =
+  élasticité comportementale. **ponytail :** seul le canal âge-de-sortie est modélisé,
+  pas le report vers la décote. Test moteur ajouté (durée ↑ → + cotisants, − retraités).

@@ -21,6 +21,13 @@ export interface EconInit {
   soldeShareBase: number // solde / GDP at the base year (≈ -0.001)
   resources2070Share: number // total resources / GDP target by 2070 (≈ 0.128)
   pensionDriftShare: number // noria drift of avg pension as a share of productivity
+  /** Behavioural elasticity (0-1, approximate) turning extra required quarters into
+   *  effective working years: +4 quarters over `quartersRef` ⇒ +share year of exit age.
+   *  <1 because not everyone works longer — some retire on time with a décote. */
+  quartersAgeShare: number
+  /** Reference required quarters (the base-config value the shift anchors to, so the
+   *  reference scenario is unshifted and the COR calibration stays intact). */
+  quartersRef: number
   /**
    * Optional per-year COR calibration (built in loader.ts from corReference.json).
    * When present, it pins the CENTRAL scenario's dépenses and resources to the COR EEC
@@ -40,6 +47,8 @@ const DEFAULT_ECON: EconInit = {
   soldeShareBase: -0.001,
   resources2070Share: 0.128,
   pensionDriftShare: 0.22,
+  quartersAgeShare: 0.5,
+  quartersRef: 172,
 }
 
 function countByAge(state: PopulationState, lo: number, hi: number): number {
@@ -89,16 +98,25 @@ export function project(
     // Economy (§4.2) — real wage grows with productivity.
     if (year > baseYear) avgWage *= 1 + h.productivity(year)
 
-    // Legal age indexed on life expectancy (§2 lever): raise it by a share of the
-    // longevity gains since the base year. ponytail: LE recomputed each year (~45
-    // steps, negligible). Rounded to a whole year — the age bounds index by integer age.
+    // Effective retirement age = legal age, indexed on life expectancy (§2 lever) and
+    // shifted by the required-duration lever (§4.4). Rounded once at the end — the age
+    // bounds index by integer age.
     let legalAge = p.legalAge
+    // Life-expectancy indexation: raise the age by a share of the longevity gains since
+    // the base year. ponytail: LE recomputed each year (~45 steps, negligible).
     if (p.legalAgeLEShare) {
       const gain =
         periodLifeExpectancy(h.mortality, p.legalAge, year) -
         periodLifeExpectancy(h.mortality, p.legalAge, baseYear)
-      legalAge = Math.round(p.legalAge + p.legalAgeLEShare * Math.max(0, gain))
+      legalAge += p.legalAgeLEShare * Math.max(0, gain)
     }
+    // Required quarters: exiger plus de trimestres que la référence (econ.quartersRef)
+    // repousse l'âge effectif de sortie (4 trim = 1 an), pondéré par une élasticité
+    // comportementale. À la valeur de référence le décalage est nul ⇒ scénario de
+    // référence inchangé (calage COR intact).
+    // ponytail: canal décote (pension moindre) ignoré — seul l'effet âge de sortie modélisé.
+    legalAge += (econ.quartersAgeShare * (p.requiredQuarters - econ.quartersRef)) / 4
+    legalAge = Math.round(legalAge)
 
     const contrib = contributors(state, h, year, legalAge)
     const wageBill = contrib * avgWage

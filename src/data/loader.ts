@@ -33,6 +33,8 @@ const ECON_SEEDS: EconInit = {
   avgAnnualPension: params.init.avgAnnualPension,
   priceInflation: params.economy.priceInflation,
   pensionDriftShare: params.calibration.pensionDriftShare,
+  quartersAgeShare: params.calibration.quartersAgeShare,
+  quartersRef: params.policy.requiredQuarters,
   depensesShareBase: params.calibration.depensesShareBase,
   soldeShareBase: params.calibration.soldeShareBase,
   resources2070Share: params.calibration.resources2070Share,
