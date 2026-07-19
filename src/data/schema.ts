@@ -80,6 +80,9 @@ export interface HistoricalData {
      *  contrasts with the flat 7 % the model assumes. */
     unemployment: { years: number[]; rate: number[] }
   }
+  /** Observed inflation (INSEE IPC, moyenne annuelle), fraction. Display only — the model
+   *  runs in constant euros, so inflation is neutralised by construction and never read. */
+  economy: { inflation: { years: number[]; rate: number[] } }
   /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
   anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }
 }

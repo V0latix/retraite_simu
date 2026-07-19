@@ -176,6 +176,13 @@ export function MacroCharts({
   const e65Now = series[0]?.lifeExpectancyAt65 ?? 0
   const e65End = series.at(-1)?.lifeExpectancyAt65 ?? 0
 
+  // Inflation: observed-only (INSEE IPC). No projected leg — the model runs in constant euros
+  // and never reads inflation, so there is nothing to overlay. Display context only.
+  const inf = historical.economy.inflation
+  const inflation = useMemo(() => inf.years.map((year, i) => ({ year, rate: inf.rate[i] })), [inf])
+  const inflationFrom = inf.years[0]
+  const inflationPeak = Math.max(...inf.rate)
+
   // Dépenses vs ressources (% PIB): both observed (COR, in historical.finance) and projected
   // (series). Already COR-calibrated → no rebase, unlike the headcounts.
   const depRes = useMemo(() => {
@@ -457,6 +464,43 @@ export function MacroCharts({
           <Tooltip formatter={(v) => pct(Number(v))} />
           <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
           <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
+        </LineChart>
+      </Panel>
+      </div>
+
+      <div className="md:col-span-2">
+      <Panel
+        title="Inflation observée (INSEE, IPC)"
+        desc={`Hausse annuelle des prix à la consommation, de ${inflationFrom} à ${LAST_OBSERVED_YEAR}. Longtemps proche de la cible BCE (2 %), quasi nulle en 2015, puis pic à ${pctPlain(inflationPeak)} en 2022. À titre indicatif : le simulateur n'utilise PAS cette série — tous les calculs (pensions, cotisations, PIB) sont en euros constants, donc l'inflation est neutralisée par construction. Une pension « indexée sur les prix » est plate en euros constants.`}
+        footer={
+          <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="6" aria-hidden>
+                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
+              </svg>
+              inflation observée (INSEE, {inflationFrom}–{LAST_OBSERVED_YEAR})
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="6" aria-hidden>
+                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.muted} strokeWidth="2" strokeDasharray="2 3" />
+              </svg>
+              cible BCE (2 %)
+            </span>
+          </p>
+        }
+      >
+        <LineChart data={inflation}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+          <XAxis dataKey="year" stroke="#888" />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={40} stroke="#888" domain={[0, 'auto']} />
+          <ReferenceLine
+            y={0.02}
+            stroke={CHART.muted}
+            strokeDasharray="2 3"
+            label={{ value: 'cible BCE (2 %)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+          />
+          <Tooltip formatter={(v) => pctPlain(Number(v))} labelFormatter={(y) => `Année ${y}`} />
+          <Line type="monotone" dataKey="rate" name="Inflation observée" stroke={CHART.primary} dot={false} strokeWidth={2} isAnimationActive={false} />
         </LineChart>
       </Panel>
       </div>
