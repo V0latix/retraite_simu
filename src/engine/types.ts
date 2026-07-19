@@ -60,6 +60,8 @@ export interface YearResult {
   pyramid: { H: number[]; F: number[] } // headcount by age
   dependencyDemographic: number // 65+ / [20-64]
   dependencySystem: number // retirees / contributors
+  lifeExpectancyAtBirth: number // e0, période, unisexe (qx du scénario)
+  lifeExpectancyAt65: number // e65 = durée de retraite espérée
   tfr: number // indicateur conjoncturel de fécondité (Σ fertility, ages 15-50)
   netMigration: number // solde migratoire (Σ migration, tous âges et sexes)
   unemployment: number // taux de chômage retenu (fraction) — les chômeurs ne cotisent pas

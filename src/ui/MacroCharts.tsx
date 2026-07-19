@@ -165,6 +165,25 @@ export function MacroCharts({
   const unemploymentNow = unemploymentObs.rate.at(-1) ?? 0.074
   const unemploymentAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.unemployment ?? 0.07
 
+  // Life expectancy (e0 / e65) derived from the scenario's qx — projection only, no observed
+  // series in historical.json. Two very different magnitudes → dual Y axis in the panel below.
+  const lifeExp = useMemo(
+    () => series.map((d) => ({ year: d.year, e0: Number(d.lifeExpectancyAtBirth.toFixed(1)), e65: Number(d.lifeExpectancyAt65.toFixed(1)) })),
+    [series],
+  )
+  const e0Now = series[0]?.lifeExpectancyAtBirth ?? 0
+  const e0End = series.at(-1)?.lifeExpectancyAtBirth ?? 0
+  const e65Now = series[0]?.lifeExpectancyAt65 ?? 0
+  const e65End = series.at(-1)?.lifeExpectancyAt65 ?? 0
+
+  // Dépenses vs ressources (% PIB): both observed (COR, in historical.finance) and projected
+  // (series). Already COR-calibrated → no rebase, unlike the headcounts.
+  const depRes = useMemo(() => {
+    const observed = toRows(finance.years, { depensesPctGdp: finance.depensesPctGdp, resourcesPctGdp: finance.resourcesPctGdp })
+    const projected = series.map((d) => ({ year: d.year, depensesPctGdp: d.depensesPctGdp, resourcesPctGdp: d.resourcesPctGdp }))
+    return mergeObservedProjected(observed, projected, ['depensesPctGdp', 'resourcesPctGdp'])
+  }, [finance, series])
+
   return (
     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
       <Panel
@@ -389,6 +408,57 @@ export function MacroCharts({
             <Line type="monotone" dataKey="assumption" name="Hypothèse chômage" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
+      </div>
+
+      <div className="md:col-span-2">
+      <Panel
+        title="Espérance de vie (hypothèse du scénario)"
+        desc={`Elle grimpe : à la naissance de ${ratio1(e0Now)} à ${ratio1(e0End)} ans, et à 65 ans — la durée de retraite espérée — de ${ratio1(e65Now)} à ${ratio1(e65End)} ans d'ici ${series.at(-1)?.year ?? ''}. C'est le moteur du vieillissement : plus on vit longtemps après 65 ans, plus il y a de retraités par cotisant. Sensible au scénario — basculez sur « EV haute » ou « EV basse » pour voir l'écart. Projection seule (dérivée du qx du scénario).`}
+        footer={
+          <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="6" aria-hidden>
+                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.violet} strokeWidth="2" strokeDasharray="5 4" />
+              </svg>
+              à la naissance (axe gauche)
+            </span>
+            <span className="flex items-center gap-1.5">
+              <svg width="20" height="6" aria-hidden>
+                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.blue} strokeWidth="2" strokeDasharray="5 4" />
+              </svg>
+              à 65 ans (axe droit)
+            </span>
+          </p>
+        }
+      >
+        <LineChart data={lifeExp}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+          <XAxis dataKey="year" stroke="#888" />
+          <YAxis yAxisId="e0" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.violet} domain={['auto', 'auto']} />
+          <YAxis yAxisId="e65" orientation="right" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.blue} domain={['auto', 'auto']} />
+          <Tooltip formatter={(v, n) => [`${ratio1(Number(v))} ans`, String(n)]} labelFormatter={(y) => `Année ${y}`} />
+          <Line yAxisId="e0" type="monotone" dataKey="e0" name="À la naissance" stroke={CHART.violet} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
+          <Line yAxisId="e65" type="monotone" dataKey="e65" name="À 65 ans" stroke={CHART.blue} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
+        </LineChart>
+      </Panel>
+      </div>
+
+      <div className="md:col-span-2">
+      <Panel
+        title="Dépenses vs ressources (% PIB)"
+        desc="Les deux courbes phares du COR : pensions versées (dépenses) et cotisations + transferts (ressources), en part de la richesse nationale. L'écart entre les deux, c'est le solde. Les dépenses montent avec le vieillissement ; les ressources restent à peu près stables."
+        footer={<ObservedProjectedLegend />}
+      >
+        <LineChart data={depRes}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+          <XAxis dataKey="year" stroke="#888" />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} stroke="#888" domain={['auto', 'auto']} />
+          {frontier()}
+          <Tooltip formatter={(v) => pct(Number(v))} />
+          <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
+          <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
+        </LineChart>
+      </Panel>
       </div>
     </div>
   )

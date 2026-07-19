@@ -168,6 +168,8 @@ export function project(
       pyramid: { H: Array.from(state.H), F: Array.from(state.F) },
       dependencyDemographic: dependencyDemographic(state),
       dependencySystem: contrib > 0 ? nRetirees / contrib : 0,
+      lifeExpectancyAtBirth: periodLifeExpectancy(h.mortality, 0, year),
+      lifeExpectancyAt65: periodLifeExpectancy(h.mortality, 65, year),
       tfr,
       netMigration,
       unemployment: h.unemployment(year),
