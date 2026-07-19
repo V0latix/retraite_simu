@@ -111,6 +111,21 @@ function atYear(matrix: number[][], years: number[], year: number, age: number, 
   return Math.max(0, lastVal + slope * (year - last) * (1 - k))
 }
 
+/** +3 pts absolute peak of the one-off recession shock (flagged: illustrative, not calibrated). */
+const SHOCK_PEAK = 0.03
+
+/** Base unemployment plus an optional triangular shock: 0 outside [from,to], ramping linearly
+ *  up to +SHOCK_PEAK at `peak`, back to base by `to`. Pure function of the year. */
+function unemploymentFn(base: number, shock?: { from: number; peak: number; to: number }): (year: number) => number {
+  if (!shock) return () => base
+  const { from, peak, to } = shock
+  return (year: number) => {
+    if (year <= from || year >= to) return base
+    const t = year < peak ? (year - from) / (peak - from) : (to - year) / (to - peak)
+    return base + SHOCK_PEAK * t
+  }
+}
+
 /** Central deterministic scenario from real data; reform levers override policy. */
 export function buildHypotheses(
   data: ScenarioData,
@@ -127,8 +142,10 @@ export function buildHypotheses(
     fertility: (y, age) => (age < 15 || age > 50 ? 0 : atYear(data.fertility, years, y, age, beyond)),
     mortality: (y, age, sex: Sex) => atYear(data.mortality[sex], years, y, Math.min(age, OMEGA), beyond),
     migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond) - exodus(age)),
-    productivity: () => merged.productivity ?? params.economy.productivity,
-    unemployment: () => data.unemploymentTarget ?? params.economy.unemployment,
+    // Scenario-intrinsic productivity (COR growth band) wins over the shared policy lever, so
+    // the spread survives ComparisonView's single shared policy; other scenarios keep the lever.
+    productivity: () => data.productivity ?? merged.productivity ?? params.economy.productivity,
+    unemployment: unemploymentFn(merged.unemployment ?? data.unemploymentTarget ?? params.economy.unemployment, data.unemploymentShock),
     // Activity rate: COR-style hypothesis, ramps down toward the legal age.
     activityRate: (_y, age, legalAge) => {
       if (age < 20) return 0.25

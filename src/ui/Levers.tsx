@@ -39,6 +39,12 @@ const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
   'migration-low': 'Solde migratoire bas : +20 000/an. Moins d’apport d’actifs → cotisants plus rares, ratio plus dégradé.',
   pragmatique:
     'Hors scénarios INSEE : fécondité et migration calées sur les tendances réellement observées — fécondité ~1,5 en baisse (vs 1,8) et solde migratoire ~+176 000/an (vs +70 000). Seul scénario à intégrer aussi les risques macro : intérêt sur la dette (boule de neige) et exode des jeunes actifs — réglables ci-dessous.',
+  'cor-productivite-basse':
+    'Démographie centrale, mais gains de productivité de long terme à 0,7 %/an (bas du faisceau COR, vs 1,0 % au central). Salaires réels plus faibles → moins de cotisations → solde plus dégradé. Le curseur de productivité ci-dessous est neutralisé pour ce scénario.',
+  'cor-productivite-haute':
+    'Démographie centrale, mais gains de productivité de long terme à 1,3 %/an (haut du faisceau COR, vs 1,0 % au central). Salaires réels plus élevés → plus de cotisations → solde soutenu. Le curseur de productivité ci-dessous est neutralisé pour ce scénario.',
+  'choc-recession':
+    'Démographie centrale, mais un choc conjoncturel ponctuel : le chômage monte de 7 % à ~10 % entre 2027 et 2028 puis revient à 7 % en 2030. Les chômeurs ne cotisent pas → creux transitoire du solde qui se résorbe après la crise.',
 }
 
 function Slider({
@@ -49,6 +55,7 @@ function Slider({
   step = 1,
   fmt,
   onChange,
+  disabled = false,
 }: {
   label: string
   value: number
@@ -57,16 +64,23 @@ function Slider({
   step?: number
   fmt: (v: number) => string
   onChange: (v: number) => void
+  disabled?: boolean
 }) {
   return (
-    <label className="block">
+    <label className={`block${disabled ? ' opacity-50' : ''}`}>
       <div className="flex justify-between text-sm">
         <span className="text-muted-foreground">{label}</span>
         <span className="font-medium tabular-nums">{fmt(value)}</span>
       </div>
-      <UiSlider className="mt-2" min={min} max={max} step={step} value={[value]} onValueChange={([v]) => onChange(v)} />
+      <UiSlider className="mt-2" min={min} max={max} step={step} value={[value]} disabled={disabled} onValueChange={([v]) => onChange(v)} />
     </label>
   )
+}
+
+/** COR-productivité scenarios pin productivity intrinsically → the lever is inert. */
+const COR_PROD_LOCK: Partial<Record<ScenarioId, number>> = {
+  'cor-productivite-basse': 0.007,
+  'cor-productivite-haute': 0.013,
 }
 
 export function Levers({
@@ -181,6 +195,20 @@ export function Levers({
           Levier de recette le plus direct : <strong>+5&nbsp;pts ≈ +1,4&nbsp;pt de PIB</strong> sur le
           solde en 2070. En contrepartie, autant de pouvoir d'achat en moins pour les actifs.
         </p>
+        <Slider
+          label="Taux de chômage"
+          value={policy.unemployment ?? 0.07}
+          min={0.045}
+          max={0.11}
+          step={0.005}
+          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
+          onChange={(v) => onPolicy({ unemployment: v })}
+        />
+        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+          Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Ce curseur
+          <strong> force l'hypothèse</strong> de chômage, quel que soit le scénario (les projections
+          officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%).
+        </p>
         <label className="block">
           <span className="text-sm text-muted-foreground">Règle d'indexation</span>
           <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
@@ -222,12 +250,13 @@ export function Levers({
         </p>
         <Slider
           label="Croissance de la productivité"
-          value={policy.productivity ?? 0.01}
+          value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
           min={0.004}
           max={0.02}
           step={0.001}
           fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
           onChange={(v) => onPolicy({ productivity: v })}
+          disabled={scenarioId in COR_PROD_LOCK}
         />
         <p className="-mt-2 text-xs leading-snug text-muted-foreground">
           Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une

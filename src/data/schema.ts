@@ -19,6 +19,15 @@ export interface ScenarioData {
    *  scenario JSONs → the engine falls back to systemParams economy.unemployment (7 %).
    *  Set by the derived « Pragmatique » scenario to the observed recent level. */
   unemploymentTarget?: number
+  /** Optional real productivity growth (fraction/year) intrinsic to this scenario. Absent in
+   *  the INSEE JSONs → the engine uses the productivity policy lever. Set by the derived
+   *  « COR productivité » scenarios to a fixed COR growth-band value so the spread shows up
+   *  in ComparisonView (which shares one policy across scenarios). */
+  productivity?: number
+  /** Optional one-off unemployment shock: a triangular bump added to the base rate, rising
+   *  from `from` to `peak`, back to base by `to`. Peak height lives in the loader (flagged).
+   *  Set by the derived « Choc récession » scenario. */
+  unemploymentShock?: { from: number; peak: number; to: number }
 }
 
 export interface InitialPyramid {
@@ -114,6 +123,9 @@ export const SCENARIO_IDS = [
   'migration-high',
   'migration-low',
   'pragmatique',
+  'cor-productivite-basse',
+  'cor-productivite-haute',
+  'choc-recession',
 ] as const
 export type ScenarioId = (typeof SCENARIO_IDS)[number]
 
@@ -126,4 +138,7 @@ export const SCENARIO_LABELS: Record<ScenarioId, string> = {
   'migration-high': 'Migration haute',
   'migration-low': 'Migration basse',
   pragmatique: 'Pragmatique (tendances observées)',
+  'cor-productivite-basse': 'Productivité basse (COR 0,7 %)',
+  'cor-productivite-haute': 'Productivité haute (COR 1,3 %)',
+  'choc-recession': 'Choc récession (chômage +3 pts)',
 }

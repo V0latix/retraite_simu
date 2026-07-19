@@ -64,3 +64,30 @@ export function buildPragmatique(central: ScenarioData): ScenarioData {
     // mortality unchanged
   }
 }
+
+// « Scénarios COR par productivité » — central demography, only the long-run real productivity
+// growth changes, matching the COR June 2025 growth band (0,7 / 1,0 / 1,3 %/an). The central
+// scenario already sits at 1,0 %, so only the low and high ends are added here. See §2 du TODO.
+const COR_PROD_BASSE = 0.007
+const COR_PROD_HAUTE = 0.013
+
+export const buildCorProdBasse = (c: ScenarioData): ScenarioData => ({
+  ...c,
+  meta: { ...c.meta, scenario: 'cor-productivite-basse' },
+  productivity: COR_PROD_BASSE,
+})
+
+export const buildCorProdHaute = (c: ScenarioData): ScenarioData => ({
+  ...c,
+  meta: { ...c.meta, scenario: 'cor-productivite-haute' },
+  productivity: COR_PROD_HAUTE,
+})
+
+// « Choc conjoncturel » — central demography with a one-off unemployment spike: +3 pts (peak
+// height set in the loader) rising from 2027, peaking 2028, back to base by 2030. Shows the
+// short-term sensitivity of the balance (fewer contributors during the recession).
+export const buildChocRecession = (c: ScenarioData): ScenarioData => ({
+  ...c,
+  meta: { ...c.meta, scenario: 'choc-recession' },
+  unemploymentShock: { from: 2027, peak: 2028, to: 2030 },
+})

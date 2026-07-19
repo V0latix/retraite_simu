@@ -37,6 +37,9 @@ export interface PolicyParams {
   /** Share (0-1) of life-expectancy gains since BASE_YEAR converted into extra working
    *  years: effective legal age = legalAge + share × max(0, ΔLE). 0 ⇒ age stays fixed. */
   legalAgeLEShare?: number
+  /** Macro override of the flat unemployment rate (fraction). When set, wins over the
+   *  scenario's unemploymentTarget; absent ⇒ scenario/systemParams default. */
+  unemployment?: number
 }
 
 /**

@@ -1,16 +1,27 @@
-import { useMemo, useState } from 'react'
-import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
+import { useEffect, useMemo, useState } from 'react'
+import { BASE_YEAR, historicalPyramid } from './data/loader'
 import { PRAGMATIQUE_RISK } from './data/pragmatique'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
+import { type View, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
+import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ComparisonView } from './ui/ComparisonView'
 import { Levers } from './ui/Levers'
 import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
+import { StochasticView } from './ui/StochasticView'
 import { MicroView } from './ui/micro/MicroView'
+
+const TAB_LABELS: Record<View, string> = {
+  macro: 'Vue macro',
+  micro: 'Vue micro (ma pension)',
+  comparaison: 'Comparaison scénarios',
+  stochastique: 'Aléatoire',
+}
 
 const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
@@ -24,13 +35,21 @@ const sumAges = (H: number[], F: number[], lo: number, hi: number) => {
   return s
 }
 
+const init = decodeState(new URLSearchParams(window.location.search))
+
 function App() {
-  const [view, setView] = useState<'macro' | 'micro'>('macro')
-  const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
-  const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>('hold')
-  const [policy, setPolicy] = useState<PolicyParams>(DEFAULT_POLICY)
-  const [horizon, setHorizon] = useState(2070)
+  const [view, setView] = useState<View>(init.view)
+  const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
+  const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>(init.beyondPolicy)
+  const [policy, setPolicy] = useState<PolicyParams>(init.policy)
+  const [horizon, setHorizon] = useState(init.horizon)
   const [year, setYear] = useState(BASE_YEAR)
+
+  // Sync the whole app state into the URL (shareable/reproducible), no re-render.
+  useEffect(() => {
+    const qs = encodeState({ view, scenarioId, beyondPolicy, horizon, policy })
+    window.history.replaceState(null, '', `?${qs}`)
+  }, [view, scenarioId, beyondPolicy, horizon, policy])
 
   const { series, computing } = useProjection(scenarioId, policy, horizon, beyondPolicy)
 
@@ -108,19 +127,21 @@ function App() {
             Single scrollable row — the 4 French labels never fit at 375px, so scroll
             rather than wrap. `!` overrides beat the trigger's baked-in active styles. */}
         <TabsList className="!h-auto w-full max-w-full justify-start gap-1.5 overflow-x-auto border-0 bg-transparent p-0">
-          {(['macro', 'micro'] as const).map((v) => (
+          {(['macro', 'micro', 'comparaison', 'stochastique'] as const).map((v) => (
             <TabsTrigger
               key={v}
               value={v}
               className="flex-none shrink-0 border border-border! bg-card px-3 py-1.5 font-medium text-foreground/70 hover:text-foreground data-active:border-primary! data-active:bg-primary! data-active:text-primary-foreground!"
             >
-              {v === 'macro' ? 'Vue macro' : 'Vue micro (ma pension)'}
+              {TAB_LABELS[v]}
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
 
       {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
+      {view === 'comparaison' && <ComparisonView policy={policy} beyondPolicy={beyondPolicy} />}
+      {view === 'stochastique' && <StochasticView policy={policy} beyondPolicy={beyondPolicy} />}
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -144,6 +165,15 @@ function App() {
               <div className="text-xs text-muted-foreground">{bn(last.balance)} · calé COR</div>
             </Card>
           )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => navigator.clipboard?.writeText(window.location.href)}
+          >
+            Copier le lien (scénario + leviers)
+          </Button>
         </aside>
 
         <main className="min-w-0 space-y-6">
@@ -170,7 +200,18 @@ function App() {
           </section>
 
           <section>
-            <h2 className="mb-2 text-lg font-semibold">Trajectoires financières</h2>
+            <div className="mb-2 flex items-center justify-between">
+              <h2 className="text-lg font-semibold">Trajectoires financières</h2>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={series.length === 0}
+                onClick={() => downloadCsv(`retraite-${scenarioId}.csv`, seriesToCsv(series))}
+              >
+                Exporter CSV
+              </Button>
+            </div>
             {series.length > 0 && (
               <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} />
             )}

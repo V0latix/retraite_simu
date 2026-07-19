@@ -35,25 +35,33 @@ réserver si on veut un simulateur « incidence économique », pas prioritaire.
 
 ## 2. Nouveaux scénarios
 
-- **Scénarios COR par productivité (M).** Aujourd'hui on n'a que les variantes
-  démographiques INSEE + Pragmatique. Ajouter des scénarios calés sur le cadre
-  COR (croissance) alignerait l'outil sur les publications officielles et
-  rendrait le levier de productivité immédiatement lisible.
-- **Choc conjoncturel ponctuel (S).** Variante « récession / pic de chômage »
-  via `unemployment(year)` (déjà une fonction du temps), pour montrer la
-  sensibilité de court terme du solde.
+- ~~**Scénarios COR par productivité (M).**~~ ✅ **Fait.** Deux scénarios dérivés du
+  central (pattern `buildPragmatique`, aucun changement moteur) : **Productivité basse
+  (COR 0,7 %)** et **Productivité haute (COR 1,3 %)** — le central est déjà à 1,0 %/an,
+  médiane du faisceau COR. La productivité est **intrinsèque au scénario**
+  (`ScenarioData.productivity`, prime sur le curseur) pour que l'écart survive à la policy
+  partagée de `ComparisonView`. Curseur productivité grisé sur ces scénarios (`Levers.tsx`).
+- ~~**Choc conjoncturel ponctuel (S).**~~ ✅ **Fait.** Scénario **Choc récession** : bosse
+  triangulaire de chômage +3 pts (7 %→~10 % en 2027-2028, retour à 7 % en 2030) via
+  `unemploymentFn` dans `loader.ts` (le moteur `unemployment(year)` était déjà fonction du
+  temps ; seul le loader la figeait). Démographie centrale — seul le canal cotisants joue,
+  creux transitoire du solde qui se résorbe. Champ `ScenarioData.unemploymentShock` (années),
+  pic `SHOCK_PEAK` flaggé. Test moteur ajouté (`econScenarios.test.ts`).
 
 ---
 
 ## 3. Améliorations app / UX
 
-- **Monter `ComparisonView` dans `App.tsx` (S, valeur gratuite).** Le composant
-  de comparaison multi-scénarios est codé et testé mais **non branché** dans la
-  vue macro actuelle (`App.tsx` rend `MacroCharts`, pas `ComparisonView`).
-- **Slider chômage macro (S).** Le chômage n'est réglable que par scénario
-  (`unemploymentTarget`), pas via un curseur dans la vue macro.
-- **Partage d'état par URL + export CSV (M).** Encoder scénario + leviers dans
-  l'URL (partage/reproductibilité) et exporter les séries projetées en CSV.
+- ~~**Monter `ComparisonView` dans `App.tsx` (S, valeur gratuite).**~~ ✅ **Fait.**
+  Onglets « Comparaison scénarios » et « Aléatoire » (`StochasticView`) ajoutés à
+  `App.tsx` à côté de macro/micro.
+- ~~**Slider chômage macro (S).**~~ ✅ **Fait.** Curseur « Taux de chômage »
+  (`Levers.tsx`) branché sur `policy.unemployment`, qui force l'hypothèse quel que
+  soit le scénario (prime sur `unemploymentTarget`).
+- ~~**Partage d'état par URL + export CSV (M).**~~ ✅ **Fait.** `src/lib/share.ts`
+  (natif, zéro dépendance) : `encodeState`/`decodeState` synchronisent scénario +
+  leviers dans l'URL (`history.replaceState`), bouton « Copier le lien » ; `seriesToCsv`
+  + `downloadCsv` exportent les séries projetées. Testé (`share.test.ts`).
 
 ---
 
