@@ -1,6 +1,9 @@
+import { useState } from 'react'
 import type { PensionBreakdown } from '../../engine/micro/types'
 import { CHART } from '../chartColors'
+import { BASE_YEAR } from '../../data/loader'
 import { Card } from '@/components/ui/card'
+import { Slider as UiSlider } from '@/components/ui/slider'
 
 const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`
 const mo = (n: number) => `${Math.round(n / 12).toLocaleString('fr-FR')} €/mois`
@@ -17,14 +20,38 @@ function Stat({ label, value, hint }: { label: string; value: string; hint?: str
 
 export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scenarioLabel: string }) {
   const rgPct = b.total > 0 ? (b.pRG / b.total) * 100 : 0
+  const [infl, setInfl] = useState(2)
+  const n = Math.max(0, b.liquidationYear - BASE_YEAR)
+  const nominal = b.total * (1 + infl / 100) ** n
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Stat label="Pension totale" value={mo(b.total)} hint={`${eur(b.total)}/an`} />
+        <Stat label="Pension totale" value={mo(b.total)} hint={`${eur(b.total)}/an · euros d'aujourd'hui`} />
         <Stat label="Taux de remplacement" value={`${(b.replacementRate * 100).toFixed(0)} %`} hint={`vs ${eur(b.lastSalary)} de dernier salaire`} />
         <Stat label="Départ" value={`${b.retirementAge} ans`} hint={`liquidation ${b.liquidationYear} · ${b.quartersWorked} trim.`} />
         <Stat label="Scénario macro" value={scenarioLabel} hint={`taux ${(b.rate * 100).toFixed(1)} %`} />
       </div>
+
+      <Card className="gap-0 p-4">
+        <div className="grid gap-4 md:grid-cols-2 md:items-center">
+          <div>
+            <div className="text-xs text-muted-foreground">Montant nominal en {b.liquidationYear}</div>
+            <div className="text-2xl font-semibold tabular-nums">{mo(nominal)}</div>
+            <div className="text-xs text-muted-foreground">{eur(nominal)}/an · euros courants de {b.liquidationYear}</div>
+            <p className="mt-2 text-xs leading-snug text-muted-foreground">
+              Le chiffre affiché sur votre futur relevé, à {infl.toFixed(1)} % d'inflation sur {n} an{n > 1 ? 's' : ''}. Sa
+              valeur réelle, en pouvoir d'achat d'aujourd'hui, reste {mo(b.total)}.
+            </p>
+          </div>
+          <label className="block">
+            <div className="flex justify-between text-sm">
+              <span className="text-muted-foreground">Inflation</span>
+              <span className="font-medium tabular-nums">{infl.toFixed(1)} %/an</span>
+            </div>
+            <UiSlider className="mt-2" min={0} max={5} step={0.1} value={[infl]} onValueChange={([v]) => setInfl(v)} />
+          </label>
+        </div>
+      </Card>
 
       <Card className="gap-0 p-4">
         <p className="mb-2 text-xs leading-snug text-muted-foreground">
