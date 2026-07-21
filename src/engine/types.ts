@@ -40,6 +40,10 @@ export interface PolicyParams {
   /** Macro override of the flat unemployment rate (fraction). When set, wins over the
    *  scenario's unemploymentTarget; absent ⇒ scenario/systemParams default. */
   unemployment?: number
+  /** Additional revenue as a share of GDP, added on top of contributions + calibrated
+   *  other-resources (models a CSG hike on pensions / « mise à contribution des retraités »).
+   *  Absent ⇒ 0 ⇒ reference trajectory unchanged. */
+  additionalResourcesPct?: number
 }
 
 /**

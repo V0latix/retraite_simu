@@ -285,6 +285,20 @@ export function Levers({
               moyenne, donc autant de dépenses en moins. Indolore à court terme, mais cumulatif.
             </p>
             <Slider
+              label="Recettes nouvelles (retraités / CSG)"
+              value={policy.additionalResourcesPct ?? 0}
+              min={0}
+              max={0.02}
+              step={0.0025}
+              fmt={(v) => (v === 0 ? 'aucune' : `+${(v * 100).toFixed(2).replace('.', ',')} pt PIB`)}
+              onChange={(v) => onPolicy({ additionalResourcesPct: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Recette supplémentaire en part de PIB — hausse de CSG sur les pensions, contribution des
+              retraités… Ajoutée aux ressources, elle améliore le solde d'autant, sans toucher aux
+              cotisations des actifs.
+            </p>
+            <Slider
               label="Croissance de la productivité"
               value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
               min={0.004}

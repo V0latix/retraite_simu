@@ -79,6 +79,15 @@ describe('project', () => {
     expect(under[y].soldePctGdp).toBeGreaterThan(base[y].soldePctGdp)
   })
 
+  it('additional resources (§3.3) lift the solde by ~the lever, resources unchanged elsewhere', () => {
+    const base = project(state0(), buildHypotheses(data), 2050, ECON_INIT)
+    const csg = project(state0(), buildHypotheses(data, { additionalResourcesPct: 0.01 }), 2050, ECON_INIT)
+    const y = base.length - 1
+    expect(csg[y].soldePctGdp - base[y].soldePctGdp).toBeCloseTo(0.01, 3)
+    expect(csg[y].resourcesPctGdp - base[y].resourcesPctGdp).toBeCloseTo(0.01, 3)
+    expect(csg[y].benefits).toBe(base[y].benefits) // spending untouched
+  })
+
   it('legal age indexed on life expectancy lowers the number of retirees', () => {
     const base = project(state0(), buildHypotheses(data, { legalAgeLEShare: 0 }), 2070, ECON_INIT)
     const indexed = project(state0(), buildHypotheses(data, { legalAgeLEShare: 0.66 }), 2070, ECON_INIT)

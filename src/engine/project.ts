@@ -174,7 +174,9 @@ export function project(
       const tShare = tShareBase - (resourcesShareBase - econ.resources2070Share) * frac
       otherResources = tShare * gdp
     }
-    const resources = contributions + otherResources
+    // « Mise à contribution des retraités » (§3.3): extra revenue in % GDP, additive on top
+    // of the calibration/taper so the reference (0) is untouched. Feeds balance + resourcesPctGdp.
+    const resources = contributions + otherResources + (p.additionalResourcesPct ?? 0) * gdp
     const balance = resources - benefits
     // Cumulated balance snowballs at the real interest rate: debt costs it, reserves earn
     // it (symmetric). Interest affects ONLY this cumul — the annual solde stays untouched,
