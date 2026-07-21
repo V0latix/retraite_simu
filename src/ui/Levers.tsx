@@ -1,3 +1,4 @@
+import { REFORM_PRESETS } from '../data/reforms'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
 import { Card } from '@/components/ui/card'
@@ -9,9 +10,11 @@ interface Props {
   beyondPolicy: BeyondDataPolicy
   policy: PolicyParams
   horizon: number
+  reformKey: string
   onScenario: (id: ScenarioId) => void
   onBeyond: (b: BeyondDataPolicy) => void
   onPolicy: (p: Partial<PolicyParams>) => void
+  onReform: (key: string) => void
   onHorizon: (h: number) => void
 }
 
@@ -88,9 +91,11 @@ export function Levers({
   beyondPolicy,
   policy,
   horizon,
+  reformKey,
   onScenario,
   onBeyond,
   onPolicy,
+  onReform,
   onHorizon,
 }: Props) {
   return (
@@ -144,6 +149,28 @@ export function Levers({
           dans un <details> natif (clavier-accessible, zéro JS) pour désencombrer. */}
       <Card className="gap-4 p-4">
         <h2 className="text-lg font-semibold">Leviers de réforme</h2>
+        <label className="block">
+          <span className="text-sm text-muted-foreground">Réforme clés en main</span>
+          <Select value={reformKey} onValueChange={onReform}>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue placeholder="Choisir une proposition…" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(REFORM_PRESETS).map(([key, r]) => (
+                <SelectItem key={key} value={key}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {reformKey && REFORM_PRESETS[reformKey] && (
+            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{REFORM_PRESETS[reformKey].source}</p>
+          )}
+          <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+            Applique un jeu de leviers en un clic. Ajuster un curseur ci-dessous repart d'une réforme
+            « sur mesure ».
+          </p>
+        </label>
         <Slider
           label="Âge légal de départ"
           value={policy.legalAge}
