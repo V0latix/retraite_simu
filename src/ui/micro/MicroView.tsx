@@ -6,6 +6,7 @@ import type { PolicyParams } from '../../engine/types'
 import { useMicro } from '../../hooks/useEngine'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 import { CareerCharts } from './CareerCharts'
 import { CareerForm } from './CareerForm'
 import { PensionResult } from './PensionResult'
@@ -30,6 +31,17 @@ export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyo
   }
 
   return (
+    <div className="space-y-6">
+    <Card className="gap-1 p-4 text-sm">
+      <h2 className="text-base font-semibold">Votre pension, estimée dans un scénario</h2>
+      <p className="text-muted-foreground">
+        Décrivez une carrière (à gauche) : le simulateur calcule la pension qui en résulterait — régime général (base) +
+        AGIRC-ARRCO (complémentaire) — <strong>à l'intérieur</strong> du scénario macro choisi, qui fixe la démographie et la
+        valeur du point. Quelques repères : le <strong>SAM</strong> est le salaire moyen de vos 25 meilleures années ; le{' '}
+        <strong>PASS</strong> le plafond annuel de la Sécurité sociale ; la <strong>décote</strong> minore la pension quand il
+        manque des <strong>trimestres</strong>. Les termes soulignés en pointillé sont définis au survol.
+      </p>
+    </Card>
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="space-y-4">
         <CareerForm params={career} preset={preset} onChange={setC} onPreset={onPreset} />
@@ -52,7 +64,14 @@ export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyo
 
       <main className="min-w-0 space-y-6">
         {computing && perScenario.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Calcul…</p>
+          <div className="space-y-4" aria-busy="true" aria-label="Calcul en cours">
+            <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <Skeleton key={i} className="h-16" />
+              ))}
+            </div>
+            <Skeleton className="h-60" />
+          </div>
         ) : (
           <>
             {selected && <PensionResult b={selected.breakdown} scenarioLabel={SCENARIO_LABELS[scenarioId]} />}
@@ -61,6 +80,7 @@ export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyo
           </>
         )}
       </main>
+    </div>
     </div>
   )
 }

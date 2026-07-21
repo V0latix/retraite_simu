@@ -14,7 +14,7 @@ function Card({ title, desc, children, footer }: { title: string; desc: string; 
     <UiCard className="gap-0 p-4">
       <h3 className="text-sm font-medium">{title}</h3>
       <p className="mb-2 text-xs leading-snug text-muted-foreground">{desc}</p>
-      <div className="h-60">
+      <div className="h-60" role="img" aria-label={`${title}. ${desc}`}>
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
       {footer}
@@ -111,8 +111,8 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
       >
         <AreaChart data={contribData}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={k} width={56} stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={k} width={56} stroke={CHART.muted} />
           {splitsCareer && frontier(BASE_YEAR, 'carrière projetée →')}
           <Tooltip
             formatter={(v, n) => [eur(Number(v)), String(n).includes('cumulEmployee') ? 'Dont part salariale' : 'Cumul total']}
@@ -136,12 +136,12 @@ export function CareerCharts({ b }: { b: PensionBreakdown }) {
       >
         <LineChart data={payback}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" label={{ value: 'années de retraite', position: 'insideBottom', offset: -2, fontSize: 11, fill: '#888' }} />
-          <YAxis tickFormatter={k} width={56} stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} label={{ value: 'années de retraite', position: 'insideBottom', offset: -2, fontSize: 11, fill: CHART.muted }} />
+          <YAxis tickFormatter={k} width={56} stroke={CHART.muted} />
           <Tooltip formatter={(v) => eur(Number(v))} labelFormatter={(y) => `${y} ans de retraite`} />
           <ReferenceLine y={b.totalContributions} stroke={CHART.danger} strokeDasharray="5 4" label={{ value: 'total cotisé', fontSize: 11, fill: CHART.danger, position: 'insideTopRight' }} />
           <ReferenceLine x={Math.round(breakEven)} stroke={CHART.success} label={{ value: `équilibre ${breakEven.toFixed(0)} ans`, fontSize: 11, fill: CHART.success, position: 'top' }} />
-          <ReferenceLine x={Math.round(lifeExp)} stroke="#888" strokeDasharray="2 3" label={{ value: `espérance de vie ${lifeExp.toFixed(0)} ans`, fontSize: 10, fill: '#888', position: 'insideBottomRight' }} />
+          <ReferenceLine x={Math.round(lifeExp)} stroke={CHART.muted} strokeDasharray="2 3" label={{ value: `espérance de vie ${lifeExp.toFixed(0)} ans`, fontSize: 10, fill: CHART.muted, position: 'insideBottomRight' }} />
           <Line type="monotone" dataKey="cumulPension" name="Pensions cumulées" stroke={CHART.blue} dot={false} strokeWidth={2} isAnimationActive={false} />
         </LineChart>
       </Card>

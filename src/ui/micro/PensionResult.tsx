@@ -4,6 +4,7 @@ import { CHART } from '../chartColors'
 import { BASE_YEAR } from '../../data/loader'
 import { Card } from '@/components/ui/card'
 import { Slider as UiSlider } from '@/components/ui/slider'
+import { Term } from '@/components/ui/tooltip'
 
 const eur = (n: number) => `${Math.round(n).toLocaleString('fr-FR')} €`
 const mo = (n: number) => `${Math.round(n / 12).toLocaleString('fr-FR')} €/mois`
@@ -58,7 +59,9 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
           Votre pension se compose du <span style={{ color: CHART.primary }}>régime général</span> (base, CNAV) et de la{' '}
           <span style={{ color: CHART.pink }}>complémentaire</span> (AGIRC-ARRCO, en points). Le <em>taux de remplacement</em> est
           la part de votre dernier salaire que remplace la pension ; le <em>SAM</em> est le salaire annuel moyen de vos 25
-          meilleures années ; le <em>taux de liquidation</em> (50 % au maximum) est réduit par une décote s'il manque des trimestres.
+          meilleures années ; le <em>taux de liquidation</em> (50 % au maximum) est réduit par une{' '}
+          <Term def="Minoration définitive de la pension quand il manque des trimestres à l'âge de départ choisi.">décote</Term>{' '}
+          s'il manque des trimestres.
         </p>
         <div className="mb-2 flex justify-between text-sm">
           <span style={{ color: CHART.primary }}>Régime général {eur(b.pRG)}</span>
@@ -69,10 +72,19 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
           <div style={{ width: `${100 - rgPct}%`, backgroundColor: CHART.pink }} />
         </div>
         <div className="mt-3 grid grid-cols-2 gap-3 text-sm text-muted-foreground md:grid-cols-4">
-          <div>SAM (25 meilleures) : <span className="font-medium text-foreground">{eur(b.sam)}</span></div>
+          <div>
+            <Term def="Salaire annuel moyen des 25 meilleures années (plafonné au PASS), base du régime général.">SAM</Term>{' '}
+            (25 meilleures) : <span className="font-medium text-foreground">{eur(b.sam)}</span>
+          </div>
           <div>Points AGIRC-ARRCO : <span className="font-medium text-foreground">{Math.round(b.points).toLocaleString('fr-FR')}</span></div>
-          <div>Taux de liquidation : <span className="font-medium text-foreground">{(b.rate * 100).toFixed(1)} %</span></div>
-          <div>Trimestres : <span className="font-medium text-foreground">{b.quartersWorked}</span></div>
+          <div>
+            <Term def="Taux appliqué au SAM (50 % au maximum), réduit par la décote s'il manque des trimestres.">Taux de liquidation</Term>{' '}
+            : <span className="font-medium text-foreground">{(b.rate * 100).toFixed(1)} %</span>
+          </div>
+          <div>
+            <Term def="Unité de durée d'assurance : 4 par an travaillé, il en faut ≈ 172 pour le taux plein.">Trimestres</Term>{' '}
+            : <span className="font-medium text-foreground">{b.quartersWorked}</span>
+          </div>
         </div>
       </Card>
     </div>

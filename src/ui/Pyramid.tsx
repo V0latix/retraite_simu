@@ -30,11 +30,15 @@ export function Pyramid({ H, F, observed, champ }: PyramidData) {
           {observed ? `INSEE, estimations de population — ${champ}` : 'projection du modèle'}
         </span>
       </div>
-      <div className="h-[520px] w-full">
+      <div
+        className="h-[520px] w-full"
+        role="img"
+        aria-label={`Pyramide des âges par sexe — ${observed ? `estimation INSEE (${champ})` : 'projection du modèle'}. Hommes à gauche, femmes à droite, effectifs par âge.`}
+      >
         <ResponsiveContainer>
           <BarChart data={data} layout="vertical" stackOffset="sign" barCategoryGap={0}>
-            <XAxis type="number" tickFormatter={fmt} stroke="#888" />
-            <YAxis type="category" dataKey="age" reversed interval={9} width={32} stroke="#888" />
+            <XAxis type="number" tickFormatter={fmt} stroke={CHART.muted} />
+            <YAxis type="category" dataKey="age" reversed interval={9} width={32} stroke={CHART.muted} />
             <Tooltip
               formatter={(v, name) => [fmt(Number(v)), name === 'H' ? 'Hommes' : 'Femmes']}
               labelFormatter={(a) => `${a} ans`}

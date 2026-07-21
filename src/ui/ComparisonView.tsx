@@ -10,17 +10,19 @@ import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
 import { CHART, SERIES } from './chartColors'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const cor = corRef as CorReference
 
-function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
+function Panel({ title, subtitle, children, footer }: { title: string; subtitle?: string; children: React.ReactNode; footer?: React.ReactNode }) {
   return (
     <Card className="gap-0 p-4">
       <h3 className="text-sm font-medium text-muted-foreground">{title}</h3>
       {subtitle && <p className="mb-2 text-xs text-muted-foreground">{subtitle}</p>}
-      <div className="h-64">
+      <div className="h-64" role="img" aria-label={subtitle ? `${title}. ${subtitle}` : title}>
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
+      {footer}
     </Card>
   )
 }
@@ -63,6 +65,15 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
 
   return (
     <div className="space-y-6">
+      <Card className="gap-1 p-4 text-sm">
+        <h2 className="text-base font-semibold">Comparer les scénarios démographiques</h2>
+        <p className="text-muted-foreground">
+          À politique identique, chaque scénario INSEE change une hypothèse (fécondité, espérance de vie, migration) et fait
+          diverger le solde du système. Le graphe de gauche valide le modèle contre les points du COR ; celui de droite
+          superpose les scénarios que vous sélectionnez ci-dessous (jusqu'à 5).
+        </p>
+      </Card>
+
       <div className="flex flex-wrap gap-2">
         {SCENARIO_IDS.map((id) => (
           <Button
@@ -78,7 +89,10 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
       </div>
 
       {computing && central.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Calcul…</p>
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2" aria-busy="true" aria-label="Calcul en cours">
+          <Skeleton className="h-80" />
+          <Skeleton className="h-80" />
+        </div>
       ) : (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
           <Panel
@@ -87,9 +101,9 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
           >
             <LineChart data={validationWithHistory}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="year" stroke="#888" type="number" domain={['dataMin', 'dataMax']} />
-              <YAxis tickFormatter={(v) => `${v}%`} stroke="#888" width={40} />
-              <ReferenceLine y={0} stroke="#888" />
+              <XAxis dataKey="year" stroke={CHART.muted} type="number" domain={['dataMin', 'dataMax']} />
+              <YAxis tickFormatter={(v) => `${v}%`} stroke={CHART.muted} width={40} />
+              <ReferenceLine y={0} stroke={CHART.muted} />
               {frontier()}
               <Tooltip formatter={(v) => (v == null ? '—' : `${fmtPctRaw(Number(v), 2)} PIB`)} />
               {/* Same hue as the model: one series, two regimes — solid where measured, dashed where projected. */}
@@ -102,12 +116,24 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
           <Panel
             title="Comparaison de scénarios — solde (% PIB)"
             subtitle="Même politique, démographie INSEE différente (§10). Entièrement projeté : les scénarios ne divergent qu'à partir de l'année de base."
+            footer={
+              <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
+                {selected.map((id, i) => (
+                  <span key={id} className="flex items-center gap-1.5">
+                    <svg width="20" height="6" aria-hidden>
+                      <line x1="0" y1="3" x2="20" y2="3" stroke={SERIES[i % SERIES.length]} strokeWidth="2" />
+                    </svg>
+                    {SCENARIO_LABELS[id]}
+                  </span>
+                ))}
+              </p>
+            }
           >
             <LineChart data={comparison}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="year" stroke="#888" />
-              <YAxis tickFormatter={(v) => `${v}%`} stroke="#888" width={40} />
-              <ReferenceLine y={0} stroke="#888" />
+              <XAxis dataKey="year" stroke={CHART.muted} />
+              <YAxis tickFormatter={(v) => `${v}%`} stroke={CHART.muted} width={40} />
+              <ReferenceLine y={0} stroke={CHART.muted} />
               <Tooltip formatter={(v, name) => [fmtPctRaw(Number(v), 2), SCENARIO_LABELS[name as ScenarioId] ?? name]} />
               {selected.map((id, i) => (
                 <Line key={id} type="monotone" dataKey={id} name={id} stroke={SERIES[i % SERIES.length]} strokeWidth={2} dot={false} />

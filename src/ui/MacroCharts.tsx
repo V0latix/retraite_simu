@@ -19,7 +19,7 @@ function Panel({ title, desc, children, footer }: { title: string; desc: string;
     <Card className="gap-0 p-3">
       <h3 className="text-sm font-medium">{title}</h3>
       <p className="mb-2 text-xs leading-snug text-muted-foreground">{desc}</p>
-      <div className="h-56">
+      <div className="h-56" role="img" aria-label={`${title}. ${desc}`}>
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
       </div>
       {footer}
@@ -199,7 +199,7 @@ export function MacroCharts({
         footer={
           <>
             <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
               Convention <b>EEC</b> (« effort de l'État constant ») : le déficit économiquement pertinent, ≈ −8,7 Md€ dès
               2025 — cohérent avec la Cour des comptes. La convention <b>EPR</b> du rapport COR, qui suppose la fonction
               publique équilibrée par l'État, afficherait ≈ 0 aujourd'hui ; les deux convergent vers −1,4 % en 2070. Les
@@ -210,10 +210,10 @@ export function MacroCharts({
       >
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} />
           {/* One decimal: the observed balances live within ±0,5 pt, so integer ticks collide. */}
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(1).replace('.', ',')}%`} width={52} stroke="#888" />
-          <ReferenceLine y={0} stroke="#888" />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(1).replace('.', ',')}%`} width={52} stroke={CHART.muted} />
+          <ReferenceLine y={0} stroke={CHART.muted} />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
           <SplitLines k="soldePctGdp" color={CHART.danger} name="Solde" />
@@ -226,7 +226,7 @@ export function MacroCharts({
         footer={
           <>
             <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
               La projection est recalée sur le dernier point observé : le modèle compte les retraités comme la population de
               64 ans et plus, un peu en dessous du décompte administratif du COR (17,1 M, réversions et départs anticipés
               inclus). On montre donc l'évolution du modèle à partir du niveau réel, pas son niveau absolu.
@@ -236,8 +236,8 @@ export function MacroCharts({
       >
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={ratio1} width={40} stroke="#888" domain={[0, 'auto']} />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={ratio1} width={40} stroke={CHART.muted} domain={[0, 'auto']} />
           {frontier()}
           <Tooltip formatter={(v) => `${ratio1(Number(v))} cotisant(s) / retraité`} />
           <SplitLines k="activePerRetiree" color={CHART.amber} name="Cotisants/retraité" />
@@ -251,8 +251,8 @@ export function MacroCharts({
       >
         <LineChart data={data}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} stroke={CHART.muted} />
           {frontier()}
           <Tooltip formatter={(v) => millions(Number(v))} />
           <SplitLines k="contributors" color={CHART.blue} name="Cotisants" />
@@ -266,7 +266,7 @@ export function MacroCharts({
         footer={
           <>
             <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-neutral-500">
+            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
               La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
               {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
               déficits dépasse ce que le système a mis de côté.
@@ -276,9 +276,9 @@ export function MacroCharts({
       >
         <LineChart data={cumul}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} stroke="#888" />
-          <ReferenceLine y={0} stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} stroke={CHART.muted} />
+          <ReferenceLine y={0} stroke={CHART.muted} />
           <ReferenceLine
             y={-anchors.reservesPctGdp}
             stroke={CHART.violet}
@@ -314,8 +314,8 @@ export function MacroCharts({
         >
           <LineChart data={fertility}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke="#888" />
-            <YAxis tickFormatter={ratio1} width={32} stroke="#888" domain={[1.3, 2.2]} />
+            <XAxis dataKey="year" stroke={CHART.muted} />
+            <YAxis tickFormatter={ratio1} width={32} stroke={CHART.muted} domain={[1.3, 2.2]} />
             <ReferenceLine
               y={2.1}
               stroke={CHART.muted}
@@ -361,8 +361,8 @@ export function MacroCharts({
         >
           <LineChart data={migration}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke="#888" />
-            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke="#888" domain={[(min: number) => Math.min(0, min), 'auto']} />
+            <XAxis dataKey="year" stroke={CHART.muted} />
+            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke={CHART.muted} domain={[(min: number) => Math.min(0, min), 'auto']} />
             <ReferenceLine
               y={70000}
               stroke={CHART.muted}
@@ -401,8 +401,8 @@ export function MacroCharts({
         >
           <LineChart data={unemployment}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke="#888" />
-            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} stroke="#888" domain={[0.04, 0.11]} />
+            <XAxis dataKey="year" stroke={CHART.muted} />
+            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} stroke={CHART.muted} domain={[0.04, 0.11]} />
             <ReferenceLine
               y={0.045}
               stroke={CHART.muted}
@@ -440,7 +440,7 @@ export function MacroCharts({
       >
         <LineChart data={lifeExp}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
+          <XAxis dataKey="year" stroke={CHART.muted} />
           <YAxis yAxisId="e0" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.violet} domain={['auto', 'auto']} />
           <YAxis yAxisId="e65" orientation="right" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.blue} domain={['auto', 'auto']} />
           <Tooltip formatter={(v, n) => [`${ratio1(Number(v))} ans`, String(n)]} labelFormatter={(y) => `Année ${y}`} />
@@ -458,8 +458,8 @@ export function MacroCharts({
       >
         <LineChart data={depRes}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} stroke="#888" domain={['auto', 'auto']} />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} stroke={CHART.muted} domain={['auto', 'auto']} />
           {frontier()}
           <Tooltip formatter={(v) => pct(Number(v))} />
           <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
@@ -491,8 +491,8 @@ export function MacroCharts({
       >
         <LineChart data={inflation}>
           <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke="#888" />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={40} stroke="#888" domain={[0, 'auto']} />
+          <XAxis dataKey="year" stroke={CHART.muted} />
+          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={40} stroke={CHART.muted} domain={[0, 'auto']} />
           <ReferenceLine
             y={0.02}
             stroke={CHART.muted}

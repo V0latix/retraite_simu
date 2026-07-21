@@ -11,7 +11,7 @@ export const CHART = {
   amber: '#b45309', // contributors/retiree ratio
   pink: '#be185d', // complémentaire / women
   blue: '#2563eb', // contributors / secondary blue
-  muted: '#777777', // frontier, grid, axes, unselected bars
+  muted: '#595959', // frontier, grid, axes, unselected bars — WCAG AA (≥4.5:1 on #f7f7f5)
 } as const
 
 // Multi-series overlay palette (scenario comparison), most-distinct first.

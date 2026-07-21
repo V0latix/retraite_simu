@@ -139,7 +139,9 @@ export function Levers({
         </label>
       </Card>
 
-      {/* Carte 2 — les leviers de réforme, qui recalculent le solde à démographie donnée. */}
+      {/* Carte 2 — les leviers de réforme, qui recalculent le solde à démographie donnée.
+          Les deux leviers les plus courants restent visibles ; les six autres se replient
+          dans un <details> natif (clavier-accessible, zéro JS) pour désencombrer. */}
       <Card className="gap-4 p-4">
         <h2 className="text-lg font-semibold">Leviers de réforme</h2>
         <Slider
@@ -155,34 +157,6 @@ export function Levers({
           +1&nbsp;an = chaque génération cotise un an de plus avant de basculer en retraite.
         </p>
         <Slider
-          label="Âge légal indexé sur l'espérance de vie"
-          value={policy.legalAgeLEShare ?? 0}
-          min={0}
-          max={1}
-          step={0.05}
-          fmt={(v) => (v === 0 ? 'désactivé' : `${Math.round(v * 100)} %`)}
-          onChange={(v) => onPolicy({ legalAgeLEShare: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Au lieu de figer l'âge, on le fait <strong>monter avec l'espérance de vie</strong>. À
-          <em> 100 %</em>, chaque année de vie gagnée depuis 2025 devient une année de travail ; à
-          <em> 0 %</em>, l'âge reste bloqué sur le curseur ci-dessus. Les réformes officielles (COR)
-          calent souvent ce partage autour des <strong>deux tiers</strong>.
-        </p>
-        <Slider
-          label="Durée requise"
-          value={policy.requiredQuarters}
-          min={160}
-          max={188}
-          fmt={(v) => `${v} trim.`}
-          onChange={(v) => onPolicy({ requiredQuarters: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Trimestres cotisés exigés pour le taux plein (4&nbsp;trim. = 1&nbsp;an). En exiger davantage
-          repousse l'âge effectif de départ → plus de cotisants, moins de retraités. (Le modèle ne
-          retient que ce recul des départs, pas le report vers la décote.)
-        </p>
-        <Slider
           label="Taux de cotisation"
           value={policy.contributionRate}
           min={0.2}
@@ -195,74 +169,111 @@ export function Levers({
           Levier de recette le plus direct : <strong>+5&nbsp;pts ≈ +1,4&nbsp;pt de PIB</strong> sur le
           solde en 2070. En contrepartie, autant de pouvoir d'achat en moins pour les actifs.
         </p>
-        <Slider
-          label="Taux de chômage"
-          value={policy.unemployment ?? 0.07}
-          min={0.045}
-          max={0.11}
-          step={0.005}
-          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
-          onChange={(v) => onPolicy({ unemployment: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Ce curseur
-          <strong> force l'hypothèse</strong> de chômage, quel que soit le scénario (les projections
-          officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%).
-        </p>
-        <label className="block">
-          <span className="text-sm text-muted-foreground">Règle d'indexation</span>
-          <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
-            <SelectTrigger className="mt-1 w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(INDEXATION_LABELS) as Indexation[]).map((k) => (
-                <SelectItem key={k} value={k}>
-                  {INDEXATION_LABELS[k]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
-        <Slider
-          label="Sous-indexation des pensions"
-          value={policy.underIndexation ?? 0}
-          min={0}
-          max={0.015}
-          step={0.0025}
-          fmt={(v) => (v === 0 ? 'aucune' : `−${(v * 100).toFixed(2).replace('.', ',')} pt/an`)}
-          onChange={(v) => onPolicy({ underIndexation: v })}
-        />
-        <Slider
-          label="Durée de la sous-indexation"
-          value={policy.underIndexationYears ?? 0}
-          min={0}
-          max={10}
-          step={1}
-          fmt={(v) => (v === 0 ? 'aucune' : `${v} ans`)}
-          onChange={(v) => onPolicy({ underIndexationYears: v })}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Retrancher quelques points/an à la revalorisation des pensions (« prix&nbsp;−&nbsp;1&nbsp;pt »
-          = pensions 1&nbsp;point sous l'inflation). Effet puissant car il porte sur <em>tout le
-          stock</em> : <strong>−1&nbsp;pt/an pendant 10&nbsp;ans ≈ −10 %</strong> sur la pension
-          moyenne, donc autant de dépenses en moins. Indolore à court terme, mais cumulatif.
-        </p>
-        <Slider
-          label="Croissance de la productivité"
-          value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
-          min={0.004}
-          max={0.02}
-          step={0.001}
-          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
-          onChange={(v) => onPolicy({ productivity: v })}
-          disabled={scenarioId in COR_PROD_LOCK}
-        />
-        <p className="-mt-2 text-xs leading-snug text-muted-foreground">
-          Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une
-          productivité plus forte réduit les dépenses en part de PIB et améliore le solde. Repère
-          COR : 1,0 %/an (variantes 0,4 à 1,6 %).
-        </p>
+
+        <details className="group">
+          <summary className="flex cursor-pointer list-none items-center gap-1 text-sm font-medium select-none">
+            <span className="inline-block transition-transform group-open:rotate-90">▸</span>
+            Leviers avancés
+          </summary>
+          <div className="mt-4 flex flex-col gap-4">
+            <Slider
+              label="Âge légal indexé sur l'espérance de vie"
+              value={policy.legalAgeLEShare ?? 0}
+              min={0}
+              max={1}
+              step={0.05}
+              fmt={(v) => (v === 0 ? 'désactivé' : `${Math.round(v * 100)} %`)}
+              onChange={(v) => onPolicy({ legalAgeLEShare: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Au lieu de figer l'âge, on le fait <strong>monter avec l'espérance de vie</strong>. À
+              <em> 100 %</em>, chaque année de vie gagnée depuis 2025 devient une année de travail ; à
+              <em> 0 %</em>, l'âge reste bloqué sur le curseur ci-dessus. Les réformes officielles (COR)
+              calent souvent ce partage autour des <strong>deux tiers</strong>.
+            </p>
+            <Slider
+              label="Durée requise"
+              value={policy.requiredQuarters}
+              min={160}
+              max={188}
+              fmt={(v) => `${v} trim.`}
+              onChange={(v) => onPolicy({ requiredQuarters: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Trimestres cotisés exigés pour le taux plein (4&nbsp;trim. = 1&nbsp;an). En exiger davantage
+              repousse l'âge effectif de départ → plus de cotisants, moins de retraités. (Le modèle ne
+              retient que ce recul des départs, pas le report vers la décote.)
+            </p>
+            <Slider
+              label="Taux de chômage"
+              value={policy.unemployment ?? 0.07}
+              min={0.045}
+              max={0.11}
+              step={0.005}
+              fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
+              onChange={(v) => onPolicy({ unemployment: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Ce curseur
+              <strong> force l'hypothèse</strong> de chômage, quel que soit le scénario (les projections
+              officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%).
+            </p>
+            <label className="block">
+              <span className="text-sm text-muted-foreground">Règle d'indexation</span>
+              <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
+                <SelectTrigger className="mt-1 w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(Object.keys(INDEXATION_LABELS) as Indexation[]).map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {INDEXATION_LABELS[k]}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </label>
+            <Slider
+              label="Sous-indexation des pensions"
+              value={policy.underIndexation ?? 0}
+              min={0}
+              max={0.015}
+              step={0.0025}
+              fmt={(v) => (v === 0 ? 'aucune' : `−${(v * 100).toFixed(2).replace('.', ',')} pt/an`)}
+              onChange={(v) => onPolicy({ underIndexation: v })}
+            />
+            <Slider
+              label="Durée de la sous-indexation"
+              value={policy.underIndexationYears ?? 0}
+              min={0}
+              max={10}
+              step={1}
+              fmt={(v) => (v === 0 ? 'aucune' : `${v} ans`)}
+              onChange={(v) => onPolicy({ underIndexationYears: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Retrancher quelques points/an à la revalorisation des pensions (« prix&nbsp;−&nbsp;1&nbsp;pt »
+              = pensions 1&nbsp;point sous l'inflation). Effet puissant car il porte sur <em>tout le
+              stock</em> : <strong>−1&nbsp;pt/an pendant 10&nbsp;ans ≈ −10 %</strong> sur la pension
+              moyenne, donc autant de dépenses en moins. Indolore à court terme, mais cumulatif.
+            </p>
+            <Slider
+              label="Croissance de la productivité"
+              value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
+              min={0.004}
+              max={0.02}
+              step={0.001}
+              fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
+              onChange={(v) => onPolicy({ productivity: v })}
+              disabled={scenarioId in COR_PROD_LOCK}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une
+              productivité plus forte réduit les dépenses en part de PIB et améliore le solde. Repère
+              COR : 1,0 %/an (variantes 0,4 à 1,6 %).
+            </p>
+          </div>
+        </details>
       </Card>
 
       {/* Carte 3 — risques macro propres au Pragmatique : finances publiques + fuite des actifs.

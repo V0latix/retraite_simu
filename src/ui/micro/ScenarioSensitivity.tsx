@@ -26,12 +26,16 @@ export function ScenarioSensitivity({ rows, selected }: { rows: Row[]; selected:
       <p className="mb-3 text-xs text-muted-foreground">
         Une démographie plus dégradée pèse sur la valeur du point → complémentaire plus faible (§5.4).
       </p>
-      <div className="h-64">
+      <div
+        className="h-64"
+        role="img"
+        aria-label="Pension annuelle pour une même carrière, une barre par scénario macro — sensibilité de la complémentaire à la démographie."
+      >
         <ResponsiveContainer>
           <BarChart data={data} margin={{ bottom: 40 }}>
             <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="label" stroke="#888" angle={-30} textAnchor="end" interval={0} fontSize={11} height={60} />
-            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} stroke="#888" width={40} />
+            <XAxis dataKey="label" stroke={CHART.muted} angle={-30} textAnchor="end" interval={0} fontSize={11} height={60} />
+            <YAxis tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} stroke={CHART.muted} width={40} />
             <Tooltip
               formatter={(v, name) => (name === 'total' ? [`${Number(v).toLocaleString('fr-FR')} €/an`, 'Pension'] : [v, name])}
             />

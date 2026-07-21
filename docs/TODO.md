@@ -10,27 +10,7 @@ Idées priorisées pour le simulateur. Effort : **S** (quelques heures), **M**
 - **Feedback « Copié ! » (S).** `App.tsx` `navigator.clipboard?.writeText` sans retour visuel.
   Basculer le label du bouton ~2 s.
 
-## 2. UX/UI — lisibilité pour un non-initié
-
-- **Contraste texte sous WCAG AA (S/M, accessibilité — ne pas zapper).** `--muted-foreground: #777`
-  (`index.css:23`) et les axes/labels charts en `#888` tombent à ~3–4:1 sur fond clair, sous le
-  4.5:1 requis, et c'est massivement utilisé pour le petit texte explicatif. Assombrir muted +
-  strokes d'axe.
-- **Alternative textuelle des graphiques (M, a11y).** Les SVG Recharts n'ont ni `role`/`aria-label`
-  ni table de repli — un lecteur d'écran ne récupère rien. Ajouter au minimum un `aria-label`
-  résumant chaque graphe.
-- **Onboarding des vues micro/comparaison/aléatoire (S).** Seule la vue macro a une carte d'intro
-  (« Qu'est-ce que le COR ? »). Ajouter une carte d'accroche + un mini-glossaire (SAM, PASS, décote,
-  trimestre) en tooltip sur les champs de `CareerForm`.
-- **Légendes in-chart manquantes (S).** `ComparisonView` colore les courbes par scénario sans
-  légende couleur→nom (mapping seulement au survol) ; `StochasticView` distingue les bandes
-  p5-p95/p25-p75 par opacité sans légende de percentiles.
-- **Validation des champs carrière (S).** `CareerForm.tsx:40` `Number('')` → `0` silencieux ;
-  min/max HTML ne bornent pas la saisie. Clamp + message hors bornes.
-- **Progressive disclosure (M).** `Levers.tsx` (~10 sliders + paragraphes) et les panneaux macro
-  pleine largeur en `text-[11px]` = surcharge. Replier les leviers avancés / panneaux secondaires
-  en accordéons.
-- **Skeletons au lieu de « Calcul… » nu (S).**
+## 2. UX/UI — lisibilité pour un non-initié ✅ (voir « Fait »)
 
 **Ce qui n'apporte rien tel quel :** mode sombre. `index.css` est un thème « brutaliste clair »
 assumé (radius 0, bords noirs, light-only) ; les classes `dark:` des primitives shadcn sont déjà du
@@ -123,6 +103,24 @@ soi, à réserver si on veut un simulateur « incidence économique ».
 
 # Fait
 
+- **§2 UX/UI — lisibilité pour un non-initié (M).** Sept chantiers :
+  - *Contraste WCAG AA.* Consolidation d'un gris foncé conforme : `--muted-foreground` et
+    `CHART.muted` #777→**#595959** (~6,8:1) ; tous les `#888` codés en dur (axes/labels) remplacés
+    par `CHART.muted` (6 charts) ; `text-neutral-500` → `text-muted-foreground`.
+  - *Alt-text des graphes.* `role="img"` + `aria-label` (titre + description) sur chaque conteneur
+    de chart (wrappers `Panel`/`ChartBox` + `Pyramid`/`StochasticView`/`ScenarioSensitivity`).
+  - *Onboarding + glossaire.* Carte d'intro en tête de `MicroView`/`ComparisonView`/`StochasticView` ;
+    nouveau primitive `components/ui/tooltip.tsx` (Radix) + helper `Term` — tooltips clavier sur
+    SAM/décote/taux de liquidation/trimestres dans `PensionResult`.
+  - *Légendes in-chart.* Légende couleur→scénario sous la comparaison (`ComparisonView`) ; légende
+    de percentiles p25–p75 / p5–p95 (`StochasticView`).
+  - *Validation carrière.* `CareerForm` `Field` : état de saisie brut, clamp + commit au blur,
+    message hors bornes (`text-destructive`), fini le `Number('')`→0 silencieux. Util `lib/clamp.ts`
+    + test.
+  - *Progressive disclosure.* Leviers avancés de `Levers` repliés dans un `<details>` natif
+    (2 leviers courants visibles).
+  - *Skeletons.* `components/ui/skeleton.tsx` remplace les « Calcul… » nus (micro/comparaison/
+    aléatoire) ; casse uniformisée.
 - **Charges patronales — part employeur en micro (S).** `CareerCharts.tsx` : tuile « Dont part
   employeur » (`totalContributions − employeeContributions`) + carte « Coût du travail vs salaire
   perçu » (super-brut / brut / net), au titre de la retraite uniquement. Aucun changement moteur.

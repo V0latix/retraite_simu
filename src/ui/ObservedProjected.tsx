@@ -11,7 +11,7 @@ export function ObservedProjectedLegend({
   until?: number
 }) {
   return (
-    <p className="mt-1 flex items-center gap-3 text-[11px] text-neutral-500">
+    <p className="mt-1 flex items-center gap-3 text-[11px] text-muted-foreground">
       <span className="flex items-center gap-1.5">
         <svg width="20" height="6" aria-hidden>
           <line x1="0" y1="3" x2="20" y2="3" stroke="currentColor" strokeWidth="2" />

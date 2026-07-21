@@ -12,6 +12,7 @@ import { CHART } from './chartColors'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Skeleton } from '@/components/ui/skeleton'
 
 const METRICS: { id: FanMetric; label: string; fmt: (v: number) => string }[] = [
   { id: 'solde', label: 'Solde (% PIB)', fmt: (v) => fmtPct(v, 2) },
@@ -66,6 +67,16 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
 
   return (
     <div className="space-y-4">
+      <Card className="gap-1 p-4 text-sm">
+        <h2 className="text-base font-semibold">Projection aléatoire (Monte-Carlo)</h2>
+        <p className="text-muted-foreground">
+          Plutôt qu'un seul avenir, on en tire des centaines : la mortalité varie selon un modèle Lee-Carter calé sur
+          l'INSEE, la fécondité et la migration selon des volatilités plausibles. Les <strong>bandes</strong> montrent où
+          atterrissent 50 % (p25–p75, foncé) et 90 % (p5–p95, clair) des tirages ; la ligne pointillée est la médiane.
+          Plus la bande est large, plus l'incertitude est grande.
+        </p>
+      </Card>
+
       <div className="flex flex-wrap items-center gap-4">
         <div className="flex flex-wrap gap-1">
           {METRICS.map((x) => (
@@ -95,7 +106,7 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
             </SelectContent>
           </Select>
         </label>
-        {computing && <span className="text-sm text-muted-foreground">calcul…</span>}
+        {computing && <span className="text-sm text-muted-foreground">Calcul…</span>}
       </div>
 
       <Card className="gap-0 p-4">
@@ -106,13 +117,20 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
           Trait plein : la série réellement observée. Au-delà, bandes p5–p95 et p25–p75, médiane p50 (pointillés) ·{' '}
           {draws} tirages. La médiane suit le central calé ; les volatilités fécondité/migration sont des hypothèses (§6.3).
         </p>
-        <div className="h-80">
+        {data.length === 0 ? (
+          <Skeleton className="h-80" aria-label="Calcul en cours" />
+        ) : (
+        <div
+          className="h-80"
+          role="img"
+          aria-label={`${m.label}, faisceau stochastique — médiane projetée et intervalles p5–p95 / p25–p75 sur ${draws} tirages${last?.p50 != null ? `. En ${last.year}, médiane ${m.fmt(last.p50)}` : ''}`}
+        >
           <ResponsiveContainer>
             <ComposedChart data={data}>
               <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-              <XAxis dataKey="year" stroke="#888" type="number" domain={['dataMin', 'dataMax']} />
-              <YAxis tickFormatter={(v) => m.fmt(v).replace(/\s/g, '')} width={56} stroke="#888" />
-              {metric === 'solde' && <ReferenceLine y={0} stroke="#888" />}
+              <XAxis dataKey="year" stroke={CHART.muted} type="number" domain={['dataMin', 'dataMax']} />
+              <YAxis tickFormatter={(v) => m.fmt(v).replace(/\s/g, '')} width={56} stroke={CHART.muted} />
+              {metric === 'solde' && <ReferenceLine y={0} stroke={CHART.muted} />}
               {observedCount > 0 && frontier(data[observedCount - 1].year)}
               <Tooltip formatter={(v) => (Array.isArray(v) ? `${m.fmt(v[0])} … ${m.fmt(v[1])}` : m.fmt(Number(v)))} labelFormatter={(y) => `${y}`} />
               <Area dataKey="outer" stroke="none" fill={CHART.primary} fillOpacity={0.15} connectNulls={false} isAnimationActive={false} />
@@ -122,7 +140,22 @@ export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams;
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        )}
         {observedCount > 0 && <ObservedProjectedLegend projectedLabel="médiane projetée" until={data[observedCount - 1].year} />}
+        <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
+          <span className="flex items-center gap-1.5">
+            <svg width="16" height="10" aria-hidden>
+              <rect width="16" height="10" fill={CHART.primary} fillOpacity={0.3} />
+            </svg>
+            50 % central (p25–p75)
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg width="16" height="10" aria-hidden>
+              <rect width="16" height="10" fill={CHART.primary} fillOpacity={0.15} />
+            </svg>
+            90 % (p5–p95)
+          </span>
+        </p>
         {last?.outer != null && last.p50 != null && (
           <div className="mt-2 text-sm text-muted-foreground">
             En {last.year} : médiane <span className="font-semibold text-foreground">{m.fmt(last.p50)}</span>{' '}

@@ -185,7 +185,7 @@ function App() {
             <div className="mb-2 flex items-center justify-between">
               <h2 className="text-lg font-semibold">Pyramide des âges — {year}</h2>
               <span className="text-sm text-muted-foreground">
-                {computing ? 'calcul…' : `dép. démographique ${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'}%`}
+                {computing ? 'Calcul…' : `dép. démographique ${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'}%`}
               </span>
             </div>
             <Slider

@@ -1,5 +1,7 @@
+import { useState } from 'react'
 import { PRESETS } from '../../engine/micro/career'
 import type { CareerParams, Status } from '../../engine/micro/types'
+import { clamp } from '../../lib/clamp'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -28,6 +30,19 @@ function Field({
   suffix?: string
   onChange: (v: number) => void
 }) {
+  // While editing, keep the raw string so the field can be emptied/typed freely;
+  // `null` means "show the controlled value". Clamp + commit on blur, never a silent 0.
+  const [raw, setRaw] = useState<string | null>(null)
+  const display = raw ?? String(value)
+  const parsed = Number(display)
+  const outOfBounds = display !== '' && !Number.isNaN(parsed) && (parsed < min || parsed > max)
+
+  const commit = () => {
+    const clamped = display === '' || Number.isNaN(parsed) ? value : clamp(parsed, min, max)
+    onChange(clamped)
+    setRaw(null)
+  }
+
   return (
     <label className="block">
       <span className="text-sm text-muted-foreground">{label}</span>
@@ -37,12 +52,20 @@ function Field({
           min={min}
           max={max}
           step={step}
-          value={value}
-          onChange={(e) => onChange(Number(e.target.value))}
+          value={display}
+          onChange={(e) => setRaw(e.target.value)}
+          onBlur={commit}
+          onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+          aria-invalid={outOfBounds}
           className="tabular-nums"
         />
         {suffix && <span className="text-sm text-muted-foreground">{suffix}</span>}
       </div>
+      {outOfBounds && (
+        <span className="mt-0.5 block text-xs text-destructive">
+          entre {min} et {max}
+        </span>
+      )}
     </label>
   )
 }
