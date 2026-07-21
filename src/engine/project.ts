@@ -51,24 +51,33 @@ const DEFAULT_ECON: EconInit = {
   quartersRef: 172,
 }
 
+// ponytail: carrières longues départ age fixed at 60 (RN « 60 ans si commencé avant 20 »).
+// Move to systemParams if a second early-exit age is ever needed.
+const EARLY_RETIREMENT_AGE = 60
+
 function countByAge(state: PopulationState, lo: number, hi: number): number {
   let sum = 0
   for (let a = lo; a <= hi; a++) sum += state.H[a] + state.F[a]
   return sum
 }
 
-/** Retirees = everyone at/above the effective retirement age (≈ legal age in v1). */
-function retirees(state: PopulationState, retireAge: number): number {
-  return countByAge(state, Math.min(retireAge, OMEGA), OMEGA)
+/** Retirees = everyone at/above the effective retirement age (≈ legal age in v1), plus an
+ *  optional share of the [60, legalAge) band leaving early (carrières longues, §3.2). */
+function retirees(state: PopulationState, retireAge: number, earlyShare = 0): number {
+  const full = countByAge(state, Math.min(retireAge, OMEGA), OMEGA)
+  if (earlyShare <= 0 || EARLY_RETIREMENT_AGE >= retireAge) return full
+  return full + earlyShare * countByAge(state, EARLY_RETIREMENT_AGE, retireAge - 1)
 }
 
-/** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..legalAge. */
-function contributors(state: PopulationState, h: HypothesisSet, year: number, legalAge: number): number {
+/** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..legalAge. A share of the
+ *  [60, legalAge) band retires early (carrières longues) and stops contributing. */
+function contributors(state: PopulationState, h: HypothesisSet, year: number, legalAge: number, earlyShare = 0): number {
   const u = h.unemployment(year)
   let active = 0
   for (let a = 15; a < legalAge && a <= OMEGA; a++) {
     const pop = state.H[a] + state.F[a]
-    active += pop * h.activityRate(year, a, legalAge)
+    const early = earlyShare > 0 && a >= EARLY_RETIREMENT_AGE ? 1 - earlyShare : 1
+    active += pop * h.activityRate(year, a, legalAge) * early
   }
   return active * (1 - u)
 }
@@ -118,7 +127,8 @@ export function project(
     legalAge += (econ.quartersAgeShare * (p.requiredQuarters - econ.quartersRef)) / 4
     legalAge = Math.round(legalAge)
 
-    const contrib = contributors(state, h, year, legalAge)
+    const earlyShare = p.earlyRetirementShare ?? 0
+    const contrib = contributors(state, h, year, legalAge, earlyShare)
     const wageBill = contrib * avgWage
     const contributions = wageBill * p.contributionRate
 
@@ -138,7 +148,7 @@ export function project(
       }
       avgPension *= 1 + growth
     }
-    const nRetirees = retirees(state, legalAge)
+    const nRetirees = retirees(state, legalAge, earlyShare)
     let benefits = nRetirees * avgPension
 
     // Total fertility rate = sum of age-specific fertility over childbearing ages.

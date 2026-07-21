@@ -77,6 +77,12 @@ describe('régime général', () => {
     expect(short.micoApplied).toBe(false)
     expect(short.pRG).toBeLessThan(8970)
   })
+
+  it('carrières longues (§3.2) keep the taux plein despite missing quarters', () => {
+    const c = career(2003, 40, 25000) // 160 < 172 quarters → décote normally
+    expect(computeRG(c, flatCtx, 2043).rate).toBeLessThan(0.5)
+    expect(computeRG({ ...c, longCareer: true }, flatCtx, 2043).rate).toBeCloseTo(0.5, 5)
+  })
 })
 
 describe('macro → micro coupling (§5.4)', () => {

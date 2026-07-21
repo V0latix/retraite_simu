@@ -79,6 +79,15 @@ describe('project', () => {
     expect(under[y].soldePctGdp).toBeGreaterThan(base[y].soldePctGdp)
   })
 
+  it('early retirement share (§3.2) adds retirees, removes contributors, degrades the solde', () => {
+    const base = project(state0(), buildHypotheses(data, { earlyRetirementShare: 0 }), 2040, ECON_INIT)
+    const early = project(state0(), buildHypotheses(data, { earlyRetirementShare: 0.2 }), 2040, ECON_INIT)
+    const y = base.length - 1
+    expect(early[y].retirees).toBeGreaterThan(base[y].retirees)
+    expect(early[y].contributors).toBeLessThan(base[y].contributors)
+    expect(early[y].soldePctGdp).toBeLessThan(base[y].soldePctGdp)
+  })
+
   it('FRR endowment (§3.4) cuts the cumulated debt but never touches the annual solde', () => {
     const base = project(state0(), buildHypotheses(data, { frrFlowPct: 0 }), 2070, ECON_INIT)
     const frr = project(state0(), buildHypotheses(data, { frrFlowPct: 0.005 }), 2070, ECON_INIT)

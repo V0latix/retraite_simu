@@ -48,6 +48,9 @@ export interface PolicyParams {
    *  Positive ⇒ builds reserves ⇒ improves the cumulated position. Like realInterestRate it
    *  touches ONLY the cumul, never the annual (COR-comparable) solde. Absent ⇒ 0. */
   frrFlowPct?: number
+  /** Share (0-1) of the [60, legalAge) band retiring early (carrières longues, §3.2): they
+   *  move from contributors to retirees. Absent ⇒ 0 ⇒ uniform exit age (reference unchanged). */
+  earlyRetirementShare?: number
 }
 
 /**

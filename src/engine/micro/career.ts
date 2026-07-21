@@ -13,6 +13,7 @@ export function synthesizeCareer(p: CareerParams): Career {
     startYear: p.startYear,
     status: p.status,
     salaryByYear,
+    longCareer: p.longCareer,
   }
 }
 
@@ -44,5 +45,15 @@ export const PRESETS: Record<string, CareerParams> = {
     status: 'cadre',
     partTimeFactor: 1,
     retirementAge: 64,
+  },
+  'carriere-longue': {
+    birthYear: 1985,
+    startYear: 2003, // début à ~18 ans
+    startSalary: 21000,
+    annualGrowth: 0.01,
+    status: 'non-cadre',
+    partTimeFactor: 1,
+    retirementAge: 60, // départ anticipé carrières longues, taux plein maintenu
+    longCareer: true,
   },
 }

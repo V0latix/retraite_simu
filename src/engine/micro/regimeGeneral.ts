@@ -28,9 +28,11 @@ export function computeRG(career: Career, ctx: MicroContext, liquidationYear: nu
   const best = revalued.sort((a, b) => b - a).slice(0, rg.samWindow)
   const sam = best.length ? best.reduce((s, v) => s + v, 0) / best.length : 0
 
-  // Rate: décote for missing quarters, surcote for excess (spec §5.2).
+  // Rate: décote for missing quarters, surcote for excess (spec §5.2). Carrières longues
+  // (§3.2) keep the taux plein at the early age despite missing quarters (longCareer flag).
   const quarters = quartersWorked(career)
-  const missing = Math.max(0, ctx.requiredQuarters - quarters)
+  const rawMissing = Math.max(0, ctx.requiredQuarters - quarters)
+  const missing = career.longCareer ? 0 : rawMissing
   const excess = Math.max(0, quarters - ctx.requiredQuarters)
   let rate = rg.fullRate
   if (missing > 0) rate = rg.fullRate * (1 - rg.decotePerQuarter * Math.min(missing, rg.maxDecoteQuarters))

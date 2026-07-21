@@ -9,6 +9,10 @@ export interface Career {
   status: Status
   /** salaryByYear[i] = gross salary in year (startYear + i). */
   salaryByYear: number[]
+  /** Carrières longues (§3.2): started young → taux plein at the early age despite missing
+   *  quarters. ponytail: waives the décote only; the full eligibility (durée cotisée) is not
+   *  checked, the preset encodes it. */
+  longCareer?: boolean
 }
 
 /** Parametric inputs the UI collects; synthesizeCareer() turns them into a Career. */
@@ -20,6 +24,7 @@ export interface CareerParams {
   status: Status
   partTimeFactor: number // 1 = full time, 0.8 = 80% etc.
   retirementAge: number // desired age at liquidation
+  longCareer?: boolean // carrières longues départ anticipé (§3.2)
 }
 
 /**

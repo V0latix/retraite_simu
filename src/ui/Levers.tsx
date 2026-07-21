@@ -313,6 +313,19 @@ export function Levers({
               les déficits épuisent le fonds. Le solde annuel, comparable au COR, n'est pas modifié.
             </p>
             <Slider
+              label="Départs anticipés (carrières longues)"
+              value={policy.earlyRetirementShare ?? 0}
+              min={0}
+              max={0.3}
+              step={0.05}
+              fmt={(v) => (v === 0 ? 'aucun' : `${Math.round(v * 100)} %`)}
+              onChange={(v) => onPolicy({ earlyRetirementShare: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Part des 60-âge légal partant plus tôt (carrières longues, pénibilité) : ils basculent de
+              cotisants à retraités avant l'âge légal. Effet inverse d'un recul d'âge — dégrade le solde.
+            </p>
+            <Slider
               label="Croissance de la productivité"
               value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
               min={0.004}
