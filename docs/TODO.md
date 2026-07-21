@@ -5,110 +5,12 @@ Idées priorisées pour le simulateur. Effort : **S** (quelques heures), **M**
 
 ---
 
-## 1. Charges patronales — déjà présentes, à révéler
+## 1. Bugs & quick wins UX
 
-**Constat : les charges patronales sont déjà dans le modèle, implicitement.**
-
-- **Macro** — le taux de cotisation unique de 28,1 % (`systemParams.json:34`,
-  appliqué en `project.ts:92`) est déjà un taux **employeur + salarié
-  fusionné**. Au niveau macro, seule la masse totale de cotisations pèse sur le
-  solde : séparer employeur/salarié ne changerait *aucun* résultat.
-- **Micro** — le split existe déjà : `contributions.ts:21` calcule `total`
-  (employeur + salarié) et `employee`. La part employeur = `total − employee`
-  (jamais stockée mais déductible). `CareerCharts.tsx:63` isole déjà
-  visuellement la part salarié.
-
-~~**Ce qui vaut le coup (S) :** surfacer la part employeur explicitement en micro,
-et ajouter les notions salaire net / brut / super-brut pour illustrer le « coût du
-travail » vs salaire perçu.~~ ✅ **Fait.** `CareerCharts.tsx` : tuile « Dont part
-employeur » (`totalContributions − employeeContributions`) + carte « Coût du travail
-vs salaire perçu » (super-brut / brut / net sur le dernier salaire), **au titre de la
-retraite uniquement** — hors santé/chômage/CSG, non modélisés. Aucun changement moteur :
-tout est dérivé des champs `PensionBreakdown` existants.
-
-**Ce qui n'apporte rien tel quel :** splitter employeur/salarié au macro. Ça ne
-devient intéressant (L) qu'avec un **effet comportemental** : hausse des charges
-employeur → coût du travail → emploi/salaires. C'est un vrai modèle en soi, à
-réserver si on veut un simulateur « incidence économique », pas prioritaire.
-
----
-
-## 2. Nouveaux scénarios
-
-- ~~**Scénarios COR par productivité (M).**~~ ✅ **Fait.** Deux scénarios dérivés du
-  central (pattern `buildPragmatique`, aucun changement moteur) : **Productivité basse
-  (COR 0,7 %)** et **Productivité haute (COR 1,3 %)** — le central est déjà à 1,0 %/an,
-  médiane du faisceau COR. La productivité est **intrinsèque au scénario**
-  (`ScenarioData.productivity`, prime sur le curseur) pour que l'écart survive à la policy
-  partagée de `ComparisonView`. Curseur productivité grisé sur ces scénarios (`Levers.tsx`).
-- ~~**Choc conjoncturel ponctuel (S).**~~ ✅ **Fait.** Scénario **Choc récession** : bosse
-  triangulaire de chômage +3 pts (7 %→~10 % en 2027-2028, retour à 7 % en 2030) via
-  `unemploymentFn` dans `loader.ts` (le moteur `unemployment(year)` était déjà fonction du
-  temps ; seul le loader la figeait). Démographie centrale — seul le canal cotisants joue,
-  creux transitoire du solde qui se résorbe. Champ `ScenarioData.unemploymentShock` (années),
-  pic `SHOCK_PEAK` flaggé. Test moteur ajouté (`econScenarios.test.ts`).
-
----
-
-## 3. Améliorations app / UX
-
-- ~~**Monter `ComparisonView` dans `App.tsx` (S, valeur gratuite).**~~ ✅ **Fait.**
-  Onglets « Comparaison scénarios » et « Aléatoire » (`StochasticView`) ajoutés à
-  `App.tsx` à côté de macro/micro.
-- ~~**Slider chômage macro (S).**~~ ✅ **Fait.** Curseur « Taux de chômage »
-  (`Levers.tsx`) branché sur `policy.unemployment`, qui force l'hypothèse quel que
-  soit le scénario (prime sur `unemploymentTarget`).
-- ~~**Partage d'état par URL + export CSV (M).**~~ ✅ **Fait.** `src/lib/share.ts`
-  (natif, zéro dépendance) : `encodeState`/`decodeState` synchronisent scénario +
-  leviers dans l'URL (`history.replaceState`), bouton « Copier le lien » ; `seriesToCsv`
-  + `downloadCsv` exportent les séries projetées. Testé (`share.test.ts`).
-
----
-
-## 4. Dette technique / ménage
-
-- ~~**`targetReplacementRate` (S).** Stub mort déclaré dans `PolicyParams` mais
-  jamais lu.~~ ✅ **Fait.** Supprimé de `types.ts` (aucun usage ailleurs). YAGNI :
-  à recréer si un vrai pilotage des pensions par taux de remplacement cible est voulu.
-- ~~**`requiredQuarters` sans effet macro (M).**~~ ✅ **Fait.** Le levier « Durée
-  requise » agit désormais sur le solde macro via un **décalage d'âge de sortie
-  effectif** : `effectiveAge = legalAge + share × (requiredQuarters − quartersRef)/4`
-  (`project.ts`), appliqué aux mêmes bornes cotisants/retraités que `legalAge`. Réf =
-  172 trim. (`quartersRef`, depuis `systemParams.json`) ⇒ décalage nul au scénario de
-  référence, **calage COR intact**. `quartersAgeShare` (0,5, flaggé approximatif) =
-  élasticité comportementale. **ponytail :** seul le canal âge-de-sortie est modélisé,
-  pas le report vers la décote. Test moteur ajouté (durée ↑ → + cotisants, − retraités).
-
----
-
-# Review globale — pistes 2026
-
-Revue complète de l'app (roadmap v1 bouclée, phases 0→5). Sections 5→9 ci-dessous :
-bugs & UX, lisibilité, leviers de réforme inspirés du débat politique, nouvelles
-sources au-delà de l'INSEE, périmètres micro manquants.
-
-## 5. Bugs & quick wins UX
-
-- ~~**Onglets « Comparaison scénarios » et « Aléatoire » orphelins (S, priorité haute).**~~
-  ✅ **Fait.** `App.tsx` n'itérait que `['macro','micro']` alors que `ComparisonView`/`StochasticView`
-  étaient déjà rendus et complets — atteignables seulement en tapant `?v=comparaison` à la main. La
-  `TabsList` itère maintenant les 4 vues et passe en `flex-wrap` (2ᵉ ligne < 375px au lieu de forcer
-  2 onglets). Fonctionnalité rendue visible, zéro changement moteur.
-- ~~**Select « Cas-type » non contrôlé (S).**~~ ✅ **Fait.** `<Select onValueChange>` sans `value`
-  affichait toujours « Choisir un préréglage… ». L'état `preset` est remonté dans `MicroView`, passé
-  en `value` à `CareerForm` ; éditer un champ le remet à `''` (affichage neutre, pas un preset menteur).
-- ~~**Worker sans `onerror` → spinner infini (S).**~~ ✅ **Fait.** `useEngine.ts` ne posait que
-  `onmessage` ; une exception moteur bloquait la vue sur « Calcul… ». Ajout de `worker.onerror`
-  (log + `setComputing(false)`).
-- ~~**Localisation des nombres incohérente (S).**~~ ✅ **Fait.** `App.tsx`, `ComparisonView`,
-  `StochasticView` affichaient « 1.4 % » (décimale anglaise) à côté du « 1,4 % » des autres vues.
-  Nouveau `src/lib/format.ts` (`fmtPct`/`fmtPctRaw`/`fmtBn`/`fmtNum` via `Intl.NumberFormat('fr-FR')`),
-  branché sur tous les sites concernés + test `format.test.ts`. `MacroCharts` (déjà en `,` via
-  `.replace`) laissé tel quel.
 - **Feedback « Copié ! » (S).** `App.tsx` `navigator.clipboard?.writeText` sans retour visuel.
   Basculer le label du bouton ~2 s.
 
-## 6. UX/UI — lisibilité pour un non-initié
+## 2. UX/UI — lisibilité pour un non-initié
 
 - **Contraste texte sous WCAG AA (S/M, accessibilité — ne pas zapper).** `--muted-foreground: #777`
   (`index.css:23`) et les axes/labels charts en `#888` tombent à ~3–4:1 sur fond clair, sous le
@@ -134,7 +36,7 @@ sources au-delà de l'INSEE, périmètres micro manquants.
 assumé (radius 0, bords noirs, light-only) ; les classes `dark:` des primitives shadcn sont déjà du
 poids mort. À réserver si explicitement demandé.
 
-## 7. Leviers de réforme chiffrables — débat politique 2025
+## 3. Leviers de réforme chiffrables — débat politique 2025
 
 **Constat : la plupart des propositions des partis sont des *combinaisons de leviers déjà présents*
 (âge légal, indexation, cotisation, sous-indexation). Meilleur gain / moindre code = un menu de
@@ -162,11 +64,11 @@ poids mort. À réserver si explicitement demandé.
   chiffrerait les propositions de capitalisation partielle. `realInterestRate` existe mais ne joue
   que sur la dette cumulée (`project.ts:182`).
 - **Minimum pension (85 % SMIC / 1 000–1 200 €) (micro M + macro coût).** NFP / pistes
-  gouvernementales. Ajouter le minimum contributif (MICO) côté micro + son coût agrégé (voir §9).
+  gouvernementales. Ajouter le minimum contributif (MICO) côté micro + son coût agrégé (voir §5).
 
-Ordre de grandeur de chaque levier à croiser avec les chiffrages publiés (COR, IPP, OFCE, IFRAP) — §8.
+Ordre de grandeur de chaque levier à croiser avec les chiffrages publiés (COR, IPP, OFCE, IFRAP) — §4.
 
-## 8. Nouvelles données & sources — au-delà de l'INSEE
+## 4. Nouvelles données & sources — au-delà de l'INSEE
 
 - **DREES — « Les retraités et les retraites » (éd. 2025) (M, forte valeur).** Distributions réelles
   de pension, montant moyen, **taux de remplacement observés**, **niveau de vie relatif des retraités**,
@@ -184,21 +86,21 @@ Ordre de grandeur de chaque levier à croiser avec les chiffrages publiés (COR,
   sortie, taux de remplacement net, dépenses % PIB). Une vue « France vs Europe » situe le débat.
 - **Chiffrages de réformes — IPP/PENSIPP, OFCE, DG Trésor (Destinie/Aphrodite), CNAV (Prisme),
   IFRAP (S, référence).** Pas des données à ingérer mais des points de calage pour vérifier l'ordre
-  de grandeur des leviers §7 et documenter les écarts.
+  de grandeur des leviers §3 et documenter les écarts.
 - **FRR / réserves — trajectoire (S).** Aujourd'hui un seul ancrage 2024 ; ingérer la trajectoire
-  alimenterait le levier §7.
+  alimenterait le levier §3.
 
 Note : `HMD` (mortalité historique) reste **skippé** — les qx INSEE 1962-2070 couvrent déjà
 Lee-Carter (cf. CLAUDE.md). Ne pas ré-ouvrir sans besoin.
 
-## 9. Périmètres micro manquants (hors v1 — gros chantiers)
+## 5. Périmètres micro manquants (hors v1 — gros chantiers)
 
 Exclusions v1 du cahier des charges, par valeur décroissante pour un simulateur grand public :
 
 - **Pension de réversion (L).** Absente ; déjà signalée comme cause du sous-comptage des 65+ vs COR
   17,1 M (`MacroCharts.tsx:231`). Fort impact « couple/veuvage ».
 - **Minimum contributif (MICO) / ASPA (M).** Plancher de pension — structurant pour les basses
-  carrières et le débat « pension minimale » (§7).
+  carrières et le débat « pension minimale » (§3).
 - **Majorations pour enfants (M).** MDA, AVPF, +10 % dès 3 enfants — fort impact femmes, très demandé.
 - **Trimestres assimilés (M).** Chômage, maladie, maternité, service national. Aujourd'hui seuls les
   trimestres travaillés comptent (`regimeGeneral.ts:15`, 4/an forfaitaires).
@@ -208,3 +110,38 @@ Exclusions v1 du cahier des charges, par valeur décroissante pour un simulateur
 
 **Ce qui n'apporte rien tel quel :** viser l'exhaustivité des régimes spéciaux (SNCF/RATP/IEG…) —
 marginaux en effectifs, gros coût de barème. Réserver à une éventuelle v2 « tous régimes ».
+
+## 6. Incidence économique (non prioritaire)
+
+**Ce qui n'apporte rien tel quel :** splitter employeur/salarié au macro. Le taux de cotisation
+unique 28,1 % (`systemParams.json:34`, `project.ts:92`) est déjà employeur + salarié fusionné ;
+seule la masse totale pèse sur le solde. Ça ne devient intéressant (L) qu'avec un **effet
+comportemental** : hausse des charges employeur → coût du travail → emploi/salaires. Vrai modèle en
+soi, à réserver si on veut un simulateur « incidence économique ».
+
+---
+
+# Fait
+
+- **Charges patronales — part employeur en micro (S).** `CareerCharts.tsx` : tuile « Dont part
+  employeur » (`totalContributions − employeeContributions`) + carte « Coût du travail vs salaire
+  perçu » (super-brut / brut / net), au titre de la retraite uniquement. Aucun changement moteur.
+- **Scénarios COR par productivité (M).** Deux scénarios dérivés du central (pattern
+  `buildPragmatique`) : **Productivité basse (COR 0,7 %)** et **haute (1,3 %)** — central à 1,0 %.
+  Productivité intrinsèque au scénario (`ScenarioData.productivity`) ; curseur grisé (`Levers.tsx`).
+- **Choc conjoncturel ponctuel (S).** Scénario **Choc récession** : bosse triangulaire de chômage
+  +3 pts (2027-2030) via `unemploymentFn` dans `loader.ts`. Champ `ScenarioData.unemploymentShock`,
+  test moteur (`econScenarios.test.ts`).
+- **`ComparisonView`/`StochasticView` montés dans `App.tsx` (S).** Onglets « Comparaison scénarios »
+  et « Aléatoire » ; `TabsList` itère les 4 vues en `flex-wrap`.
+- **Slider chômage macro (S).** Curseur « Taux de chômage » (`Levers.tsx`) branché sur
+  `policy.unemployment` (prime sur `unemploymentTarget`).
+- **Partage d'état par URL + export CSV (M).** `src/lib/share.ts` (natif, zéro dépendance) :
+  `encodeState`/`decodeState`, bouton « Copier le lien » ; `seriesToCsv` + `downloadCsv`. Testé.
+- **`targetReplacementRate` supprimé (S).** Stub mort retiré de `types.ts`.
+- **`requiredQuarters` branché au macro (M).** Levier « Durée requise » agit via décalage d'âge de
+  sortie effectif (`project.ts`), réf 172 trim., `quartersAgeShare`=0,5. Calage COR intact. Testé.
+- **Select « Cas-type » contrôlé (S).** État `preset` remonté dans `MicroView`, passé en `value`.
+- **Worker `onerror` (S).** `useEngine.ts` : ajout `worker.onerror` (fin du spinner infini).
+- **Localisation des nombres (S).** Nouveau `src/lib/format.ts` (`Intl.NumberFormat('fr-FR')`)
+  branché sur `App.tsx`, `ComparisonView`, `StochasticView`. Testé.
