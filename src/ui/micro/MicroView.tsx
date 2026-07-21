@@ -13,17 +13,26 @@ import { ScenarioSensitivity } from './ScenarioSensitivity'
 
 export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyondPolicy: BeyondDataPolicy }) {
   const [career, setCareer] = useState<CareerParams>(PRESETS.median)
+  const [preset, setPreset] = useState('median')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
 
   const { perScenario, computing } = useMicro(career, policy, beyondPolicy)
   const selected = useMemo(() => perScenario.find((r) => r.scenarioId === scenarioId), [perScenario, scenarioId])
 
-  const setC = (p: Partial<CareerParams>) => setCareer((prev) => ({ ...prev, ...p }))
+  // Editing any field detaches from the preset, so the dropdown stops claiming one.
+  const setC = (p: Partial<CareerParams>) => {
+    setPreset('')
+    setCareer((prev) => ({ ...prev, ...p }))
+  }
+  const onPreset = (k: string) => {
+    setPreset(k)
+    setCareer(PRESETS[k])
+  }
 
   return (
     <div className="grid grid-cols-1 gap-6 lg:grid-cols-[300px_minmax(0,1fr)]">
       <aside className="space-y-4">
-        <CareerForm params={career} onChange={setC} onPreset={(k) => setCareer(PRESETS[k])} />
+        <CareerForm params={career} preset={preset} onChange={setC} onPreset={onPreset} />
         <Card className="gap-1 p-4">
           <span className="text-sm text-muted-foreground">Scénario détaillé</span>
           <Select value={scenarioId} onValueChange={(v) => setScenarioId(v as ScenarioId)}>

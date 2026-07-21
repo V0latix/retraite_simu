@@ -25,6 +25,11 @@ function useEngine<T extends EngineResponse['type']>(
       setData(e.data as Extract<EngineResponse, { type: T }>)
       setComputing(false)
     }
+    // Without this, a thrown engine error leaves every view stuck on "Calcul…" forever.
+    worker.onerror = (err) => {
+      console.error('engine worker error', err)
+      setComputing(false)
+    }
     workerRef.current = worker
     return () => worker.terminate()
     // eslint-disable-next-line react-hooks/exhaustive-deps

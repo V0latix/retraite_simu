@@ -6,6 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface Props {
   params: CareerParams
+  preset: string
   onChange: (p: Partial<CareerParams>) => void
   onPreset: (key: string) => void
 }
@@ -46,14 +47,14 @@ function Field({
   )
 }
 
-export function CareerForm({ params, onChange, onPreset }: Props) {
+export function CareerForm({ params, preset, onChange, onPreset }: Props) {
   return (
     <Card className="gap-4 p-4">
       <h2 className="text-lg font-semibold">Carrière</h2>
 
       <label className="block">
         <span className="text-sm text-muted-foreground">Cas-type</span>
-        <Select onValueChange={onPreset}>
+        <Select value={preset} onValueChange={onPreset}>
           <SelectTrigger className="mt-1 w-full">
             <SelectValue placeholder="Choisir un préréglage…" />
           </SelectTrigger>

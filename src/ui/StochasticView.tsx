@@ -5,6 +5,7 @@ import type { BeyondDataPolicy } from '../data/schema'
 import type { FanMetric } from '../engine/scenarios/fanchart'
 import type { PolicyParams } from '../engine/types'
 import { useStochastic } from '../hooks/useEngine'
+import { fmtPct } from '../lib/format'
 import { frontier, PROJECTED_DASH } from './observed'
 import { ObservedProjectedLegend } from './ObservedProjected'
 import { CHART } from './chartColors'
@@ -13,9 +14,9 @@ import { Card } from '@/components/ui/card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
 const METRICS: { id: FanMetric; label: string; fmt: (v: number) => string }[] = [
-  { id: 'solde', label: 'Solde (% PIB)', fmt: (v) => `${(v * 100).toFixed(2)} %` },
-  { id: 'dependency', label: 'Dépendance système', fmt: (v) => `${(v * 100).toFixed(0)} %` },
-  { id: 'share65', label: 'Part des 65 ans et +', fmt: (v) => `${(v * 100).toFixed(0)} %` },
+  { id: 'solde', label: 'Solde (% PIB)', fmt: (v) => fmtPct(v, 2) },
+  { id: 'dependency', label: 'Dépendance système', fmt: (v) => fmtPct(v, 0) },
+  { id: 'share65', label: 'Part des 65 ans et +', fmt: (v) => fmtPct(v, 0) },
 ]
 const DRAWS = [100, 300, 1000]
 

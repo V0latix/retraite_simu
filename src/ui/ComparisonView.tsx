@@ -5,13 +5,13 @@ import { historical } from '../data/loader'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
 import { useCompare } from '../hooks/useEngine'
+import { fmtNum, fmtPct, fmtPctRaw } from '../lib/format'
 import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
 import { CHART, SERIES } from './chartColors'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 
 const cor = corRef as CorReference
-const pct1 = (n: number) => `${(n * 100).toFixed(1)} %`
 
 function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: React.ReactNode }) {
   return (
@@ -91,7 +91,7 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
               <YAxis tickFormatter={(v) => `${v}%`} stroke="#888" width={40} />
               <ReferenceLine y={0} stroke="#888" />
               {frontier()}
-              <Tooltip formatter={(v) => (v == null ? '—' : `${Number(v).toFixed(2)} % PIB`)} />
+              <Tooltip formatter={(v) => (v == null ? '—' : `${fmtPctRaw(Number(v), 2)} PIB`)} />
               {/* Same hue as the model: one series, two regimes — solid where measured, dashed where projected. */}
               <Line type="monotone" dataKey="observed" name="Observé" stroke={CHART.primary} strokeWidth={2} dot={false} connectNulls={false} />
               <Line type="monotone" dataKey="model" name="Modèle" stroke={CHART.primary} strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={false} connectNulls={false} />
@@ -108,7 +108,7 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
               <XAxis dataKey="year" stroke="#888" />
               <YAxis tickFormatter={(v) => `${v}%`} stroke="#888" width={40} />
               <ReferenceLine y={0} stroke="#888" />
-              <Tooltip formatter={(v, name) => [`${Number(v).toFixed(2)} %`, SCENARIO_LABELS[name as ScenarioId] ?? name]} />
+              <Tooltip formatter={(v, name) => [fmtPctRaw(Number(v), 2), SCENARIO_LABELS[name as ScenarioId] ?? name]} />
               {selected.map((id, i) => (
                 <Line key={id} type="monotone" dataKey={id} name={id} stroke={SERIES[i % SERIES.length]} strokeWidth={2} dot={false} />
               ))}
@@ -125,12 +125,12 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
             .map((v) => (
               <div key={v.year} className="text-center">
                 <div className="text-muted-foreground">{v.year}</div>
-                <div className="font-semibold tabular-nums">{((v.model ?? 0) - (v.cor ?? 0)).toFixed(1)} pt</div>
+                <div className="font-semibold tabular-nums">{fmtNum((v.model ?? 0) - (v.cor ?? 0), 1)} pt</div>
               </div>
             ))}
         </div>
         <p className="text-xs text-muted-foreground">
-          Base {cor.points[0].year} calée sur COR ; endpoint 2070 proche ({pct1(cor.points.at(-1)!.soldePctGdp)} COR). Le
+          Base {cor.points[0].year} calée sur COR ; endpoint 2070 proche ({fmtPct(cor.points.at(-1)!.soldePctGdp)} COR). Le
           creux intermédiaire reflète les simplifications du modèle, pas une donnée.
         </p>
       </Card>

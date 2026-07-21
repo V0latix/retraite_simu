@@ -4,6 +4,7 @@ import { PRAGMATIQUE_RISK } from './data/pragmatique'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
+import { fmtBn, fmtPct } from './lib/format'
 import { type View, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -22,8 +23,6 @@ const TAB_LABELS: Record<View, string> = {
   comparaison: 'Comparaison scénarios',
   stochastique: 'Aléatoire',
 }
-
-const bn = (n: number) => `${(n / 1e9).toFixed(1)} Md€`
 
 // Observed pyramids start at the birth of the régime général (ordonnances d'octobre 1945).
 const PYRAMID_FROM = historicalPyramid.years[0]
@@ -124,9 +123,9 @@ function App() {
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)} className="mb-6">
         {/* Each tab is styled as a discrete bordered button (same visual language as the
             scenario toggles), so it clearly reads as clickable; active = solid primary.
-            Single scrollable row — the 4 French labels never fit at 375px, so scroll
-            rather than wrap. `!` overrides beat the trigger's baked-in active styles. */}
-        <TabsList className="!h-auto w-full max-w-full justify-start gap-1.5 overflow-x-auto border-0 bg-transparent p-0">
+            The four tabs wrap onto a second row on narrow screens (`flex-wrap`). `!`
+            overrides beat the trigger's baked-in active styles. */}
+        <TabsList className="!h-auto w-full max-w-full flex-wrap justify-start gap-1.5 border-0 bg-transparent p-0">
           {(['macro', 'micro', 'comparaison', 'stochastique'] as const).map((v) => (
             <TabsTrigger
               key={v}
@@ -160,9 +159,9 @@ function App() {
             <Card className="gap-1 p-4 text-sm">
               <div className="text-muted-foreground">Solde en {last.year}</div>
               <div className={`text-xl font-semibold ${last.balance < 0 ? 'text-destructive' : 'text-success'}`}>
-                {(last.soldePctGdp * 100).toFixed(1)} % PIB
+                {fmtPct(last.soldePctGdp, 1)} PIB
               </div>
-              <div className="text-xs text-muted-foreground">{bn(last.balance)} · calé COR</div>
+              <div className="text-xs text-muted-foreground">{fmtBn(last.balance)} · calé COR</div>
             </Card>
           )}
           <Button
