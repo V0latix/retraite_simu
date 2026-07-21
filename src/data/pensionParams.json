@@ -10,7 +10,10 @@
     "decotePerQuarter": 0.0125,
     "maxDecoteQuarters": 20,
     "surcotePerQuarter": 0.0125,
-    "passBase": 47100
+    "passBase": 47100,
+    "mico": {
+      "montantAnnuel": 8970
+    }
   },
   "agircArrco": {
     "pointValue": 1.4386,
@@ -33,6 +36,7 @@
     "fullRate/decote/surcote": "Taux plein 50 % ; décote/surcote ≈ 1,25 %/trimestre (cap décote 20 trim.). Grille exacte à sourcer.",
     "samWindow": "25 meilleures années (générations 1948+)",
     "passBase": "PASS 2025 = 47 100 €",
+    "mico": "Minimum contributif majoré ≈ 747,57 €/mois (2024) → ~8 970 €/an. Plancher de la pension RG au taux plein, proratisé par la durée. Ordre de grandeur, à sourcer précisément.",
     "pointValue": "Valeur de service du point AGIRC-ARRCO ≈ 1,4386 € (2024)",
     "salaireReference": "Prix d'achat du point (salaire de référence) ≈ 20,191 € (2024)",
     "acquisitionRate": "Taux de cotisation productif de points ≈ 7,87 % (T1, ordre de grandeur)",

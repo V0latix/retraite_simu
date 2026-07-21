@@ -46,6 +46,7 @@ export interface PensionBreakdown {
   sam: number // salaire annuel moyen (25 best, capped, revalued)
   points: number // AGIRC-ARRCO points
   pRG: number // régime général annual pension
+  micoApplied: boolean // pRG floored to the minimum contributif (§3.5)
   pComp: number // complémentaire annual pension
   total: number // €/yr
   lastSalary: number
