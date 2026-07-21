@@ -181,7 +181,9 @@ export function project(
     // Cumulated balance snowballs at the real interest rate: debt costs it, reserves earn
     // it (symmetric). Interest affects ONLY this cumul — the annual solde stays untouched,
     // so the COR calibration and the soldePctGdp comparison remain valid.
-    cumulativeDebt = cumulativeDebt * (1 + (p.realInterestRate ?? 0)) - balance
+    // FRR endowment (§3.4): reserves put aside each year (% GDP) also cut the accumulated
+    // debt — cumul-only, like the interest, so the annual solde stays COR-comparable.
+    cumulativeDebt = cumulativeDebt * (1 + (p.realInterestRate ?? 0)) - balance - (p.frrFlowPct ?? 0) * gdp
 
     series.push({
       year,

@@ -233,7 +233,7 @@ function App() {
               </Button>
             </div>
             {series.length > 0 && (
-              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} />
+              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} frrFlowPct={policy.frrFlowPct} />
             )}
           </section>
         </main>

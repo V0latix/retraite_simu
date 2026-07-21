@@ -299,6 +299,20 @@ export function Levers({
               cotisations des actifs.
             </p>
             <Slider
+              label="Abondement du FRR (réserves)"
+              value={policy.frrFlowPct ?? 0}
+              min={0}
+              max={0.01}
+              step={0.001}
+              fmt={(v) => (v === 0 ? 'aucun' : `+${(v * 100).toFixed(1).replace('.', ',')} pt PIB/an`)}
+              onChange={(v) => onPolicy({ frrFlowPct: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Mettre des réserves de côté chaque année (capitalisation partielle / Fonds de réserve).
+              Visible sur le graphe « Solde cumulé » : les réserves accumulées repoussent le moment où
+              les déficits épuisent le fonds. Le solde annuel, comparable au COR, n'est pas modifié.
+            </p>
+            <Slider
               label="Croissance de la productivité"
               value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
               min={0.004}

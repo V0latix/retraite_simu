@@ -44,6 +44,10 @@ export interface PolicyParams {
    *  other-resources (models a CSG hike on pensions / « mise à contribution des retraités »).
    *  Absent ⇒ 0 ⇒ reference trajectory unchanged. */
   additionalResourcesPct?: number
+  /** FRR endowment (« abondement »): reserves set aside each year, as a share of GDP.
+   *  Positive ⇒ builds reserves ⇒ improves the cumulated position. Like realInterestRate it
+   *  touches ONLY the cumul, never the annual (COR-comparable) solde. Absent ⇒ 0. */
+  frrFlowPct?: number
 }
 
 /**

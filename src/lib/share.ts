@@ -20,7 +20,7 @@ const INDEXATIONS: Indexation[] = ['prices', 'wages', 'mix']
 const POLICY_NUM_KEYS = [
   'legalAge', 'requiredQuarters', 'contributionRate', 'productivity',
   'realInterestRate', 'workerExodus', 'underIndexation', 'underIndexationYears',
-  'legalAgeLEShare', 'unemployment', 'additionalResourcesPct',
+  'legalAgeLEShare', 'unemployment', 'additionalResourcesPct', 'frrFlowPct',
 ] as const
 
 export function encodeState(s: AppState): string {

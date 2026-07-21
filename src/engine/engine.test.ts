@@ -79,6 +79,15 @@ describe('project', () => {
     expect(under[y].soldePctGdp).toBeGreaterThan(base[y].soldePctGdp)
   })
 
+  it('FRR endowment (§3.4) cuts the cumulated debt but never touches the annual solde', () => {
+    const base = project(state0(), buildHypotheses(data, { frrFlowPct: 0 }), 2070, ECON_INIT)
+    const frr = project(state0(), buildHypotheses(data, { frrFlowPct: 0.005 }), 2070, ECON_INIT)
+    const y = base.length - 1
+    // cumulativeDebt is positive-for-debt; reserves set aside reduce it (frr < base).
+    expect(frr[y].cumulativeDebt).toBeLessThan(base[y].cumulativeDebt)
+    for (let i = 0; i < base.length; i++) expect(frr[i].soldePctGdp).toBe(base[i].soldePctGdp)
+  })
+
   it('additional resources (§3.3) lift the solde by ~the lever, resources unchanged elsewhere', () => {
     const base = project(state0(), buildHypotheses(data), 2050, ECON_INIT)
     const csg = project(state0(), buildHypotheses(data, { additionalResourcesPct: 0.01 }), 2050, ECON_INIT)

@@ -57,10 +57,12 @@ export function MacroCharts({
   series,
   realInterestRate = 0,
   workerExodus = 0,
+  frrFlowPct = 0,
 }: {
   series: TimeSeries
   realInterestRate?: number
   workerExodus?: number
+  frrFlowPct?: number
 }) {
   const { finance, anchors } = historical
 
@@ -106,11 +108,13 @@ export function MacroCharts({
     const projected = series
       .filter((d) => d.year > LAST_OBSERVED_YEAR)
       .map((d) => {
-        cumulEur = cumulEur * (1 + realInterestRate) + d.balance
+        // FRR endowment (§3.4): reserves added each year (% GDP) lift the cumul (chart uses the
+        // positive = reserves convention, opposite sign to the engine's debt cumul).
+        cumulEur = cumulEur * (1 + realInterestRate) + d.balance + frrFlowPct * d.gdp
         return { year: d.year, cumul: Number((cumulEur / d.gdp).toFixed(5)) }
       })
     return mergeObservedProjected(observed, projected, ['cumul'])
-  }, [finance, series, realInterestRate])
+  }, [finance, series, realInterestRate, frrFlowPct])
 
   // Fertility: observed ICF (reality) vs the scenario's assumption (series tfr). These
   // are two DIFFERENT series, not one split — the gap at the base year (1,53 observed vs
