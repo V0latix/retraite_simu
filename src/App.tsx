@@ -43,6 +43,7 @@ function App() {
   const [policy, setPolicy] = useState<PolicyParams>(init.policy)
   const [horizon, setHorizon] = useState(init.horizon)
   const [year, setYear] = useState(BASE_YEAR)
+  const [copied, setCopied] = useState(false)
 
   // Sync the whole app state into the URL (shareable/reproducible), no re-render.
   useEffect(() => {
@@ -169,9 +170,13 @@ function App() {
             variant="outline"
             size="sm"
             className="w-full"
-            onClick={() => navigator.clipboard?.writeText(window.location.href)}
+            onClick={() => {
+              navigator.clipboard?.writeText(window.location.href)
+              setCopied(true)
+              setTimeout(() => setCopied(false), 2000)
+            }}
           >
-            Copier le lien (scénario + leviers)
+            {copied ? 'Copié !' : 'Copier le lien (scénario + leviers)'}
           </Button>
         </aside>
 
