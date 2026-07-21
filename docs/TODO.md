@@ -16,36 +16,10 @@ Idées priorisées pour le simulateur. Effort : **S** (quelques heures), **M**
 assumé (radius 0, bords noirs, light-only) ; les classes `dark:` des primitives shadcn sont déjà du
 poids mort. À réserver si explicitement demandé.
 
-## 3. Leviers de réforme chiffrables — débat politique 2025
+## 3. Leviers de réforme chiffrables — débat politique 2025 ✅ (voir « Fait »)
 
-**Constat : la plupart des propositions des partis sont des *combinaisons de leviers déjà présents*
-(âge légal, indexation, cotisation, sous-indexation). Meilleur gain / moindre code = un menu de
-« réformes clés en main ».**
-
-- **Presets de réforme clés en main (M, valeur haute).** Un `Select` de réformes nommées = un delta
-  de `PolicyParams` + source attribuée, exactement comme `pragmatique`/`cor-*` aujourd'hui. Aucune
-  mécanique moteur nouvelle. Directement chiffrables *maintenant* :
-  - *Retour à 62 ans* (PS) / *à 60 ans* (NFP-LFI) → `legalAge` (levier existant).
-  - *Année blanche / gel des pensions* → `underIndexation` + `underIndexationYears` (existants).
-  - *Sous-indexation des pensions* (piste d'équilibrage récurrente) → `underIndexation`.
-  - *Suspension de la réforme 2023 jusqu'à 2028* (actualité) → `legalAge` figé à 62 sur la fenêtre.
-  - *+X pts de cotisation* → `contributionRate`.
-  Chaque preset affiche sa source (parti/rapport) et son effet solde en direct. **ponytail : livre
-  « les propositions des partis » quasi gratuitement.**
-- **Carrières longues / départ anticipé (macro M, micro L).** RN : 60 ans pour qui a commencé avant
-  20 ans + 40 annuités ; pénibilité/catégories actives. L'âge de sortie est uniforme aujourd'hui
-  (`project.ts:60-63`) ; modéliser une part de la population partant plus tôt (âge différencié par
-  type de carrière). Le canal âge-de-sortie existe déjà (`quartersAgeShare`).
-- **Mise à contribution des retraités (M).** Hausse CSG sur pensions / contribution des retraités.
-  Le levier « ressources autres » `T(t)` est un calage COR non pilotable (`project.ts:166-176`) ;
-  l'exposer en levier (recette additionnelle % PIB) chiffrerait ces mesures côté ressources.
-- **Fonds de réserve / capitalisation / FRR (M).** Les réserves (213,8 Md€, `historical.json`
-  anchors) ne sont qu'un ancrage d'affichage. Un levier de tirage/abondement du FRR (% PIB/an)
-  chiffrerait les propositions de capitalisation partielle. `realInterestRate` existe mais ne joue
-  que sur la dette cumulée (`project.ts:182`).
-- **Minimum pension (85 % SMIC / 1 000–1 200 €) (micro M + macro coût).** NFP / pistes
-  gouvernementales. Ajouter le minimum contributif (MICO) côté micro + son coût agrégé (voir §5).
-
+Les 5 leviers §3 sont livrés. Reste ouvert : le **coût macro agrégé du MICO** (le moteur macro
+n'a pas de distribution de pensions à planchérer ; le micro suffit au débat « pension minimale »).
 Ordre de grandeur de chaque levier à croiser avec les chiffrages publiés (COR, IPP, OFCE, IFRAP) — §4.
 
 ## 4. Nouvelles données & sources — au-delà de l'INSEE
@@ -103,6 +77,22 @@ soi, à réserver si on veut un simulateur « incidence économique ».
 
 # Fait
 
+- **§3 Leviers de réforme chiffrables — débat 2025 (M).** Les 5 leviers :
+  - *Presets clés en main (§3.1).* `src/data/reforms.ts` : `REFORM_PRESETS` = deltas de
+    `PolicyParams` + source (retour 62/60, suspension 2023, année blanche, sous-indexation,
+    +2 pts cotisation) ; `Select` en tête des leviers (`Levers.tsx`), `reformKey` dans `App.tsx`
+    (l'édition d'un slider détache la réforme). Zéro changement moteur.
+  - *Mise à contribution des retraités (§3.3).* `additionalResourcesPct` (recette % PIB), additive
+    aux ressources (`project.ts`), réf à 0 inchangée. Slider + clé URL + test moteur.
+  - *FRR / capitalisation (§3.4).* `frrFlowPct` (abondement % PIB/an) porté au cumul seul
+    (`project.ts` + `MacroCharts.tsx`, qui recalcule son propre cumul), solde annuel intact.
+    Slider + clé URL + test.
+  - *MICO (§3.5).* Plancher `pRG` au minimum contributif (8 970 €/an proratisé) au taux plein
+    (`regimeGeneral.ts`, `pensionParams.json`) ; badge « portée au minimum » (`PensionResult.tsx`).
+    **Coût macro agrégé non fait** (pas de distribution de pensions au macro).
+  - *Carrières longues / départ anticipé (§3.2).* Macro : `earlyRetirementShare`, hétérogénéité
+    d'âge de sortie (part des [60, âge légal) basculant cotisants → retraités, `project.ts`).
+    Micro : preset « carrière longue » (départ 60) + flag `longCareer` exonérant la décote. Tests.
 - **§2 UX/UI — lisibilité pour un non-initié (M).** Sept chantiers :
   - *Contraste WCAG AA.* Consolidation d'un gris foncé conforme : `--muted-foreground` et
     `CHART.muted` #777→**#595959** (~6,8:1) ; tous les `#888` codés en dur (axes/labels) remplacés
