@@ -40,6 +40,17 @@ export interface PolicyParams {
   /** Macro override of the flat unemployment rate (fraction). When set, wins over the
    *  scenario's unemploymentTarget; absent ⇒ scenario/systemParams default. */
   unemployment?: number
+  /** Additional revenue as a share of GDP, added on top of contributions + calibrated
+   *  other-resources (models a CSG hike on pensions / « mise à contribution des retraités »).
+   *  Absent ⇒ 0 ⇒ reference trajectory unchanged. */
+  additionalResourcesPct?: number
+  /** FRR endowment (« abondement »): reserves set aside each year, as a share of GDP.
+   *  Positive ⇒ builds reserves ⇒ improves the cumulated position. Like realInterestRate it
+   *  touches ONLY the cumul, never the annual (COR-comparable) solde. Absent ⇒ 0. */
+  frrFlowPct?: number
+  /** Share (0-1) of the [60, legalAge) band retiring early (carrières longues, §3.2): they
+   *  move from contributors to retirees. Absent ⇒ 0 ⇒ uniform exit age (reference unchanged). */
+  earlyRetirementShare?: number
 }
 
 /**

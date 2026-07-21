@@ -67,6 +67,13 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
           <span style={{ color: CHART.primary }}>Régime général {eur(b.pRG)}</span>
           <span style={{ color: CHART.pink }}>Complémentaire {eur(b.pComp)}</span>
         </div>
+        {b.micoApplied && (
+          <p className="mb-2 text-xs font-medium" style={{ color: CHART.primary }}>
+            <Term def="Minimum contributif : plancher de la pension de base au taux plein, proratisé par la durée. Ici, la pension calculée était inférieure, elle est portée à ce minimum.">
+              Pension portée au minimum (MICO)
+            </Term>
+          </p>
+        )}
         <div className="flex h-6 overflow-hidden border border-border">
           <div style={{ width: `${rgPct}%`, backgroundColor: CHART.primary }} />
           <div style={{ width: `${100 - rgPct}%`, backgroundColor: CHART.pink }} />

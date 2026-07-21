@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BASE_YEAR, historicalPyramid } from './data/loader'
 import { PRAGMATIQUE_RISK } from './data/pragmatique'
+import { REFORM_PRESETS } from './data/reforms'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
@@ -41,6 +42,7 @@ function App() {
   const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
   const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>(init.beyondPolicy)
   const [policy, setPolicy] = useState<PolicyParams>(init.policy)
+  const [reformKey, setReformKey] = useState('')
   const [horizon, setHorizon] = useState(init.horizon)
   const [year, setYear] = useState(BASE_YEAR)
   const [copied, setCopied] = useState(false)
@@ -81,7 +83,19 @@ function App() {
     }
   }, [year, current])
 
-  const setP = (p: Partial<PolicyParams>) => setPolicy((prev) => ({ ...prev, ...p }))
+  // Manual slider edit detaches from the selected reform (empty sentinel), like MicroView's setC.
+  const setP = (p: Partial<PolicyParams>) => {
+    setReformKey('')
+    setPolicy((prev) => ({ ...prev, ...p }))
+  }
+
+  // Selecting a turnkey reform applies its PolicyParams delta in one go (same merge channel).
+  const onReform = (key: string) => {
+    const preset = REFORM_PRESETS[key]
+    if (!preset) return
+    setReformKey(key)
+    setPolicy((prev) => ({ ...prev, ...preset.delta }))
+  }
 
   // Exode & intérêt sur la dette ne jouent QUE dans le Pragmatique : changer de scénario
   // (ré)applique le défaut du scénario — Pragmatique les allume, tout autre les remet à 0,
@@ -151,9 +165,11 @@ function App() {
             beyondPolicy={beyondPolicy}
             policy={policy}
             horizon={horizon}
+            reformKey={reformKey}
             onScenario={onScenario}
             onBeyond={setBeyondPolicy}
             onPolicy={setP}
+            onReform={onReform}
             onHorizon={setHorizon}
           />
           {last && (
@@ -217,7 +233,7 @@ function App() {
               </Button>
             </div>
             {series.length > 0 && (
-              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} />
+              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} frrFlowPct={policy.frrFlowPct} />
             )}
           </section>
         </main>

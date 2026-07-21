@@ -63,6 +63,26 @@ describe('régime général', () => {
     // 80 quarters / 172 → prorata ~0.465, plus décote
     expect(short.pRG).toBeLessThan(30000 * 0.5 * 0.5)
   })
+
+  it('MICO (§3.5) floors a low full-rate pension to the minimum', () => {
+    const low = computeRG(career(2000, 43, 10000), flatCtx, 2043) // 172 quarters, taux plein
+    expect(low.micoApplied).toBe(true)
+    expect(low.pRG).toBeCloseTo(8970, 0) // floored (raw = 10000·0.5·1 = 5000)
+    const normal = computeRG(career(2000, 43, 30000), flatCtx, 2043)
+    expect(normal.micoApplied).toBe(false) // 15000 > MICO
+  })
+
+  it('MICO does not apply when the rate carries a décote (missing quarters)', () => {
+    const short = computeRG(career(2015, 20, 10000), flatCtx, 2035) // 80 quarters → décote
+    expect(short.micoApplied).toBe(false)
+    expect(short.pRG).toBeLessThan(8970)
+  })
+
+  it('carrières longues (§3.2) keep the taux plein despite missing quarters', () => {
+    const c = career(2003, 40, 25000) // 160 < 172 quarters → décote normally
+    expect(computeRG(c, flatCtx, 2043).rate).toBeLessThan(0.5)
+    expect(computeRG({ ...c, longCareer: true }, flatCtx, 2043).rate).toBeCloseTo(0.5, 5)
+  })
 })
 
 describe('macro → micro coupling (§5.4)', () => {

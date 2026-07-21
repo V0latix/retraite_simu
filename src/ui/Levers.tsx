@@ -1,3 +1,4 @@
+import { REFORM_PRESETS } from '../data/reforms'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
 import { Card } from '@/components/ui/card'
@@ -9,9 +10,11 @@ interface Props {
   beyondPolicy: BeyondDataPolicy
   policy: PolicyParams
   horizon: number
+  reformKey: string
   onScenario: (id: ScenarioId) => void
   onBeyond: (b: BeyondDataPolicy) => void
   onPolicy: (p: Partial<PolicyParams>) => void
+  onReform: (key: string) => void
   onHorizon: (h: number) => void
 }
 
@@ -88,9 +91,11 @@ export function Levers({
   beyondPolicy,
   policy,
   horizon,
+  reformKey,
   onScenario,
   onBeyond,
   onPolicy,
+  onReform,
   onHorizon,
 }: Props) {
   return (
@@ -144,6 +149,28 @@ export function Levers({
           dans un <details> natif (clavier-accessible, zéro JS) pour désencombrer. */}
       <Card className="gap-4 p-4">
         <h2 className="text-lg font-semibold">Leviers de réforme</h2>
+        <label className="block">
+          <span className="text-sm text-muted-foreground">Réforme clés en main</span>
+          <Select value={reformKey} onValueChange={onReform}>
+            <SelectTrigger className="mt-1 w-full">
+              <SelectValue placeholder="Choisir une proposition…" />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(REFORM_PRESETS).map(([key, r]) => (
+                <SelectItem key={key} value={key}>
+                  {r.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {reformKey && REFORM_PRESETS[reformKey] && (
+            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{REFORM_PRESETS[reformKey].source}</p>
+          )}
+          <p className="mt-1.5 text-xs leading-snug text-muted-foreground">
+            Applique un jeu de leviers en un clic. Ajuster un curseur ci-dessous repart d'une réforme
+            « sur mesure ».
+          </p>
+        </label>
         <Slider
           label="Âge légal de départ"
           value={policy.legalAge}
@@ -256,6 +283,47 @@ export function Levers({
               = pensions 1&nbsp;point sous l'inflation). Effet puissant car il porte sur <em>tout le
               stock</em> : <strong>−1&nbsp;pt/an pendant 10&nbsp;ans ≈ −10 %</strong> sur la pension
               moyenne, donc autant de dépenses en moins. Indolore à court terme, mais cumulatif.
+            </p>
+            <Slider
+              label="Recettes nouvelles (retraités / CSG)"
+              value={policy.additionalResourcesPct ?? 0}
+              min={0}
+              max={0.02}
+              step={0.0025}
+              fmt={(v) => (v === 0 ? 'aucune' : `+${(v * 100).toFixed(2).replace('.', ',')} pt PIB`)}
+              onChange={(v) => onPolicy({ additionalResourcesPct: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Recette supplémentaire en part de PIB — hausse de CSG sur les pensions, contribution des
+              retraités… Ajoutée aux ressources, elle améliore le solde d'autant, sans toucher aux
+              cotisations des actifs.
+            </p>
+            <Slider
+              label="Abondement du FRR (réserves)"
+              value={policy.frrFlowPct ?? 0}
+              min={0}
+              max={0.01}
+              step={0.001}
+              fmt={(v) => (v === 0 ? 'aucun' : `+${(v * 100).toFixed(1).replace('.', ',')} pt PIB/an`)}
+              onChange={(v) => onPolicy({ frrFlowPct: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Mettre des réserves de côté chaque année (capitalisation partielle / Fonds de réserve).
+              Visible sur le graphe « Solde cumulé » : les réserves accumulées repoussent le moment où
+              les déficits épuisent le fonds. Le solde annuel, comparable au COR, n'est pas modifié.
+            </p>
+            <Slider
+              label="Départs anticipés (carrières longues)"
+              value={policy.earlyRetirementShare ?? 0}
+              min={0}
+              max={0.3}
+              step={0.05}
+              fmt={(v) => (v === 0 ? 'aucun' : `${Math.round(v * 100)} %`)}
+              onChange={(v) => onPolicy({ earlyRetirementShare: v })}
+            />
+            <p className="-mt-2 text-xs leading-snug text-muted-foreground">
+              Part des 60-âge légal partant plus tôt (carrières longues, pénibilité) : ils basculent de
+              cotisants à retraités avant l'âge légal. Effet inverse d'un recul d'âge — dégrade le solde.
             </p>
             <Slider
               label="Croissance de la productivité"

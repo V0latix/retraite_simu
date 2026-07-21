@@ -9,6 +9,7 @@ export interface RGResult {
   rate: number
   quarters: number
   pRG: number
+  micoApplied: boolean
 }
 
 /** 4 quarters per year worked (simplified — real rules key quarters off earnings). */
@@ -27,9 +28,11 @@ export function computeRG(career: Career, ctx: MicroContext, liquidationYear: nu
   const best = revalued.sort((a, b) => b - a).slice(0, rg.samWindow)
   const sam = best.length ? best.reduce((s, v) => s + v, 0) / best.length : 0
 
-  // Rate: décote for missing quarters, surcote for excess (spec §5.2).
+  // Rate: décote for missing quarters, surcote for excess (spec §5.2). Carrières longues
+  // (§3.2) keep the taux plein at the early age despite missing quarters (longCareer flag).
   const quarters = quartersWorked(career)
-  const missing = Math.max(0, ctx.requiredQuarters - quarters)
+  const rawMissing = Math.max(0, ctx.requiredQuarters - quarters)
+  const missing = career.longCareer ? 0 : rawMissing
   const excess = Math.max(0, quarters - ctx.requiredQuarters)
   let rate = rg.fullRate
   if (missing > 0) rate = rg.fullRate * (1 - rg.decotePerQuarter * Math.min(missing, rg.maxDecoteQuarters))
@@ -37,7 +40,14 @@ export function computeRG(career: Career, ctx: MicroContext, liquidationYear: nu
 
   // Proratisation on the required duration.
   const prorata = Math.min(quarters / ctx.requiredQuarters, 1)
-  const pRG = sam * rate * prorata
+  let pRG = sam * rate * prorata
 
-  return { sam, rate, quarters, pRG }
+  // MICO (§3.5): the base pension is floored to the minimum contributif, itself proratised by
+  // insurance duration. Real rule applies only at taux plein (no décote) — ponytail: we gate on
+  // `missing === 0` and ignore the durée d'assurance tous régimes / plafond écrêtement.
+  const mico = rg.mico.montantAnnuel * prorata
+  const micoApplied = missing === 0 && pRG < mico
+  if (micoApplied) pRG = mico
+
+  return { sam, rate, quarters, pRG, micoApplied }
 }

@@ -22,6 +22,7 @@ export function computePension(career: Career, ctx: MicroContext): PensionBreakd
     sam: rg.sam,
     points: comp.points,
     pRG: rg.pRG,
+    micoApplied: rg.micoApplied,
     pComp: comp.pComp,
     total,
     lastSalary,
