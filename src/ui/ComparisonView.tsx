@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import corRef from '../data/corReference.json'
-import { historical } from '../data/loader'
+import { historical, referenceIndicators } from '../data/loader'
 import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
 import { useCompare } from '../hooks/useEngine'
@@ -51,6 +51,16 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
     if (row) row.cor = +(p.soldePctGdp * 100).toFixed(2)
   }
   const validationWithHistory = [...observed, ...validation]
+
+  // Niveau de vie relatif des retraités (DREES observé + projection COR). Reference/context —
+  // the engine does not model it. Observed solid, projected dashed, joined at 2022.
+  const nvr = referenceIndicators.niveauDeVieRelatif
+  const nvrYears = Array.from(new Set([...nvr.observed, ...nvr.projected].map((p) => p.year))).sort((a, b) => a - b)
+  const nvrData = nvrYears.map((year) => ({
+    year,
+    obs: nvr.observed.find((p) => p.year === year)?.value ?? null,
+    proj: nvr.projected.find((p) => p.year === year)?.value ?? null,
+  }))
 
   // Scenario comparison: solde % PIB per selected scenario, merged by year.
   const years = central.filter((r) => r.year % 2 === 0).map((r) => r.year)
@@ -160,6 +170,28 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
           creux intermédiaire reflète les simplifications du modèle, pas une donnée.
         </p>
       </Card>
+
+      <Panel
+        title="Niveau de vie relatif des retraités — repère DREES / COR (non modélisé)"
+        subtitle={`Niveau de vie médian des retraités rapporté à l'ensemble de la population. Observé DREES (trait plein) jusqu'en 2022 ≈ parité, puis projection COR (pointillés) : ${fmtPctRaw(nvr.projected[0].value * 100, 1)} en 2022 → ${fmtPctRaw(nvr.projected.at(-1)!.value * 100, 1)} en 2070 (pensions indexées sur les prix, salaires sur la productivité). Série de contexte : le moteur ne la calcule pas.`}
+        footer={
+          <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+            Taux de remplacement moyen à la liquidation ≈ {fmtPctRaw(referenceIndicators.tauxRemplacementMoyen.value2024 * 100, 0)}{' '}
+            (COR 2024), en baisse de génération en génération — comparable aux cas-types de l'onglet « Ma pension ».
+          </p>
+        }
+      >
+        <LineChart data={nvrData}>
+          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+          <XAxis dataKey="year" stroke={CHART.muted} type="number" domain={['dataMin', 'dataMax']} />
+          <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} stroke={CHART.muted} width={44} domain={[0.8, 1.1]} />
+          <ReferenceLine y={1} stroke={CHART.muted} label={{ value: 'parité', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }} />
+          {frontier(2022, 'projection COR →')}
+          <Tooltip formatter={(v) => (v == null ? '—' : fmtPctRaw(Number(v) * 100, 1))} />
+          <Line type="monotone" dataKey="obs" name="Observé (DREES)" stroke={CHART.primary} strokeWidth={2} dot={{ r: 3 }} connectNulls={false} />
+          <Line type="monotone" dataKey="proj" name="Projeté (COR)" stroke={CHART.primary} strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={{ r: 3 }} connectNulls />
+        </LineChart>
+      </Panel>
     </div>
   )
 }

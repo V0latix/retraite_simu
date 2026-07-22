@@ -110,6 +110,30 @@ export interface HistoricalPyramid {
   champ: Record<string, string>
 }
 
+/** Published DREES/COR indicators used as reference/context (§4 TODO). Not model outputs:
+ *  niveau de vie relatif & taux de pauvreté aren't modelled, only shown as context; the taux
+ *  de remplacement moyen is the one figure comparable to the micro cas-types. */
+export interface ReferenceIndicators {
+  meta: { source: string; urls: { drees: string; cor: string }; note: string; retrieved: string }
+  niveauDeVieRelatif: {
+    unit: string
+    observed: { year: number; value: number }[]
+    projected: { year: number; value: number }[]
+  }
+  tauxRemplacementMoyen: { value2024: number; note: string }
+  drees2023: {
+    pensionBruteMoyenne: number
+    pensionNetteMoyenne: number
+    pensionAvecReversion: number
+    niveauVieMedianRetraites: number
+    tauxPauvreteRetraites: number
+    tauxPauvretePopulation: number
+    decileTop10NiveauVie: number
+    decileBottom10NiveauVie: number
+    ecartPensionFemmesHommes: number
+  }
+}
+
 /** COR reference trajectory for the validation view (§8.3). */
 export interface CorReference {
   meta: { source: string; url: string; assumptions: string; note: string; retrieved: string }
