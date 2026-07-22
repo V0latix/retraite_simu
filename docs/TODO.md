@@ -22,27 +22,15 @@ Les 5 leviers §3 sont livrés. Reste ouvert : le **coût macro agrégé du MICO
 n'a pas de distribution de pensions à planchérer ; le micro suffit au débat « pension minimale »).
 Ordre de grandeur de chaque levier à croiser avec les chiffrages publiés (COR, IPP, OFCE, IFRAP) — §4.
 
-## 4. Nouvelles données & sources — au-delà de l'INSEE
+## 4. Nouvelles données & sources — au-delà de l'INSEE ✅ (voir « Fait ») — reste §4 ci-dessous
 
-- **DREES — « Les retraités et les retraites » (éd. 2025) (M, forte valeur).** Distributions réelles
-  de pension, montant moyen, **taux de remplacement observés**, **niveau de vie relatif des retraités**,
-  **taux de pauvreté**. Deux usages : (a) valider les sorties micro contre des distributions réelles
-  (aujourd'hui 3 cas-types paramétriques) ; (b) ajouter un graphe macro « niveau de vie relatif des
-  retraités », très parlant pour le grand public.
+Les 5 chantiers S/M de §4 sont livrés (série AGIRC-ARRCO, trajectoire réserves, indicateurs
+DREES/COR, comparaison OCDE, doc chiffrages). **Reste ouvert :**
+
 - **DREES — panels EIR/EIC (L).** Échantillons interrégimes cotisants/retraités = vrais profils de
-  carrière/salaire, pour remplacer les presets paramétriques de `career.ts`.
-- **COR — indicateurs du rapport annuel (S/M).** Au-delà du solde déjà calé : taux de remplacement,
-  niveau de vie relatif, durée de retraite → 1-2 graphes de validation en plus.
-- **AGIRC-ARRCO — valeur du point / salaire de référence, série historique (S).** Aujourd'hui une
-  seule valeur 2024 + un couplage modélisé (`pensionParams.json:22-24`, `coupling.ts` `k=0.04`,
-  « modeling choice, not a sourced rule »). Ingérer la vraie série fiabiliserait le micro.
-- **Eurostat / OCDE — *Pensions at a Glance* (M).** Comparaison internationale (âge effectif de
-  sortie, taux de remplacement net, dépenses % PIB). Une vue « France vs Europe » situe le débat.
-- **Chiffrages de réformes — IPP/PENSIPP, OFCE, DG Trésor (Destinie/Aphrodite), CNAV (Prisme),
-  IFRAP (S, référence).** Pas des données à ingérer mais des points de calage pour vérifier l'ordre
-  de grandeur des leviers §3 et documenter les écarts.
-- **FRR / réserves — trajectoire (S).** Aujourd'hui un seul ancrage 2024 ; ingérer la trajectoire
-  alimenterait le levier §3.
+  carrière/salaire, pour remplacer les presets paramétriques de `career.ts`. Gros chantier
+  (échantillon réel, appariement, distribution) — différé ; les cas-types paramétriques + la carte
+  « Repères DREES » (§4 fait) suffisent au débat pour l'instant.
 
 Note : `HMD` (mortalité historique) reste **skippé** — les qx INSEE 1962-2070 couvrent déjà
 Lee-Carter (cf. CLAUDE.md). Ne pas ré-ouvrir sans besoin.
@@ -77,6 +65,25 @@ soi, à réserver si on veut un simulateur « incidence économique ».
 
 # Fait
 
+- **§4 Nouvelles données & sources — au-delà de l'INSEE (M).** Cinq chantiers S/M, données
+  **hand-curated réelles** en JSON (`meta`/`_sources` fléchés, comme `systemParams`/`pensionParams`/
+  `corReference`), zéro nouvelle dépendance :
+  - *Série historique valeur du point AGIRC-ARRCO (S).* `pensionParams.json` `agircArrco.historyReal2025`
+    (valeur de service + salaire de réf 2019-2025, euros constants base 2025 — nominaux SPAC Actuaires
+    déflatés IPC INSEE à la curation). `coupling.ts` lit la série réelle pour les années observées
+    (≤ 2025), extrapolation modélisée ancrée à la dernière valeur observée → projeté inchangé. Test.
+  - *Trajectoire des réserves / FRR (S).* `historical.json` `reserves.frr` (3 points sourcés 2017/21/24)
+    + type `schema.ts`. La note du graphe « solde cumulé » distingue le FRR (fonds dédié, ~36→20 Md€,
+    versé à la CADES d'ici 2033) des réserves totales du système (213,8 Md€). Aucun changement moteur.
+  - *Indicateurs de référence DREES/COR (M).* `referenceIndicators.json` (niveau de vie relatif, taux
+    de remplacement moyen ~54 %, pension moyenne 1 666 €, taux de pauvreté, déciles). `ComparisonView` :
+    panneau « Niveau de vie relatif » (observé DREES → projection COR 97 %→87,5 %), fléché *non modélisé*.
+    `PensionResult` : carte « Repères DREES 2023 · COR » (contrôle de vraisemblance du cas-type micro).
+  - *Comparaison internationale OCDE (M).* `oecdComparison.json` (Panorama 2023 : taux de remplacement
+    net, dépenses % PIB, âge de sortie ; France + moyenne OCDE + 5 pays). `InternationalComparison.tsx`
+    (table + barres CSS, sans lib de graphe), monté dans `ComparisonView`.
+  - *Chiffrages de réformes (S, référence).* `docs/chiffrages-reformes.md` : grille de calage des
+    leviers §3 contre COR/IPP/OFCE/DG Trésor/IFRAP, avec l'écart au modèle. Pas de code.
 - **§3 Leviers de réforme chiffrables — débat 2025 (M).** Les 5 leviers :
   - *Presets clés en main (§3.1).* `src/data/reforms.ts` : `REFORM_PRESETS` = deltas de
     `PolicyParams` + source (retour 62/60, suspension 2023, année blanche, sous-indexation,

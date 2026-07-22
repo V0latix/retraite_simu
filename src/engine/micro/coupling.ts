@@ -39,13 +39,31 @@ export function buildMicroContext(
   const k = params.coupling.couplingSensitivity
 
   const passAt = (year: number) => params.regimeGeneral.passBase * Math.pow(1 + g, year - BASE)
-  const srAt = (year: number) => params.agircArrco.salaireReference * Math.pow(1 + g, year - BASE)
 
-  // Real point value: price indexation is flat in real terms (0), minus a haircut
-  // proportional to how far system dependency sits above its base level.
+  // Observed AGIRC-ARRCO series (real, base-2025 €): use the real historical point value and
+  // salaire de référence for years we have data (2019→lastHistYear=BASE), model only beyond.
+  // Anchored at BASE = last history year so projected behaviour is unchanged.
+  const hist = params.agircArrco.historyReal2025
+  const histPV = new Map(hist.map((h) => [h.year, h.pointValue]))
+  const histSR = new Map(hist.map((h) => [h.year, h.salaireReference]))
+  const firstHist = hist[0].year
+  const lastHist = hist[hist.length - 1].year
+
+  // Salaire de référence: real observed value where known, else productivity extrapolation.
+  const srAt = (year: number) => {
+    if (year <= firstHist) return histSR.get(firstHist)!
+    if (year <= lastHist) return histSR.get(year)!
+    return histSR.get(lastHist)! * Math.pow(1 + g, year - lastHist)
+  }
+
+  // Real point value: observed years use the real historical value; beyond, price indexation
+  // is flat in real terms minus a haircut proportional to how far system dependency sits above
+  // its base level.
   const pointValueAt = (year: number) => {
-    let v = params.agircArrco.pointValue
-    for (let y = BASE + 1; y <= year; y++) {
+    if (year <= firstHist) return histPV.get(firstHist)!
+    if (year <= lastHist) return histPV.get(year)!
+    let v = histPV.get(lastHist)!
+    for (let y = lastHist + 1; y <= year; y++) {
       const dep = depByYear.get(y) ?? depBase
       const idx = Math.max(-0.05, -k * (dep - depBase))
       v *= 1 + idx

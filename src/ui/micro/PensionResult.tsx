@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { PensionBreakdown } from '../../engine/micro/types'
 import { CHART } from '../chartColors'
-import { BASE_YEAR } from '../../data/loader'
+import { BASE_YEAR, referenceIndicators } from '../../data/loader'
 import { Card } from '@/components/ui/card'
 import { Slider as UiSlider } from '@/components/ui/slider'
 import { Term } from '@/components/ui/tooltip'
@@ -94,6 +94,56 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
           </div>
         </div>
       </Card>
+
+      <DreesReference b={b} />
     </div>
+  )
+}
+
+/** Places the computed cas-type against real DREES 2023 / COR figures (§4). Reference, not
+ *  model output: the DREES panorama covers all schemes and current retirees, while the cas-type
+ *  is prospective and RG + AGIRC-ARRCO only — so it's a plausibility check, not an equality. */
+function DreesReference({ b }: { b: PensionBreakdown }) {
+  const d = referenceIndicators.drees2023
+  const rrRef = referenceIndicators.tauxRemplacementMoyen.value2024
+  const monthly = b.total / 12
+  const pensionGap = (monthly / d.pensionBruteMoyenne - 1) * 100
+  const rrGap = (b.replacementRate - rrRef) * 100
+  const signed = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(v).toFixed(0)}`
+  return (
+    <Card className="gap-2 p-4">
+      <h3 className="text-sm font-medium">Repères DREES 2023 · COR — où se situe ce cas-type</h3>
+      <div className="grid grid-cols-2 gap-3 text-sm md:grid-cols-4">
+        <div>
+          <div className="text-xs text-muted-foreground">Pension (ce cas-type)</div>
+          <div className="font-semibold tabular-nums">{mo(b.total)}</div>
+          <div className="text-xs text-muted-foreground">
+            vs {d.pensionBruteMoyenne.toLocaleString('fr-FR')} €/mois moyen ({signed(pensionGap)} %)
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Taux de remplacement</div>
+          <div className="font-semibold tabular-nums">{(b.replacementRate * 100).toFixed(0)} %</div>
+          <div className="text-xs text-muted-foreground">
+            vs {(rrRef * 100).toFixed(0)} % moyen ({signed(rrGap)} pt)
+          </div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Pension moyenne nette</div>
+          <div className="font-semibold tabular-nums">{d.pensionNetteMoyenne.toLocaleString('fr-FR')} €/mois</div>
+          <div className="text-xs text-muted-foreground">{d.pensionAvecReversion.toLocaleString('fr-FR')} € avec réversion</div>
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">Pauvreté des retraités</div>
+          <div className="font-semibold tabular-nums">{(d.tauxPauvreteRetraites * 100).toFixed(1)} %</div>
+          <div className="text-xs text-muted-foreground">vs {(d.tauxPauvretePopulation * 100).toFixed(1)} % population</div>
+        </div>
+      </div>
+      <p className="text-[11px] leading-snug text-muted-foreground">
+        Repères <strong>observés</strong> (tous régimes, retraités actuels — DREES éd. 2025, COR juin 2025). Le cas-type est
+        prospectif et limité au régime général + AGIRC-ARRCO : c'est un contrôle de vraisemblance, pas une égalité. Écart de
+        pension femmes/hommes : −{(d.ecartPensionFemmesHommes * 100).toFixed(0)} %.
+      </p>
+    </Card>
   )
 }

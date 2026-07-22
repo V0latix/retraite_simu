@@ -64,7 +64,7 @@ export function MacroCharts({
   workerExodus?: number
   frrFlowPct?: number
 }) {
-  const { finance, anchors } = historical
+  const { finance, anchors, reserves } = historical
 
   const data = useMemo(() => {
     const observed = toRows(finance.years, {
@@ -273,7 +273,9 @@ export function MacroCharts({
             <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
               La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
               {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
-              déficits dépasse ce que le système a mis de côté.
+              déficits dépasse ce que le système a mis de côté. À ne pas confondre avec le FRR (fonds de réserve dédié), qui
+              se dénoue : {reserves.frr.valueMdEur[0].toFixed(0)} Md€ ({reserves.frr.years[0]}) →{' '}
+              {reserves.frr.valueMdEur.at(-1)!.toFixed(0)} Md€ ({reserves.frr.years.at(-1)}), versé à la CADES d'ici 2033.
             </p>
           </>
         }

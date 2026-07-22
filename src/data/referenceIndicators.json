@@ -1,0 +1,44 @@
+{
+  "meta": {
+    "source": "DREES — « Les retraités et les retraites », édition 2025 (montants au 31/12/2023) · COR — rapport annuel « Évolutions et perspectives des retraites en France », juin 2025",
+    "urls": {
+      "drees": "https://drees.solidarites-sante.gouv.fr/publications-communique-de-presse-documents-de-reference/250731_PANORAMAS-retraites",
+      "cor": "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf"
+    },
+    "note": "Indicateurs PUBLIÉS, en repère / validation. Le moteur ne modélise PAS le niveau de vie relatif ni le taux de pauvreté (revenus du ménage, autres revenus, fiscalité — hors périmètre) : ces séries sont affichées comme contexte, pas comme sortie du modèle. Seul le taux de remplacement micro est comparable au modèle. Bornes du niveau de vie relatif sourcées COR (97 % en 2022 → 87,5 % en 2070) ; points intermédiaires approximatifs et fléchés comme tels.",
+    "retrieved": "2026-07-22"
+  },
+  "niveauDeVieRelatif": {
+    "unit": "ratio niveau de vie médian retraités / ensemble de la population",
+    "observed": [
+      { "year": 2000, "value": 0.95 },
+      { "year": 2010, "value": 1.02 },
+      { "year": 2016, "value": 1.03 },
+      { "year": 2019, "value": 1.005 },
+      { "year": 2022, "value": 0.97 }
+    ],
+    "projected": [
+      { "year": 2022, "value": 0.97 },
+      { "year": 2030, "value": 0.95 },
+      { "year": 2040, "value": 0.925 },
+      { "year": 2050, "value": 0.905 },
+      { "year": 2060, "value": 0.89 },
+      { "year": 2070, "value": 0.875 }
+    ]
+  },
+  "tauxRemplacementMoyen": {
+    "value2024": 0.54,
+    "note": "Taux de remplacement médian net à la liquidation (COR juin 2025) ; baisse tendancielle de génération en génération (années 1950 → 1970 et au-delà)."
+  },
+  "drees2023": {
+    "pensionBruteMoyenne": 1666,
+    "pensionNetteMoyenne": 1541,
+    "pensionAvecReversion": 1692,
+    "niveauVieMedianRetraites": 2030,
+    "tauxPauvreteRetraites": 0.101,
+    "tauxPauvretePopulation": 0.144,
+    "decileTop10NiveauVie": 3530,
+    "decileBottom10NiveauVie": 1220,
+    "ecartPensionFemmesHommes": 0.38
+  }
+}

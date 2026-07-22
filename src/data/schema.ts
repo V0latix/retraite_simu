@@ -92,6 +92,9 @@ export interface HistoricalData {
   /** Observed inflation (INSEE IPC, moyenne annuelle), fraction. Display only — the model
    *  runs in constant euros, so inflation is neutralised by construction and never read. */
   economy: { inflation: { years: number[]; rate: number[] } }
+  /** Observed FRR (Fonds de réserve pour les retraites) trajectory, Md€ valeur de marché.
+   *  A dedicated, shrinking fund — distinct from the system's total reserves (anchors). */
+  reserves: { frr: { years: number[]; valueMdEur: number[] } }
   /** Published levels used to anchor the cumulative-balance chart (COR Tab 2.3). */
   anchors: { reserves2024: number; frr2024: number; gdp2024: number; reservesPctGdp: number }
 }
@@ -105,6 +108,44 @@ export interface HistoricalPyramid {
   F: number[][]
   /** "France métropolitaine" before 1991, "France" after — the champ changes, so we label it. */
   champ: Record<string, string>
+}
+
+/** Published DREES/COR indicators used as reference/context (§4 TODO). Not model outputs:
+ *  niveau de vie relatif & taux de pauvreté aren't modelled, only shown as context; the taux
+ *  de remplacement moyen is the one figure comparable to the micro cas-types. */
+export interface ReferenceIndicators {
+  meta: { source: string; urls: { drees: string; cor: string }; note: string; retrieved: string }
+  niveauDeVieRelatif: {
+    unit: string
+    observed: { year: number; value: number }[]
+    projected: { year: number; value: number }[]
+  }
+  tauxRemplacementMoyen: { value2024: number; note: string }
+  drees2023: {
+    pensionBruteMoyenne: number
+    pensionNetteMoyenne: number
+    pensionAvecReversion: number
+    niveauVieMedianRetraites: number
+    tauxPauvreteRetraites: number
+    tauxPauvretePopulation: number
+    decileTop10NiveauVie: number
+    decileBottom10NiveauVie: number
+    ecartPensionFemmesHommes: number
+  }
+}
+
+/** OCDE Pensions at a Glance — France vs Europe cross-country reference (§4 TODO). */
+export interface OecdComparison {
+  meta: { source: string; url: string; note: string; retrieved: string }
+  unit: { netReplacementRate: string; publicPensionExpenditurePctGdp: string; effectiveExitAge: string }
+  countries: {
+    code: string
+    name: string
+    netReplacementRate: number
+    publicPensionExpenditurePctGdp: number
+    effectiveExitAge: number
+    highlight: boolean
+  }[]
 }
 
 /** COR reference trajectory for the validation view (§8.3). */
