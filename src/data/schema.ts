@@ -134,6 +134,20 @@ export interface ReferenceIndicators {
   }
 }
 
+/** OCDE Pensions at a Glance — France vs Europe cross-country reference (§4 TODO). */
+export interface OecdComparison {
+  meta: { source: string; url: string; note: string; retrieved: string }
+  unit: { netReplacementRate: string; publicPensionExpenditurePctGdp: string; effectiveExitAge: string }
+  countries: {
+    code: string
+    name: string
+    netReplacementRate: number
+    publicPensionExpenditurePctGdp: number
+    effectiveExitAge: number
+    highlight: boolean
+  }[]
+}
+
 /** COR reference trajectory for the validation view (§8.3). */
 export interface CorReference {
   meta: { source: string; url: string; assumptions: string; note: string; retrieved: string }

@@ -7,6 +7,7 @@ import type { PolicyParams } from '../engine/types'
 import { useCompare } from '../hooks/useEngine'
 import { fmtNum, fmtPct, fmtPctRaw } from '../lib/format'
 import { frontier, LAST_OBSERVED_YEAR, PROJECTED_DASH } from './observed'
+import { InternationalComparison } from './InternationalComparison'
 import { CHART, SERIES } from './chartColors'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -192,6 +193,8 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
           <Line type="monotone" dataKey="proj" name="Projeté (COR)" stroke={CHART.primary} strokeWidth={2} strokeDasharray={PROJECTED_DASH} dot={{ r: 3 }} connectNulls />
         </LineChart>
       </Panel>
+
+      <InternationalComparison />
     </div>
   )
 }

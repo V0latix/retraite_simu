@@ -1,10 +1,11 @@
 // Builds engine inputs from the real INSEE JSON (replaces the old seed.ts).
 import { OMEGA, type HypothesisSet, type PolicyParams, type PopulationState, type Sex } from '../engine/types'
 import { type EconInit, project } from '../engine/project'
-import type { BeyondDataPolicy, CorReference, HistoricalData, HistoricalPyramid, InitialPyramid, ReferenceIndicators, ScenarioData } from './schema'
+import type { BeyondDataPolicy, CorReference, HistoricalData, HistoricalPyramid, InitialPyramid, OecdComparison, ReferenceIndicators, ScenarioData } from './schema'
 import params from './systemParams.json'
 import corReferenceJson from './corReference.json'
 import referenceIndicatorsJson from './referenceIndicators.json'
+import oecdComparisonJson from './oecdComparison.json'
 import centralScenario from './scenarios/central.json'
 import initialPyramidJson from './initialPyramid.json'
 import historicalJson from './historical.json'
@@ -20,6 +21,9 @@ export const LAST_OBSERVED_YEAR = historical.lastObserved
 
 /** Published DREES/COR reference indicators (context/validation, §4). */
 export const referenceIndicators = referenceIndicatorsJson as ReferenceIndicators
+
+/** OCDE Pensions at a Glance — France vs Europe comparison (§4). */
+export const oecdComparison = oecdComparisonJson as OecdComparison
 
 export const DEFAULT_POLICY: PolicyParams = {
   legalAge: params.policy.legalAge,

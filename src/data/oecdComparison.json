@@ -1,0 +1,18 @@
+{
+  "meta": {
+    "source": "OCDE — Panorama des pensions / Pensions at a Glance 2023 (indicateurs OCDE et G20)",
+    "url": "https://www.oecd.org/en/publications/2023/12/pensions-at-a-glance-2023_4757bf20.html",
+    "note": "Ordres de grandeur, OCDE Panorama des pensions 2023. Taux de remplacement NET, salarié à carrière complète au salaire moyen, régimes obligatoires. Dépenses publiques de retraite en % du PIB. Âge effectif de sortie du marché du travail (hommes, approx.). Périmètres et années non strictement homogènes selon la ligne — repère de cadrage, pas une base de calcul.",
+    "retrieved": "2026-07-22"
+  },
+  "unit": { "netReplacementRate": "fraction", "publicPensionExpenditurePctGdp": "fraction", "effectiveExitAge": "années (hommes)" },
+  "countries": [
+    { "code": "FR", "name": "France", "netReplacementRate": 0.744, "publicPensionExpenditurePctGdp": 0.139, "effectiveExitAge": 60.4, "highlight": true },
+    { "code": "OCDE", "name": "Moyenne OCDE", "netReplacementRate": 0.614, "publicPensionExpenditurePctGdp": 0.09, "effectiveExitAge": 64.4, "highlight": false },
+    { "code": "DE", "name": "Allemagne", "netReplacementRate": 0.553, "publicPensionExpenditurePctGdp": 0.104, "effectiveExitAge": 63.1, "highlight": false },
+    { "code": "IT", "name": "Italie", "netReplacementRate": 0.826, "publicPensionExpenditurePctGdp": 0.157, "effectiveExitAge": 62.0, "highlight": false },
+    { "code": "ES", "name": "Espagne", "netReplacementRate": 0.865, "publicPensionExpenditurePctGdp": 0.123, "effectiveExitAge": 62.0, "highlight": false },
+    { "code": "SE", "name": "Suède", "netReplacementRate": 0.534, "publicPensionExpenditurePctGdp": 0.076, "effectiveExitAge": 66.0, "highlight": false },
+    { "code": "NL", "name": "Pays-Bas", "netReplacementRate": 0.932, "publicPensionExpenditurePctGdp": 0.066, "effectiveExitAge": 64.5, "highlight": false }
+  ]
+}
