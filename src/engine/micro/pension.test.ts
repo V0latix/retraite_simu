@@ -121,6 +121,18 @@ describe('macro → micro coupling (§5.4)', () => {
     expect(yr.contribution / yr.salary).toBeGreaterThan(0.26) // blended tier rate
   })
 
+  it('observed AGIRC-ARRCO years use the real historical series (§4)', () => {
+    const ctx = ctxFor(central as unknown as ScenarioData)
+    // 2022 real point value dipped below the base-year 1.4386 (revalorisations en retard sur l'inflation).
+    expect(ctx.pointValueByYear(2022)).toBeCloseTo(1.3914, 3)
+    expect(ctx.pointValueByYear(2025)).toBeCloseTo(1.4386, 3)
+    // Salaire de référence real series (2022 gel du prix d'achat → coût réel du point plus bas).
+    expect(ctx.salaireRefByYear(2022)).toBeCloseTo(18.889, 2)
+    // A career accruing across 2019-2025 sees these observed values reflected in its points.
+    const c = synthesizeCareer({ ...PRESETS.median, birthYear: 1960, startYear: 2019, retirementAge: 64 })
+    expect(computePension(c, ctx).pComp).toBeGreaterThan(0)
+  })
+
   it('replacement rate lands in a plausible band', () => {
     for (const preset of Object.values(PRESETS)) {
       const p = computePension(synthesizeCareer(preset), ctxFor(central as unknown as ScenarioData))

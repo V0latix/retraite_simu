@@ -19,7 +19,16 @@
     "pointValue": 1.4386,
     "salaireReference": 20.191,
     "acquisitionRate": 0.0787,
-    "solidarityMalus": 0.9
+    "solidarityMalus": 0.9,
+    "historyReal2025": [
+      { "year": 2019, "pointValue": 1.4789, "salaireReference": 19.841 },
+      { "year": 2020, "pointValue": 1.4733, "salaireReference": 20.163 },
+      { "year": 2021, "pointValue": 1.4498, "salaireReference": 19.84 },
+      { "year": 2022, "pointValue": 1.3914, "salaireReference": 18.889 },
+      { "year": 2023, "pointValue": 1.3945, "salaireReference": 19.388 },
+      { "year": 2024, "pointValue": 1.4336, "salaireReference": 19.878 },
+      { "year": 2025, "pointValue": 1.4386, "salaireReference": 20.1877 }
+    ]
   },
   "coupling": {
     "couplingSensitivity": 0.04,
@@ -37,8 +46,9 @@
     "samWindow": "25 meilleures années (générations 1948+)",
     "passBase": "PASS 2025 = 47 100 €",
     "mico": "Minimum contributif majoré ≈ 747,57 €/mois (2024) → ~8 970 €/an. Plancher de la pension RG au taux plein, proratisé par la durée. Ordre de grandeur, à sourcer précisément.",
-    "pointValue": "Valeur de service du point AGIRC-ARRCO ≈ 1,4386 € (2024)",
-    "salaireReference": "Prix d'achat du point (salaire de référence) ≈ 20,191 € (2024)",
+    "pointValue": "Valeur de service du point AGIRC-ARRCO ≈ 1,4386 € (valeur en vigueur depuis 11/2024)",
+    "salaireReference": "Prix d'achat du point (salaire de référence) ≈ 20,19 € (2025-2026)",
+    "historyReal2025": "Série réelle valeur de service + salaire de référence 2019-2025 (§4 TODO), en euros CONSTANTS base 2025. Nominaux (AGIRC-ARRCO, source SPAC Actuaires) déflatés par l'IPC INSEE (moyenne annuelle) à l'année de curation, pour rester dans la convention euros réels du moteur micro (aucune logique d'inflation dans coupling.ts). Valeur de service nominale : 2019 1,2714 · 2020 1,2714 · 2021 1,2714 · 2022 1,2841 · 2023 1,3498 · 2024 1,4159 · 2025 1,4386. Salaire de réf nominal : 2019 17,0571 · 2020/2021 17,3982 · 2022 17,4316 · 2023 18,7669 · 2024 19,6321 · 2025 20,1877. IPC (base 2015) : 2019 104,8 · 2020 105,2 · 2021 106,9 · 2022 112,5 · 2023 118,0 · 2024 120,4 · 2025 ~121,9 (est.). En termes réels la valeur du point a reculé ~2022-2023 (revalorisations en retard sur l'inflation) puis rattrapé ; le coût réel du point a chuté en 2022 (gel du prix d'achat) puis remonté.",
     "acquisitionRate": "Taux de cotisation productif de points ≈ 7,87 % (T1, ordre de grandeur)",
     "solidarityMalus": "Coefficient de solidarité: minoration temporaire ~10 % pendant 3 ans si départ au taux plein sans décalage",
     "contributions": "Taux TOTAL retraite (employeur+salarié), 2025. T1 (0→PASS) ≈ 27,8 % : RG vieillesse plafonnée 15,45 % (6,90 sal + 8,55 emp) + déplafonnée 2,30 % (0,40 + 1,90) + AGIRC-ARRCO 7,87 % + CEG ~2,15 %. T2 (PASS→8 PASS) ≈ 26,9 % : RG déplafonnée 2,30 % + AGIRC-ARRCO 21,59 % + CEG 2,70 % + CET 0,35 %. Part salariale ≈ 11,3 % (T1) / 10,4 % (T2). Sources : Urssaf/CNAV + AGIRC-ARRCO 2025."
