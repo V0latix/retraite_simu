@@ -24,6 +24,13 @@ const POLICY_NUM_KEYS = [
   'earlyRetirementShare',
 ] as const
 
+/** How many levers the user moved away from the scenario's own baseline (drives the badge + reset). */
+export function countChangedLevers(policy: PolicyParams, base: PolicyParams): number {
+  let n = policy.indexation !== base.indexation ? 1 : 0
+  for (const k of POLICY_NUM_KEYS) if ((policy[k] ?? 0) !== (base[k] ?? 0)) n++
+  return n
+}
+
 export function encodeState(s: AppState): string {
   const p = new URLSearchParams()
   p.set('v', s.view)
