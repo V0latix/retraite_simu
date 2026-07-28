@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import corRef from '../data/corReference.json'
 import { historical, referenceIndicators } from '../data/loader'
-import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type CorReference, type ScenarioId } from '../data/schema'
+import { SCENARIO_IDS, SCENARIO_LABELS, type CorReference, type ScenarioId } from '../data/schema'
 import type { PolicyParams } from '../engine/types'
 import { useCompare } from '../hooks/useEngine'
 import { fmtNum, fmtPct, fmtPctRaw } from '../lib/format'
@@ -28,11 +28,11 @@ function Panel({ title, subtitle, children, footer }: { title: string; subtitle?
   )
 }
 
-export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams; beyondPolicy: BeyondDataPolicy }) {
-  const [selected, setSelected] = useState<ScenarioId[]>(['central', 'fertility-low', 'migration-low'])
+export function ComparisonView({ policy }: { policy: PolicyParams }) {
+  const [selected, setSelected] = useState<ScenarioId[]>([...SCENARIO_IDS])
   // Always project central for the COR validation panel.
   const ids = useMemo(() => Array.from(new Set<ScenarioId>(['central', ...selected])), [selected])
-  const { seriesById, computing } = useCompare(ids, policy, 2070, beyondPolicy)
+  const { seriesById, computing } = useCompare(ids, policy, 2070)
 
   const toggle = (id: ScenarioId) =>
     setSelected((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length < 5 ? [...prev, id] : prev))
@@ -77,11 +77,11 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
   return (
     <div className="space-y-6">
       <Card className="gap-1 p-4 text-sm">
-        <h2 className="text-base font-semibold">Comparer les scénarios démographiques</h2>
+        <h2 className="text-base font-semibold">Comparer les jeux d'hypothèses</h2>
         <p className="text-muted-foreground">
-          À politique identique, chaque scénario INSEE change une hypothèse (fécondité, espérance de vie, migration) et fait
-          diverger le solde du système. Le graphe de gauche valide le modèle contre les points du COR ; celui de droite
-          superpose les scénarios que vous sélectionnez ci-dessous (jusqu'à 5).
+          À politique identique, chaque scénario garde <em>ses propres</em> hypothèses (fécondité, migration, productivité,
+          chômage) — vos curseurs de la vue macro ne s'y substituent pas, sinon tout se confondrait. Le graphe de gauche
+          valide le modèle contre les points du COR ; celui de droite superpose les scénarios sélectionnés (jusqu'à 5).
         </p>
       </Card>
 
@@ -126,7 +126,7 @@ export function ComparisonView({ policy, beyondPolicy }: { policy: PolicyParams;
 
           <Panel
             title="Comparaison de scénarios — solde (% PIB)"
-            subtitle="Même politique, démographie INSEE différente (§10). Entièrement projeté : les scénarios ne divergent qu'à partir de l'année de base."
+            subtitle="Mêmes leviers de réforme, hypothèses propres à chaque scénario (§10). Entièrement projeté : les scénarios ne divergent qu'à partir de l'année de base."
             footer={
               <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground">
                 {selected.map((id, i) => (

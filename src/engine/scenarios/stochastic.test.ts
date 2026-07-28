@@ -10,7 +10,7 @@ import { runStochastic, type FanMetric } from './fanchart'
 const pyr = initialPyramid as InitialPyramid
 const data = central as unknown as ScenarioData
 const fit = leeCarter as LeeCarterFit
-const opts = { draws: 120, horizon: 2070, policy: {}, beyond: 'hold' as const, seed: 42 }
+const opts = { draws: 120, horizon: 2070, policy: {}, seed: 42 }
 const run = () => runStochastic(buildInitialState(pyr), data, fit, ECON_INIT, opts)
 
 describe('Lee-Carter fit', () => {

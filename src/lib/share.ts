@@ -1,6 +1,7 @@
 // URL state sharing + CSV export — native, zero-dependency (ponytail).
 import { DEFAULT_POLICY } from '../data/loader'
-import { SCENARIO_IDS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
+import { SCENARIO_PRESETS } from '../data/scenarioPresets'
+import { SCENARIO_IDS, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams, TimeSeries } from '../engine/types'
 
 export type View = 'macro' | 'micro' | 'comparaison' | 'stochastique'
@@ -8,20 +9,18 @@ export type View = 'macro' | 'micro' | 'comparaison' | 'stochastique'
 export interface AppState {
   view: View
   scenarioId: ScenarioId
-  beyondPolicy: BeyondDataPolicy
   horizon: number
   policy: PolicyParams
 }
 
 const VIEWS: View[] = ['macro', 'micro', 'comparaison', 'stochastique']
-const BEYONDS: BeyondDataPolicy[] = ['hold', 'trend', 'converge']
 const INDEXATIONS: Indexation[] = ['prices', 'wages', 'mix']
 // Numeric policy fields, encoded by name. `indexation` (string) is handled apart.
 const POLICY_NUM_KEYS = [
   'legalAge', 'requiredQuarters', 'contributionRate', 'productivity',
   'realInterestRate', 'workerExodus', 'underIndexation', 'underIndexationYears',
   'legalAgeLEShare', 'unemployment', 'additionalResourcesPct', 'frrFlowPct',
-  'earlyRetirementShare',
+  'earlyRetirementShare', 'tfr', 'netMigration',
 ] as const
 
 /** How many levers the user moved away from the scenario's own baseline (drives the badge + reset). */
@@ -35,7 +34,6 @@ export function encodeState(s: AppState): string {
   const p = new URLSearchParams()
   p.set('v', s.view)
   p.set('s', s.scenarioId)
-  p.set('b', s.beyondPolicy)
   p.set('h', String(s.horizon))
   p.set('idx', s.policy.indexation)
   for (const k of POLICY_NUM_KEYS) {
@@ -54,20 +52,20 @@ export function decodeState(p: URLSearchParams): AppState {
     const v = p.get(key) as T | null
     return v != null && allowed.includes(v) ? v : fallback
   }
-  const policy: PolicyParams = { ...DEFAULT_POLICY, indexation: oneOf('idx', INDEXATIONS, DEFAULT_POLICY.indexation) }
+  // The scenario positions the sliders (§ SCENARIO_PRESETS); explicit URL params then win.
+  const scenarioId = oneOf('s', SCENARIO_IDS, 'central')
+  const policy: PolicyParams = {
+    ...DEFAULT_POLICY,
+    ...SCENARIO_PRESETS[scenarioId],
+    indexation: oneOf('idx', INDEXATIONS, DEFAULT_POLICY.indexation),
+  }
   for (const k of POLICY_NUM_KEYS) {
     if (p.has(k)) {
       const n = Number(p.get(k))
       if (Number.isFinite(n)) policy[k] = n
     }
   }
-  return {
-    view: oneOf('v', VIEWS, 'macro'),
-    scenarioId: oneOf('s', SCENARIO_IDS, 'central'),
-    beyondPolicy: oneOf('b', BEYONDS, 'hold'),
-    horizon: num('h', 2070),
-    policy,
-  }
+  return { view: oneOf('v', VIEWS, 'macro'), scenarioId, horizon: num('h', 2070), policy }
 }
 
 /** Flatten the projected series to CSV (all scalar YearResult fields; `pyramid` omitted). */

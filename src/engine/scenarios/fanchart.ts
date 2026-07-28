@@ -3,7 +3,7 @@
 import type { EconInit } from '../project'
 import { project } from '../project'
 import type { PopulationState, PolicyParams, YearResult } from '../types'
-import type { BeyondDataPolicy, LeeCarterFit, ScenarioData } from '../../data/schema'
+import type { LeeCarterFit, ScenarioData } from '../../data/schema'
 import { makeStochasticHypotheses } from './stochastic'
 
 export type FanMetric = 'solde' | 'dependency' | 'share65'
@@ -21,7 +21,6 @@ export interface StochasticOptions {
   draws: number
   horizon: number
   policy: Partial<PolicyParams>
-  beyond: BeyondDataPolicy
   seed: number
 }
 
@@ -62,7 +61,7 @@ export function runStochastic(
   const samples: Record<FanMetric, number[][]> = { solde: [], dependency: [], share65: [] }
 
   for (let k = 0; k < opts.draws; k++) {
-    const h = makeStochasticHypotheses(central, fit, opts.policy, opts.beyond, baseYear, opts.horizon, opts.seed + k)
+    const h = makeStochasticHypotheses(central, fit, opts.policy, baseYear, opts.horizon, opts.seed + k)
     const series = project(state0, h, opts.horizon, econ)
     series.forEach((r, yi) => {
       for (const m of metrics) {

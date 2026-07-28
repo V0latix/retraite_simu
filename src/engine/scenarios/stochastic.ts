@@ -7,7 +7,6 @@
 import { buildHypotheses } from '../../data/loader'
 import type { LeeCarterFit, ScenarioData } from '../../data/schema'
 import { OMEGA, type HypothesisSet, type PolicyParams, type Sex } from '../types'
-import type { BeyondDataPolicy } from '../../data/schema'
 
 /** Small, fast, seedable PRNG. */
 export function mulberry32(seed: number): () => number {
@@ -36,12 +35,11 @@ export function makeStochasticHypotheses(
   central: ScenarioData,
   fit: LeeCarterFit,
   policy: Partial<PolicyParams>,
-  beyond: BeyondDataPolicy,
   baseYear: number,
   maxYear: number,
   seed: number,
 ): HypothesisSet {
-  const base = buildHypotheses(central, policy, beyond)
+  const base = buildHypotheses(central, policy)
   const n = maxYear - baseYear + 1
   const rng = mulberry32(seed)
 

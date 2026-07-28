@@ -2,8 +2,9 @@
 import initialPyramid from '../data/initialPyramid.json'
 import leeCarter from '../data/leeCarter.json'
 import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
-import { SCENARIO_IDS, type BeyondDataPolicy, type InitialPyramid, type LeeCarterFit, type ScenarioData, type ScenarioId } from '../data/schema'
-import { buildChocRecession, buildCorProdBasse, buildCorProdHaute, buildPragmatique } from '../data/pragmatique'
+import { SCENARIO_IDS, type InitialPyramid, type LeeCarterFit, type ScenarioData, type ScenarioId } from '../data/schema'
+import { applyHypotheses, buildChocRecession } from '../data/hypotheses'
+import { SCENARIO_PRESETS } from '../data/scenarioPresets'
 import { runStochastic, type FanResult } from '../engine/scenarios/fanchart'
 import { buildMicroContext } from '../engine/micro/coupling'
 import { computePension } from '../engine/micro/pension'
@@ -17,27 +18,23 @@ export interface MacroRequest {
   scenarioId: ScenarioId
   policy: Partial<PolicyParams>
   horizon: number
-  beyondPolicy: BeyondDataPolicy
 }
 export interface MicroRequest {
   type: 'micro'
   career: CareerParams
   policy: Partial<PolicyParams>
-  beyondPolicy: BeyondDataPolicy
 }
 export interface CompareRequest {
   type: 'compare'
   scenarioIds: ScenarioId[]
   policy: Partial<PolicyParams>
   horizon: number
-  beyondPolicy: BeyondDataPolicy
 }
 export interface StochasticRequest {
   type: 'stochastic'
   draws: number
   horizon: number
   policy: Partial<PolicyParams>
-  beyondPolicy: BeyondDataPolicy
   seed: number
 }
 export type EngineRequest = MacroRequest | MicroRequest | CompareRequest | StochasticRequest
@@ -63,12 +60,10 @@ export type EngineResponse = MacroResponse | MicroResponse | CompareResponse | S
 const scenarioLoaders = import.meta.glob<{ default: ScenarioData }>('../data/scenarios/*.json')
 const state0 = buildInitialState(initialPyramid as InitialPyramid)
 
-// Scenarios with no JSON file: derived from the central scenario at load time (economic
-// overlays only — same demography, « a scenario is data, not a branch »).
+// Scenarios with no JSON file: derived from the central scenario at load time. Only the
+// recession shock is left — everything else a scenario used to change is now a slider.
 const DERIVED: Partial<Record<ScenarioId, (c: ScenarioData) => ScenarioData>> = {
-  pragmatique: buildPragmatique,
-  'cor-productivite-basse': buildCorProdBasse,
-  'cor-productivite-haute': buildCorProdHaute,
+  pragmatique: (c) => c, // central demography; its hypotheses ride on SCENARIO_PRESETS
   'choc-recession': buildChocRecession,
 }
 
@@ -78,9 +73,21 @@ function loadScenario(id: ScenarioId): Promise<ScenarioData> {
   return scenarioLoaders[`../data/scenarios/${id}.json`]().then((m) => m.default)
 }
 
+/**
+ * Multi-scenario views (compare, micro) share one policy from the macro sidebar. Letting it win
+ * would give every scenario the same fertility/migration and flatten the comparison to nothing,
+ * so there the scenario's own preset overrides the shared hypotheses — the reform levers
+ * (age, cotisation…) still come from the user. In the macro view the sliders ARE the scenario,
+ * so they win instead (see runMacro).
+ */
+const scenarioPolicy = (id: ScenarioId, policy: Partial<PolicyParams>): Partial<PolicyParams> => ({
+  ...policy,
+  ...SCENARIO_PRESETS[id],
+})
+
 async function runMacro(req: MacroRequest): Promise<MacroResponse> {
-  const data = await loadScenario(req.scenarioId)
-  const h = buildHypotheses(data, req.policy, req.beyondPolicy)
+  const data = applyHypotheses(await loadScenario(req.scenarioId), req.policy)
+  const h = buildHypotheses(data, req.policy)
   return { type: 'macro', series: project(state0, h, req.horizon, ECON_INIT) }
 }
 
@@ -92,8 +99,9 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
 
   const perScenario = await Promise.all(
     SCENARIO_IDS.map(async (scenarioId) => {
-      const data = await loadScenario(scenarioId)
-      const h = buildHypotheses(data, req.policy, req.beyondPolicy)
+      const p = scenarioPolicy(scenarioId, req.policy)
+      const data = applyHypotheses(await loadScenario(scenarioId), p)
+      const h = buildHypotheses(data, p)
       const series = project(state0, h, horizon, ECON_INIT)
       const ctx = buildMicroContext(series, h.mortality, merged.legalAge, merged.requiredQuarters)
       return { scenarioId, breakdown: computePension(career, ctx) }
@@ -106,8 +114,9 @@ async function runCompare(req: CompareRequest): Promise<CompareResponse> {
   const seriesById: Record<string, TimeSeries> = {}
   await Promise.all(
     req.scenarioIds.map(async (id) => {
-      const data = await loadScenario(id)
-      const h = buildHypotheses(data, req.policy, req.beyondPolicy)
+      const p = scenarioPolicy(id, req.policy)
+      const data = applyHypotheses(await loadScenario(id), p)
+      const h = buildHypotheses(data, p)
       seriesById[id] = project(state0, h, req.horizon, ECON_INIT)
     }),
   )
@@ -115,12 +124,11 @@ async function runCompare(req: CompareRequest): Promise<CompareResponse> {
 }
 
 async function runStochasticReq(req: StochasticRequest): Promise<StochasticResponse> {
-  const central = await loadScenario('central')
+  const central = applyHypotheses(await loadScenario('central'), req.policy)
   const fan = runStochastic(state0, central, leeCarter as LeeCarterFit, ECON_INIT, {
     draws: req.draws,
     horizon: req.horizon,
     policy: req.policy,
-    beyond: req.beyondPolicy,
     seed: req.seed,
   })
   return { type: 'stochastic', fan }

@@ -23,6 +23,12 @@ export interface PolicyParams {
   /** Real productivity growth per year (= real wage growth). Economic hypothesis
    *  exposed alongside the reform levers; drives wages, GDP and contributions. */
   productivity?: number
+  /** Target total fertility rate (children per woman). Rescales the scenario's age-specific
+   *  fertility rates to hit it, profile preserved. Absent ⇒ the scenario's own trajectory. */
+  tfr?: number
+  /** Target net migration, persons/year. Rescales the scenario's age/sex migration profiles
+   *  to hit it. Absent ⇒ the scenario's own trajectory. Applied before `workerExodus`. */
+  netMigration?: number
   /** Real interest rate applied to the cumulated balance (debt costs it, reserves earn it).
    *  Affects ONLY cumulativeDebt — the annual solde stays COR-comparable. Fraction. */
   realInterestRate?: number

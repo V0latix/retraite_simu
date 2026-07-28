@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../../data/schema'
+import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '../../data/schema'
 import { PRESETS } from '../../engine/micro/career'
 import type { CareerParams } from '../../engine/micro/types'
 import type { PolicyParams } from '../../engine/types'
@@ -12,12 +12,12 @@ import { CareerForm } from './CareerForm'
 import { PensionResult } from './PensionResult'
 import { ScenarioSensitivity } from './ScenarioSensitivity'
 
-export function MicroView({ policy, beyondPolicy }: { policy: PolicyParams; beyondPolicy: BeyondDataPolicy }) {
+export function MicroView({ policy }: { policy: PolicyParams }) {
   const [career, setCareer] = useState<CareerParams>(PRESETS.median)
   const [preset, setPreset] = useState('median')
   const [scenarioId, setScenarioId] = useState<ScenarioId>('central')
 
-  const { perScenario, computing } = useMicro(career, policy, beyondPolicy)
+  const { perScenario, computing } = useMicro(career, policy)
   const selected = useMemo(() => perScenario.find((r) => r.scenarioId === scenarioId), [perScenario, scenarioId])
 
   // Editing any field detaches from the preset, so the dropdown stops claiming one.

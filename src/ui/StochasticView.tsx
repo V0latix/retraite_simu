@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { historical } from '../data/loader'
-import type { BeyondDataPolicy } from '../data/schema'
 import type { FanMetric } from '../engine/scenarios/fanchart'
 import type { PolicyParams } from '../engine/types'
 import { useStochastic } from '../hooks/useEngine'
@@ -33,10 +32,10 @@ function observedFor(metric: FanMetric): { year: number; observed: number }[] {
   return zip(demography.share65.years, demography.share65.values)
 }
 
-export function StochasticView({ policy, beyondPolicy }: { policy: PolicyParams; beyondPolicy: BeyondDataPolicy }) {
+export function StochasticView({ policy }: { policy: PolicyParams }) {
   const [metric, setMetric] = useState<FanMetric>('solde')
   const [draws, setDraws] = useState(300)
-  const { fan, computing } = useStochastic(policy, beyondPolicy, draws, 2070, 12345)
+  const { fan, computing } = useStochastic(policy, draws, 2070, 12345)
 
   const m = METRICS.find((x) => x.id === metric)!
   const data = useMemo(() => {

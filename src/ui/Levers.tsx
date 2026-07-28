@@ -1,5 +1,6 @@
 import { REFORM_PRESETS } from '../data/reforms'
-import { SCENARIO_IDS, SCENARIO_LABELS, type BeyondDataPolicy, type ScenarioId } from '../data/schema'
+import { SCENARIO_DESCRIPTIONS } from '../data/scenarioPresets'
+import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -8,49 +9,21 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 
 interface Props {
   scenarioId: ScenarioId
-  beyondPolicy: BeyondDataPolicy
   policy: PolicyParams
   horizon: number
   reformKey: string
   changedCount: number
   onScenario: (id: ScenarioId) => void
-  onBeyond: (b: BeyondDataPolicy) => void
   onPolicy: (p: Partial<PolicyParams>) => void
   onReform: (key: string) => void
   onHorizon: (h: number) => void
   onReset: () => void
 }
 
-const BEYOND_LABELS: Record<BeyondDataPolicy, string> = {
-  hold: 'Geler (hold)',
-  trend: 'Prolonger la tendance (trend)',
-  converge: 'Converger (converge)',
-}
-
 const INDEXATION_LABELS: Record<Indexation, string> = {
   prices: 'Prix',
   wages: 'Salaires',
   mix: 'Mixte',
-}
-
-// Hypothèses des variantes INSEE « Projections de population 2021-2070 ». Chaque variante ne
-// change qu'un seul levier par rapport au central ; les valeurs sont les cibles 2070.
-const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
-  central: 'Scénario de référence de l’INSEE (et du COR) : 1,8 enfant par femme, gains d’espérance de vie tendanciels, solde migratoire +70 000/an.',
-  'fertility-high': 'Comme le central, mais 2,0 enfants par femme. Plus de naissances → plus de cotisants… mais seulement après ~20 ans, le temps qu’ils entrent sur le marché du travail.',
-  'fertility-low': 'Comme le central, mais 1,6 enfant par femme. Moins de naissances → population active plus faible à long terme, ratio cotisants/retraité plus dégradé.',
-  'mortality-low': 'Espérance de vie haute : gains de longévité plus rapides (~92 ans à la naissance en 2070). On vit plus vieux → plus de retraités, plus longtemps → dépenses plus lourdes.',
-  'mortality-high': 'Espérance de vie basse : gains de longévité plus lents (~86 ans en 2070). Retraités moins nombreux et moins longtemps → solde moins dégradé.',
-  'migration-high': 'Solde migratoire haut : +120 000/an. Les migrants sont surtout des actifs → davantage de cotisants, ratio mieux soutenu.',
-  'migration-low': 'Solde migratoire bas : +20 000/an. Moins d’apport d’actifs → cotisants plus rares, ratio plus dégradé.',
-  pragmatique:
-    'Hors scénarios INSEE : fécondité et migration calées sur les tendances réellement observées — fécondité ~1,5 en baisse (vs 1,8) et solde migratoire ~+176 000/an (vs +70 000). Seul scénario à intégrer aussi les risques macro : intérêt sur la dette (boule de neige) et exode des jeunes actifs — réglables ci-dessous.',
-  'cor-productivite-basse':
-    'Démographie centrale, mais gains de productivité de long terme à 0,7 %/an (bas du faisceau COR, vs 1,0 % au central). Salaires réels plus faibles → moins de cotisations → solde plus dégradé. Le curseur de productivité ci-dessous est neutralisé pour ce scénario.',
-  'cor-productivite-haute':
-    'Démographie centrale, mais gains de productivité de long terme à 1,3 %/an (haut du faisceau COR, vs 1,0 % au central). Salaires réels plus élevés → plus de cotisations → solde soutenu. Le curseur de productivité ci-dessous est neutralisé pour ce scénario.',
-  'choc-recession':
-    'Démographie centrale, mais un choc conjoncturel ponctuel : le chômage monte de 7 % à ~10 % entre 2027 et 2028 puis revient à 7 % en 2030. Les chômeurs ne cotisent pas → creux transitoire du solde qui se résorbe après la crise.',
 }
 
 /** Section title, brutalist: small caps over a hard rule. */
@@ -116,21 +89,13 @@ function Slider({
   )
 }
 
-/** COR-productivité scenarios pin productivity intrinsically → the lever is inert. */
-const COR_PROD_LOCK: Partial<Record<ScenarioId, number>> = {
-  'cor-productivite-basse': 0.007,
-  'cor-productivite-haute': 0.013,
-}
-
 export function Levers({
   scenarioId,
-  beyondPolicy,
   policy,
   horizon,
   reformKey,
   changedCount,
   onScenario,
-  onBeyond,
   onPolicy,
   onReform,
   onHorizon,
@@ -138,14 +103,19 @@ export function Levers({
 }: Props) {
   return (
     <>
-      {/* Carte 1 — le contexte démographique projeté (quel scénario, sur quel horizon). */}
+      {/* Carte 1 — le contexte projeté. Le scénario ne fait que positionner les curseurs
+          d'hypothèses ci-dessous : les bouger fabrique sa propre variante (« modifié »). */}
       <Card className="gap-4 p-4">
         <Title>Scénario</Title>
         <label className="block">
-          <span className="text-sm text-muted-foreground">Scénario INSEE</span>
+          <span className="text-sm text-muted-foreground">Jeu d'hypothèses</span>
           <Select value={scenarioId} onValueChange={(v) => onScenario(v as ScenarioId)}>
             <SelectTrigger className="mt-1 w-full">
-              <SelectValue />
+              {/* children override the selected item's label → on y colle l'état « modifié ». */}
+              <SelectValue>
+                {SCENARIO_LABELS[scenarioId]}
+                {changedCount > 0 && ' — modifié'}
+              </SelectValue>
             </SelectTrigger>
             <SelectContent>
               {SCENARIO_IDS.map((id) => (
@@ -165,24 +135,79 @@ export function Levers({
           fmt={(v) => String(v)}
           onChange={onHorizon}
         />
-        <label className="block">
-          <span className="text-sm text-muted-foreground">Extrapolation après 2070</span>
-          <Select value={beyondPolicy} onValueChange={(v) => onBeyond(v as BeyondDataPolicy)}>
-            <SelectTrigger className="mt-1 w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {(Object.keys(BEYOND_LABELS) as BeyondDataPolicy[]).map((b) => (
-                <SelectItem key={b} value={b}>
-                  {BEYOND_LABELS[b]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </label>
       </Card>
 
-      {/* Carte 2 — les leviers de réforme, qui recalculent le solde à démographie donnée.
+      {/* Carte 2 — les hypothèses, curseurs de plein droit. Chaque scénario n'est qu'un jeu de
+          positions ici : les anciennes variantes INSEE (fécondité ±, migration ±, productivité
+          COR ±) sont exactement ces curseurs déplacés. */}
+      <Card className="gap-4 p-4">
+        <Title>Hypothèses</Title>
+        <Slider
+          label="Fécondité"
+          value={policy.tfr ?? 1.8}
+          min={1.2}
+          max={2.2}
+          step={0.05}
+          fmt={(v) => `${v.toFixed(2).replace('.', ',')} enf./f.`}
+          onChange={(v) => onPolicy({ tfr: v })}
+          hint={
+            <>
+              Nombre d'enfants par femme (indice conjoncturel). Repères : <strong>1,8</strong> = hypothèse
+              INSEE, <strong>1,6</strong> = observé 2024. Levier lent : un bébé de 2026 ne cotise pas avant
+              ~2046 — l'effet sur le solde n'apparaît qu'après 20 ans, mais il pèse ensuite pour toujours.
+            </>
+          }
+        />
+        <Slider
+          label="Solde migratoire"
+          value={policy.netMigration ?? 70000}
+          min={0}
+          max={250000}
+          step={5000}
+          fmt={(v) => `+${Math.round(v / 1000)} 000/an`}
+          onChange={(v) => onPolicy({ netMigration: v })}
+          hint={
+            <>
+              Entrées moins sorties, tous âges. Repères : <strong>+70 000</strong> = hypothèse INSEE,
+              <strong> +176 000</strong> = moyenne observée 2023-2025. Effet <em>immédiat</em>, à l'inverse de
+              la fécondité : les arrivants sont surtout des actifs, donc des cotisants tout de suite.
+            </>
+          }
+        />
+        <Slider
+          label="Croissance de la productivité"
+          value={policy.productivity ?? 0.01}
+          min={0.004}
+          max={0.02}
+          step={0.001}
+          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
+          onChange={(v) => onPolicy({ productivity: v })}
+          hint={
+            <>
+              Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une
+              productivité plus forte réduit les dépenses en part de PIB et améliore le solde. Faisceau
+              COR&nbsp;: 0,7 à 1,3 %/an autour de 1,0 %.
+            </>
+          }
+        />
+        <Slider
+          label="Taux de chômage"
+          value={policy.unemployment ?? 0.07}
+          min={0.045}
+          max={0.11}
+          step={0.005}
+          fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
+          onChange={(v) => onPolicy({ unemployment: v })}
+          hint={
+            <>
+              Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Les projections
+              officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%.
+            </>
+          }
+        />
+      </Card>
+
+      {/* Carte 3 — les leviers de réforme, qui recalculent le solde à hypothèses données.
           Les deux leviers les plus courants restent visibles ; les six autres se replient
           dans un <details> natif (clavier-accessible, zéro JS) pour désencombrer. */}
       <Card className="gap-4 p-4">
@@ -284,22 +309,6 @@ export function Levers({
                 </>
               }
             />
-            <Slider
-              label="Taux de chômage"
-              value={policy.unemployment ?? 0.07}
-              min={0.045}
-              max={0.11}
-              step={0.005}
-              fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
-              onChange={(v) => onPolicy({ unemployment: v })}
-              hint={
-                <>
-                  Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Ce curseur
-                  <strong> force l'hypothèse</strong> de chômage, quel que soit le scénario (les projections
-                  officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%).
-                </>
-              }
-            />
             <label className="block">
               <span className="text-sm text-muted-foreground">Règle d'indexation</span>
               <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>
@@ -388,28 +397,11 @@ export function Levers({
                 </>
               }
             />
-            <Slider
-              label="Croissance de la productivité"
-              value={COR_PROD_LOCK[scenarioId] ?? policy.productivity ?? 0.01}
-              min={0.004}
-              max={0.02}
-              step={0.001}
-              fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`}
-              onChange={(v) => onPolicy({ productivity: v })}
-              disabled={scenarioId in COR_PROD_LOCK}
-              hint={
-                <>
-                  Rythme de hausse des salaires réels. Les pensions suivant les prix (pas les salaires), une
-                  productivité plus forte réduit les dépenses en part de PIB et améliore le solde. Repère
-                  COR : 1,0 %/an (variantes 0,4 à 1,6 %).
-                </>
-              }
-            />
           </div>
         </details>
       </Card>
 
-      {/* Carte 3 — risques macro propres au Pragmatique : finances publiques + fuite des actifs.
+      {/* Carte 4 — risques macro propres au Pragmatique : finances publiques + fuite des actifs.
           Masquée pour les scénarios INSEE/COR, qui restent figés sur la référence. */}
       {scenarioId === 'pragmatique' && (
         <Card className="gap-4 p-4">
