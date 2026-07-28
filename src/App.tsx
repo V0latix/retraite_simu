@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
-import { PRAGMATIQUE_RISK } from './data/pragmatique'
 import { REFORM_PRESETS } from './data/reforms'
-import type { BeyondDataPolicy, ScenarioId } from './data/schema'
+import { SCENARIO_PRESETS } from './data/scenarioPresets'
+import type { ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
 import { type View, countChangedLevers, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
@@ -51,7 +51,6 @@ function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: 
 function App() {
   const [view, setView] = useState<View>(init.view)
   const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
-  const [beyondPolicy, setBeyondPolicy] = useState<BeyondDataPolicy>(init.beyondPolicy)
   const [policy, setPolicy] = useState<PolicyParams>(init.policy)
   const [reformKey, setReformKey] = useState('')
   const [horizon, setHorizon] = useState(init.horizon)
@@ -60,19 +59,19 @@ function App() {
 
   // Sync the whole app state into the URL (shareable/reproducible), no re-render.
   useEffect(() => {
-    const qs = encodeState({ view, scenarioId, beyondPolicy, horizon, policy })
+    const qs = encodeState({ view, scenarioId, horizon, policy })
     window.history.replaceState(null, '', `?${qs}`)
-  }, [view, scenarioId, beyondPolicy, horizon, policy])
+  }, [view, scenarioId, horizon, policy])
 
-  const { series, computing } = useProjection(scenarioId, policy, horizon, beyondPolicy)
+  const { series, computing } = useProjection(scenarioId, policy, horizon)
 
-  // The same scenario with untouched levers — only used to price the user's reform
+  // The scenario's own preset, untouched — the reference the user's edits are priced against
   // ("+0,6 pt de PIB"). One extra worker; the engine and the main run are untouched.
   const basePolicy = useMemo<PolicyParams>(
-    () => (scenarioId === 'pragmatique' ? { ...DEFAULT_POLICY, ...PRAGMATIQUE_RISK } : DEFAULT_POLICY),
+    () => ({ ...DEFAULT_POLICY, ...SCENARIO_PRESETS[scenarioId] }),
     [scenarioId],
   )
-  const { series: baseline } = useProjection(scenarioId, basePolicy, horizon, beyondPolicy)
+  const { series: baseline } = useProjection(scenarioId, basePolicy, horizon)
   const changedCount = countChangedLevers(policy, basePolicy)
 
   const current = useMemo(
@@ -116,15 +115,12 @@ function App() {
     setPolicy((prev) => ({ ...prev, ...preset.delta }))
   }
 
-  // Exode & intérêt sur la dette ne jouent QUE dans le Pragmatique : changer de scénario
-  // (ré)applique le défaut du scénario — Pragmatique les allume, tout autre les remet à 0,
-  // laissant les scénarios INSEE/COR figés sur la référence.
+  // Un scénario = un jeu de positions de curseurs : le choisir les déplace sous les yeux de
+  // l'utilisateur (fécondité, migration, productivité, chômage + risques macro), qui peut
+  // ensuite en bouger un. Les leviers de réforme déjà réglés sont conservés.
   const onScenario = (id: ScenarioId) => {
     setScenarioId(id)
-    setPolicy((prev) => ({
-      ...prev,
-      ...(id === 'pragmatique' ? PRAGMATIQUE_RISK : { realInterestRate: 0, workerExodus: 0 }),
-    }))
+    setPolicy((prev) => ({ ...prev, ...SCENARIO_PRESETS[id] }))
   }
 
   // Back to the scenario's own reference trajectory (same baseline the delta is measured against).
@@ -161,9 +157,9 @@ function App() {
         </TabsList>
       </Tabs>
 
-      {view === 'micro' && <MicroView policy={policy} beyondPolicy={beyondPolicy} />}
-      {view === 'comparaison' && <ComparisonView policy={policy} beyondPolicy={beyondPolicy} />}
-      {view === 'stochastique' && <StochasticView policy={policy} beyondPolicy={beyondPolicy} />}
+      {view === 'micro' && <MicroView policy={policy} />}
+      {view === 'comparaison' && <ComparisonView policy={policy} />}
+      {view === 'stochastique' && <StochasticView policy={policy} />}
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
@@ -172,13 +168,11 @@ function App() {
         <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
           <Levers
             scenarioId={scenarioId}
-            beyondPolicy={beyondPolicy}
             policy={policy}
             horizon={horizon}
             reformKey={reformKey}
             changedCount={changedCount}
             onScenario={onScenario}
-            onBeyond={setBeyondPolicy}
             onPolicy={setP}
             onReform={onReform}
             onHorizon={setHorizon}

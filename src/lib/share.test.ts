@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_POLICY } from '../data/loader'
+import { SCENARIO_PRESETS } from '../data/scenarioPresets'
 import type { TimeSeries } from '../engine/types'
 import { type AppState, decodeState, encodeState, seriesToCsv } from './share'
 
@@ -7,19 +8,27 @@ describe('URL state round-trip', () => {
   it('survives encode → decode on a non-default state', () => {
     const state: AppState = {
       view: 'stochastique',
-      scenarioId: 'fertility-low',
-      beyondPolicy: 'trend',
+      scenarioId: 'pragmatique',
       horizon: 2085,
-      policy: { ...DEFAULT_POLICY, legalAge: 66, unemployment: 0.09, legalAgeLEShare: 0.5 },
+      policy: {
+        ...DEFAULT_POLICY,
+        ...SCENARIO_PRESETS.pragmatique,
+        legalAge: 66,
+        tfr: 1.35,
+        netMigration: 90_000,
+        legalAgeLEShare: 0.5,
+      },
     }
     expect(decodeState(new URLSearchParams(encodeState(state)))).toEqual(state)
   })
 
-  it('falls back to defaults on garbage input', () => {
+  it('falls back to defaults on garbage input, sliders on the central preset', () => {
     const s = decodeState(new URLSearchParams('v=bogus&s=nope&h=abc'))
     expect(s.view).toBe('macro')
     expect(s.scenarioId).toBe('central')
     expect(s.horizon).toBe(2070)
+    expect(s.policy.tfr).toBe(SCENARIO_PRESETS.central.tfr)
+    expect(s.policy.netMigration).toBe(SCENARIO_PRESETS.central.netMigration)
   })
 })
 

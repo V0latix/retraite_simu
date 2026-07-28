@@ -150,10 +150,10 @@ export function buildHypotheses(
     fertility: (y, age) => (age < 15 || age > 50 ? 0 : atYear(data.fertility, years, y, age, beyond)),
     mortality: (y, age, sex: Sex) => atYear(data.mortality[sex], years, y, Math.min(age, OMEGA), beyond),
     migration: (y, age, sex: Sex) => (y < BASE_YEAR ? 0 : atYear(data.migration[sex], years, y, age, beyond) - exodus(age)),
-    // Scenario-intrinsic productivity (COR growth band) wins over the shared policy lever, so
-    // the spread survives ComparisonView's single shared policy; other scenarios keep the lever.
-    productivity: () => data.productivity ?? merged.productivity ?? params.economy.productivity,
-    unemployment: unemploymentFn(merged.unemployment ?? data.unemploymentTarget ?? params.economy.unemployment, data.unemploymentShock),
+    // Productivity and unemployment are sliders (SCENARIO_PRESETS positions them per scenario);
+    // systemParams is the fallback for direct engine calls that pass no policy.
+    productivity: () => merged.productivity ?? params.economy.productivity,
+    unemployment: unemploymentFn(merged.unemployment ?? params.economy.unemployment, data.unemploymentShock),
     // Activity rate: COR-style hypothesis, ramps down toward the legal age.
     activityRate: (_y, age, legalAge) => {
       if (age < 20) return 0.25

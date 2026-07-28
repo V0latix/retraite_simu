@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { BeyondDataPolicy, ScenarioId } from '../data/schema'
+import type { ScenarioId } from '../data/schema'
 import type { CareerParams } from '../engine/micro/types'
 import type { FanResult } from '../engine/scenarios/fanchart'
 import type { PolicyParams, TimeSeries } from '../engine/types'
@@ -46,22 +46,22 @@ function useEngine<T extends EngineResponse['type']>(
   return { data, computing }
 }
 
-export function useProjection(scenarioId: ScenarioId, policy: Partial<PolicyParams>, horizon: number, beyondPolicy: BeyondDataPolicy) {
-  const { data, computing } = useEngine('macro', { type: 'macro', scenarioId, policy, horizon, beyondPolicy })
+export function useProjection(scenarioId: ScenarioId, policy: Partial<PolicyParams>, horizon: number) {
+  const { data, computing } = useEngine('macro', { type: 'macro', scenarioId, policy, horizon })
   return useMemo(() => ({ series: (data?.series ?? []) as TimeSeries, computing }), [data, computing])
 }
 
-export function useCompare(scenarioIds: ScenarioId[], policy: Partial<PolicyParams>, horizon: number, beyondPolicy: BeyondDataPolicy) {
-  const { data, computing } = useEngine('compare', { type: 'compare', scenarioIds, policy, horizon, beyondPolicy })
+export function useCompare(scenarioIds: ScenarioId[], policy: Partial<PolicyParams>, horizon: number) {
+  const { data, computing } = useEngine('compare', { type: 'compare', scenarioIds, policy, horizon })
   return useMemo(() => ({ seriesById: data?.seriesById ?? {}, computing }), [data, computing])
 }
 
-export function useMicro(career: CareerParams, policy: Partial<PolicyParams>, beyondPolicy: BeyondDataPolicy) {
-  const { data, computing } = useEngine('micro', { type: 'micro', career, policy, beyondPolicy })
+export function useMicro(career: CareerParams, policy: Partial<PolicyParams>) {
+  const { data, computing } = useEngine('micro', { type: 'micro', career, policy })
   return useMemo(() => ({ perScenario: (data?.perScenario ?? []) as MicroResponse['perScenario'], computing }), [data, computing])
 }
 
-export function useStochastic(policy: Partial<PolicyParams>, beyondPolicy: BeyondDataPolicy, draws: number, horizon: number, seed: number) {
-  const { data, computing } = useEngine('stochastic', { type: 'stochastic', policy, beyondPolicy, draws, horizon, seed })
+export function useStochastic(policy: Partial<PolicyParams>, draws: number, horizon: number, seed: number) {
+  const { data, computing } = useEngine('stochastic', { type: 'stochastic', policy, draws, horizon, seed })
   return useMemo(() => ({ fan: (data?.fan ?? null) as FanResult | null, computing }), [data, computing])
 }
