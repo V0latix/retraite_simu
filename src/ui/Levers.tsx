@@ -260,8 +260,11 @@ export function Levers({
           onChange={(v) => onPolicy({ legalAge: v })}
           hint={
             <>
-              Le levier le plus direct : reculer l'âge ajoute des cotisants et retire des retraités.
-              +1&nbsp;an = chaque génération cotise un an de plus avant de basculer en retraite.
+              Le levier le plus direct : reculer l'âge ajoute des cotisants et retire des retraités. Tout le
+              monde ne bascule pas pour autant — une partie de la tranche d'âge était déjà inactive sans être
+              retraitée, une autre travaillait déjà au-delà, et les départs anticipés en exemptent une part. Le
+              modèle ne retient donc qu'<strong>un quart environ de l'effet théorique</strong>, calé sur les
+              chiffrages publiés de la réforme 2023 (≈&nbsp;14&nbsp;Md€/an pour +2&nbsp;ans).
             </>
           }
         />

@@ -28,6 +28,16 @@ export interface EconInit {
   /** Reference required quarters (the base-config value the shift anchors to, so the
    *  reference scenario is unshifted and the COR calibration stays intact). */
   quartersRef: number
+  /** Share (0-1) of a legal-age move that actually converts into the retiree→contributor
+   *  reclassification. The raw mechanism assumes everyone exits the day they become eligible
+   *  and immediately holds a job — an upper bound (OFCE flags the same one). In reality much
+   *  of the band was already inactive without being retired, part was already working past the
+   *  age, and early-exit routes exempt a chunk of departures. Calibrated on the published
+   *  estimates of the 2023 reform (see systemParams `_sources`). */
+  legalAgeEffectiveness: number
+  /** Reference legal age the effectiveness damping anchors to: at this age the deviation is
+   *  zero, so the COR calibration is untouched (same trick as quartersRef). */
+  legalAgeRef: number
   /**
    * Optional per-year COR calibration (built in loader.ts from corReference.json).
    * When present, it pins the CENTRAL scenario's dépenses and resources to the COR EEC
@@ -49,6 +59,8 @@ const DEFAULT_ECON: EconInit = {
   pensionDriftShare: 0.22,
   quartersAgeShare: 0.5,
   quartersRef: 172,
+  legalAgeEffectiveness: 0.26,
+  legalAgeRef: 64,
 }
 
 // ponytail: carrières longues départ age fixed at 60 (RN « 60 ans si commencé avant 20 »).
@@ -133,6 +145,11 @@ export function project(
     // référence inchangé (calage COR intact).
     // ponytail: canal décote (pension moindre) ignoré — seul l'effet âge de sortie modélisé.
     legalAge += (econ.quartersAgeShare * (p.requiredQuarters - econ.quartersRef)) / 4
+    // Behavioural pass-through: only a share of the theoretical shift converts into people
+    // actually moving from retiree to employed contributor. Anchored on legalAgeRef so the
+    // reference config is unshifted — raw, the lever priced the 2023 reform at ~4× the
+    // published estimates (see systemParams.calibration._sources).
+    legalAge = econ.legalAgeRef + econ.legalAgeEffectiveness * (legalAge - econ.legalAgeRef)
 
     const earlyShare = p.earlyRetirementShare ?? 0
     const contrib = contributors(state, h, year, legalAge, earlyShare)

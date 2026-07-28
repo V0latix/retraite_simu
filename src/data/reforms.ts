@@ -22,7 +22,9 @@ export const REFORM_PRESETS: Record<string, ReformPreset> = {
     source:
       'Contrefactuel — droit applicable avant le 1ᵉʳ septembre 2023 : âge légal 62 ans, durée requise ' +
       'montant d’un trimestre toutes les trois générations (loi Touraine du 20 janvier 2014), 172 trimestres ' +
-      'à la génération 1973. Sert de référence pour lire l’effet de la réforme 2023.',
+      'à la génération 1973. C’est la référence pour lire l’effet de la réforme 2023 : l’écart entre ce ' +
+      'scénario et le droit en vigueur vaut ≈ 14 Md€ par an à l’horizon 2030, dans la fourchette des ' +
+      'chiffrages publiés (10 Md€ Cour des comptes, 17,7 Md€ étude d’impact).',
     delta: { legalAge: 62, requiredQuarters: 172 },
     schedule: [
       { year: 2025, legalAge: 62, requiredQuarters: 168 }, // gén. 1963
@@ -49,9 +51,14 @@ export const REFORM_PRESETS: Record<string, ReformPreset> = {
       'les pensions prenant effet à partir du 1ᵉʳ septembre 2026 ; 64 ans repoussé à la génération 1969. ' +
       'La fenêtre de gel se referme au 1ᵉʳ janvier 2028 : le modèle retient la lettre du texte (gel, puis ' +
       'reprise du calendrier et retour à 64 ans en 2033), l’après-2028 restant une variable politique ouverte. ' +
-      'Le curseur affiche 64 ans, la cible d’arrivée ; c’est le calendrier qui porte le creux.',
+      'Le curseur affiche 64 ans, la cible d’arrivée ; c’est le calendrier qui porte le creux. Le modèle chiffre ' +
+      'le gel à ≈ 7 Md€ en 2027, au-dessus de l’estimation gouvernementale (1,8 Md€) : il compte l’effet sur ' +
+      'tout le stock de 62-64 ans, là où le chiffrage budgétaire ne retient que les liquidations décalées.',
     delta: { legalAge: 64, requiredQuarters: 172 },
     schedule: [
+      // 2025 = la référence : le gel ne s'applique qu'aux pensions prenant effet à partir du
+      // 01/09/2026. Sans cette ancre, l'interpolation clamperait le creux jusqu'en 2025.
+      { year: 2025, legalAge: 64, requiredQuarters: 172 },
       { year: 2026, legalAge: 62.75, requiredQuarters: 170 },
       { year: 2028, legalAge: 62.75, requiredQuarters: 171 }, // fin du gel
       { year: 2029, legalAge: 63.25, requiredQuarters: 172 },
@@ -93,12 +100,16 @@ export function formatAge(age: number): string {
   return months === 0 ? `${years} ans` : `${years} ans ${months} mois`
 }
 
-/** Résumé lisible d'un calendrier : « 62 ans 9 mois en 2025 → 64 ans en 2032 ». */
+/**
+ * Résumé lisible d'un calendrier : « 62 ans 9 mois en 2026 → 64 ans en 2033 ».
+ * On part du point le plus bas, pas de la première ancre : une suspension commence et finit à
+ * la cible, son creux est au milieu — la lire par ses extrémités ne dirait rien.
+ */
 export function scheduleSummary(schedule: PolicyAnchor[]): string | null {
   const withAge = schedule.filter((a) => a.legalAge != null)
   if (withAge.length < 2) return null
-  const first = withAge[0]
   const last = withAge[withAge.length - 1]
-  if (first.legalAge === last.legalAge) return null
-  return `${formatAge(first.legalAge!)} en ${first.year} → ${formatAge(last.legalAge!)} en ${last.year}`
+  const low = withAge.reduce((lo, a) => (a.legalAge! < lo.legalAge! ? a : lo), withAge[0])
+  if (low.legalAge === last.legalAge) return null // âge plat : rien à étaler
+  return `${formatAge(low.legalAge!)} en ${low.year} → ${formatAge(last.legalAge!)} en ${last.year}`
 }

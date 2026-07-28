@@ -115,6 +115,10 @@ describe('project', () => {
 })
 
 describe('fractional legal age + reform calendars', () => {
+  // These test the age *mechanism*, so they bypass the behavioural damping
+  // (legalAgeEffectiveness, calibrated in validation.test.ts) and read the raw shift.
+  const RAW = { ...ECON_INIT, legalAgeEffectiveness: 1 }
+
   // The COR calibration was fitted with an integer step at the exit age: the fractional
   // machinery MUST reduce to the old 0/1 behaviour at whole ages, or the whole macro block drifts.
   it('an integer legal age gives whole-cohort counts (calibration untouched)', () => {
@@ -127,9 +131,9 @@ describe('fractional legal age + reform calendars', () => {
   })
 
   it('a quarter-year step moves retirees a quarter of the boundary cohort', () => {
-    const at63 = project(state0(), buildHypotheses(data, { legalAge: 63 }), 2040, ECON_INIT)
-    const at6325 = project(state0(), buildHypotheses(data, { legalAge: 63.25 }), 2040, ECON_INIT)
-    const at64 = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2040, ECON_INIT)
+    const at63 = project(state0(), buildHypotheses(data, { legalAge: 63 }), 2040, RAW)
+    const at6325 = project(state0(), buildHypotheses(data, { legalAge: 63.25 }), 2040, RAW)
+    const at64 = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2040, RAW)
     const y = at63.length - 1
     const cohort63 = at63[y].pyramid.H[63] + at63[y].pyramid.F[63]
     expect(at63[y].retirees - at6325[y].retirees).toBeCloseTo(0.25 * cohort63, 6)
@@ -140,7 +144,7 @@ describe('fractional legal age + reform calendars', () => {
   })
 
   it('contributors and retirees still partition the boundary cohort', () => {
-    const s = project(state0(), buildHypotheses(data, { legalAge: 62.75 }), 2030, ECON_INIT)
+    const s = project(state0(), buildHypotheses(data, { legalAge: 62.75 }), 2030, RAW)
     const y = s.length - 1
     const pyr62 = s[y].pyramid
     let sixtyThreePlus = 0

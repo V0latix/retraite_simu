@@ -43,6 +43,8 @@ const ECON_SEEDS: EconInit = {
   pensionDriftShare: params.calibration.pensionDriftShare,
   quartersAgeShare: params.calibration.quartersAgeShare,
   quartersRef: params.policy.requiredQuarters,
+  legalAgeEffectiveness: params.calibration.legalAgeEffectiveness,
+  legalAgeRef: params.calibration.legalAgeRef,
   depensesShareBase: params.calibration.depensesShareBase,
   soldeShareBase: params.calibration.soldeShareBase,
   resources2070Share: params.calibration.resources2070Share,

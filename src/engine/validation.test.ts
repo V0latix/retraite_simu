@@ -3,6 +3,7 @@ import central from '../data/scenarios/central.json'
 import initialPyramid from '../data/initialPyramid.json'
 import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
 import corRef from '../data/corReference.json'
+import { REFORM_PRESETS } from '../data/reforms'
 import type { InitialPyramid, ScenarioData } from '../data/schema'
 import { project } from './project'
 
@@ -62,5 +63,41 @@ describe('COR calibration', () => {
   it('COR reference file is well-formed', () => {
     expect(corRef.points.length).toBeGreaterThanOrEqual(5)
     expect(corRef.points.at(-1)!.year).toBe(2070)
+  })
+})
+
+describe('reform templates vs published estimates', () => {
+  const run = (key: string) => {
+    const r = REFORM_PRESETS[key]
+    return project(buildInitialState(pyr), buildHypotheses(data, { ...r.delta, schedule: r.schedule }), 2070, ECON_INIT)
+  }
+
+  // The lever that prices every age reform. Raw (no legalAgeEffectiveness) the 2023 reform came
+  // out at ~59 Md€ at 2030, ~4x the published range — this test is the guard on that calibration.
+  it('the 2023 reform lands inside the published range (Cour des comptes ~10 Md€ … étude d’impact 17,7 Md€)', () => {
+    const avant = run('avant-2023')
+    const apres = run('reforme-2023')
+    for (const year of [2030, 2040, 2050, 2070]) {
+      const gain = (at(apres, year).balance - at(avant, year).balance) / 1e9
+      expect(gain).toBeGreaterThan(10)
+      expect(gain).toBeLessThan(17.7)
+    }
+  })
+
+  it('the reform template IS the calibrated reference (its calendar is already in the COR baseline)', () => {
+    const apres = run('reforme-2023')
+    expect(REFORM_PRESETS['reforme-2023'].schedule).toBeUndefined()
+    for (const p of corRef.points) {
+      expect(at(apres, p.year).soldePctGdp).toBeCloseTo(p.soldePctGdp, 3)
+    }
+  })
+
+  it('the 2026 suspension costs nothing before it starts and closes back onto the reference', () => {
+    const ref = run('reforme-2023')
+    const susp = run('suspension-2026')
+    const cost = (year: number) => (at(susp, year).balance - at(ref, year).balance) / 1e9
+    expect(cost(2025)).toBeCloseTo(0, 6) // applies to pensions taking effect from 01/09/2026
+    expect(cost(2027)).toBeLessThan(0) // the freeze bites
+    expect(cost(2035)).toBeCloseTo(0, 6) // calendar resumed, 64 ans reached in 2033
   })
 })
