@@ -32,6 +32,7 @@ export interface CareerParams {
  * by calendar year; everything here is derived from the selected macro scenario.
  */
 export interface MicroContext {
+  /** Legal age in force at the liquidation year (fractional: 62.75 = 62 ans 9 mois). */
   legalAge: number
   requiredQuarters: number
   passByYear: (year: number) => number
@@ -52,6 +53,11 @@ export interface PensionBreakdown {
   points: number // AGIRC-ARRCO points
   pRG: number // régime général annual pension
   micoApplied: boolean // pRG floored to the minimum contributif (§3.5)
+  /** Retiring below the legal age in force at liquidation, outside a carrière longue. Flagged,
+   *  never clamped: early-exit routes (carrières longues, inaptitude, handicap) do exist — the
+   *  model just can't check their eligibility, so it warns instead of deciding. */
+  belowLegalAge: boolean
+  legalAgeAtLiquidation: number
   pComp: number // complémentaire annual pension
   total: number // €/yr
   lastSalary: number

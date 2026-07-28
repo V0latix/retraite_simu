@@ -95,7 +95,6 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
   const career = synthesizeCareer(req.career)
   const liqYear = req.career.birthYear + req.career.retirementAge
   const horizon = Math.max(liqYear, 2070)
-  const merged = { legalAge: 64, requiredQuarters: 172, ...req.policy }
 
   const perScenario = await Promise.all(
     SCENARIO_IDS.map(async (scenarioId) => {
@@ -103,7 +102,10 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
       const data = applyHypotheses(await loadScenario(scenarioId), p)
       const h = buildHypotheses(data, p)
       const series = project(state0, h, horizon, ECON_INIT)
-      const ctx = buildMicroContext(series, h.mortality, merged.legalAge, merged.requiredQuarters)
+      // Policy read AT the liquidation year, not flat: a reform calendar means liquidating in
+      // 2027 and in 2035 are not governed by the same legal age / required duration.
+      const atLiq = h.policy(liqYear)
+      const ctx = buildMicroContext(series, h.mortality, atLiq.legalAge, atLiq.requiredQuarters)
       return { scenarioId, breakdown: computePension(career, ctx) }
     }),
   )

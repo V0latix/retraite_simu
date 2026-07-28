@@ -1,5 +1,5 @@
 // Builds engine inputs from the real INSEE JSON (replaces the old seed.ts).
-import { OMEGA, type HypothesisSet, type PolicyParams, type PopulationState, type Sex } from '../engine/types'
+import { OMEGA, type HypothesisSet, type PolicyAnchor, type PolicyParams, type PopulationState, type Sex } from '../engine/types'
 import { type EconInit, project } from '../engine/project'
 import type { BeyondDataPolicy, CorReference, HistoricalData, HistoricalPyramid, InitialPyramid, OecdComparison, ReferenceIndicators, ScenarioData } from './schema'
 import params from './systemParams.json'
@@ -56,20 +56,43 @@ const ECON_SEEDS: EconInit = {
  * reform lever reuses this same calibration, so they deviate from COR through their own
  * demography and contributions rather than being pinned to it.
  */
+/**
+ * Linear interpolation of one field over year-keyed anchors, clamped outside their range.
+ * Shared by the COR reference points and the reform calendars (`PolicyParams.schedule`) —
+ * same shape, one implementation.
+ */
+export function interpByYear<T extends { year: number }>(pts: T[], year: number, field: keyof T): number | undefined {
+  const known = pts.filter((p) => p[field] != null)
+  if (known.length === 0) return undefined
+  if (year <= known[0].year) return known[0][field] as number
+  const last = known[known.length - 1]
+  if (year >= last.year) return last[field] as number
+  for (let i = 0; i < known.length - 1; i++) {
+    if (year >= known[i].year && year <= known[i + 1].year) {
+      const t = (year - known[i].year) / (known[i + 1].year - known[i].year)
+      return (known[i][field] as number) + t * ((known[i + 1][field] as number) - (known[i][field] as number))
+    }
+  }
+  return last[field] as number
+}
+
+/** A reform calendar resolved at one year: the fields it pins, others left to the flat policy. */
+function atSchedule(anchors: PolicyAnchor[], year: number): Partial<PolicyParams> {
+  const pts = [...anchors].sort((a, b) => a.year - b.year)
+  const out: Partial<PolicyParams> = {}
+  const legalAge = interpByYear(pts, year, 'legalAge')
+  if (legalAge != null) out.legalAge = legalAge
+  const quarters = interpByYear(pts, year, 'requiredQuarters')
+  // Quarters are integers by nature — the law never asks for 170.5 trimestres.
+  if (quarters != null) out.requiredQuarters = Math.round(quarters)
+  return out
+}
+
 function buildCorCalibration(): EconInit['calibration'] {
   const ref = corReferenceJson as CorReference
   const pts = [...ref.points].sort((a, b) => a.year - b.year)
-  const interp = (year: number, field: 'depensesPctGdp' | 'ressourcesPctGdp') => {
-    if (year <= pts[0].year) return pts[0][field]
-    if (year >= pts[pts.length - 1].year) return pts[pts.length - 1][field]
-    for (let i = 0; i < pts.length - 1; i++) {
-      if (year >= pts[i].year && year <= pts[i + 1].year) {
-        const t = (year - pts[i].year) / (pts[i + 1].year - pts[i].year)
-        return pts[i][field] + t * (pts[i + 1][field] - pts[i][field])
-      }
-    }
-    return pts[pts.length - 1][field]
-  }
+  const interp = (year: number, field: 'depensesPctGdp' | 'ressourcesPctGdp') =>
+    interpByYear(pts, year, field) as number
 
   const rawCentral = project(
     buildInitialState(initialPyramidJson as InitialPyramid),
@@ -161,6 +184,8 @@ export function buildHypotheses(
       if (age >= legalAge - 5) return 0.55
       return 0.9
     },
-    policy: () => merged,
+    // A reform with a calendar (montée en charge, gel) overrides the flat fields year by year;
+    // without one we keep the constant closure — the status-quo path, byte-identical.
+    policy: merged.schedule?.length ? (y) => ({ ...merged, ...atSchedule(merged.schedule!, y) }) : () => merged,
   }
 }

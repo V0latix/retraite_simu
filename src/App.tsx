@@ -52,16 +52,16 @@ function App() {
   const [view, setView] = useState<View>(init.view)
   const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
   const [policy, setPolicy] = useState<PolicyParams>(init.policy)
-  const [reformKey, setReformKey] = useState('')
+  const [reformKey, setReformKey] = useState(init.reformKey)
   const [horizon, setHorizon] = useState(init.horizon)
   const [year, setYear] = useState(BASE_YEAR)
   const [copied, setCopied] = useState(false)
 
   // Sync the whole app state into the URL (shareable/reproducible), no re-render.
   useEffect(() => {
-    const qs = encodeState({ view, scenarioId, horizon, policy })
+    const qs = encodeState({ view, scenarioId, horizon, policy, reformKey })
     window.history.replaceState(null, '', `?${qs}`)
-  }, [view, scenarioId, horizon, policy])
+  }, [view, scenarioId, horizon, policy, reformKey])
 
   const { series, computing } = useProjection(scenarioId, policy, horizon)
 
@@ -102,17 +102,20 @@ function App() {
   }, [year, current])
 
   // Manual slider edit detaches from the selected reform (empty sentinel), like MicroView's setC.
+  // The calendar goes with it: it overrides legalAge year by year, so keeping it would silently
+  // swallow the slider the user just moved.
   const setP = (p: Partial<PolicyParams>) => {
     setReformKey('')
-    setPolicy((prev) => ({ ...prev, ...p }))
+    setPolicy((prev) => ({ ...prev, ...p, schedule: undefined }))
   }
 
-  // Selecting a turnkey reform applies its PolicyParams delta in one go (same merge channel).
+  // Selecting a turnkey reform applies its PolicyParams delta in one go (same merge channel),
+  // plus its phase-in calendar when it has one (a law, as opposed to a debate proposal).
   const onReform = (key: string) => {
     const preset = REFORM_PRESETS[key]
     if (!preset) return
     setReformKey(key)
-    setPolicy((prev) => ({ ...prev, ...preset.delta }))
+    setPolicy((prev) => ({ ...prev, ...preset.delta, schedule: preset.schedule }))
   }
 
   // Un scénario = un jeu de positions de curseurs : le choisir les déplace sous les yeux de

@@ -113,3 +113,80 @@ describe('project', () => {
     expect(indexed[y].retirees).toBeLessThan(base[y].retirees)
   })
 })
+
+describe('fractional legal age + reform calendars', () => {
+  // The COR calibration was fitted with an integer step at the exit age: the fractional
+  // machinery MUST reduce to the old 0/1 behaviour at whole ages, or the whole macro block drifts.
+  it('an integer legal age gives whole-cohort counts (calibration untouched)', () => {
+    const s = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2050, ECON_INIT)
+    const y = s.length - 1
+    const pyramid = s[y].pyramid
+    let sixtyFourPlus = 0
+    for (let a = 64; a < pyramid.H.length; a++) sixtyFourPlus += pyramid.H[a] + pyramid.F[a]
+    expect(s[y].retirees).toBeCloseTo(sixtyFourPlus, 6)
+  })
+
+  it('a quarter-year step moves retirees a quarter of the boundary cohort', () => {
+    const at63 = project(state0(), buildHypotheses(data, { legalAge: 63 }), 2040, ECON_INIT)
+    const at6325 = project(state0(), buildHypotheses(data, { legalAge: 63.25 }), 2040, ECON_INIT)
+    const at64 = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2040, ECON_INIT)
+    const y = at63.length - 1
+    const cohort63 = at63[y].pyramid.H[63] + at63[y].pyramid.F[63]
+    expect(at63[y].retirees - at6325[y].retirees).toBeCloseTo(0.25 * cohort63, 6)
+    // Monotone all the way, and the solde improves as the age rises.
+    expect(at6325[y].retirees).toBeGreaterThan(at64[y].retirees)
+    expect(at6325[y].soldePctGdp).toBeGreaterThan(at63[y].soldePctGdp)
+    expect(at64[y].soldePctGdp).toBeGreaterThan(at6325[y].soldePctGdp)
+  })
+
+  it('contributors and retirees still partition the boundary cohort', () => {
+    const s = project(state0(), buildHypotheses(data, { legalAge: 62.75 }), 2030, ECON_INIT)
+    const y = s.length - 1
+    const pyr62 = s[y].pyramid
+    let sixtyThreePlus = 0
+    for (let a = 63; a < pyr62.H.length; a++) sixtyThreePlus += pyr62.H[a] + pyr62.F[a]
+    const cohort62 = pyr62.H[62] + pyr62.F[62]
+    expect(s[y].retirees).toBeCloseTo(sixtyThreePlus + 0.25 * cohort62, 6)
+  })
+
+  it('a reform calendar phases the age in instead of stepping it', () => {
+    const flat = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2040, ECON_INIT)
+    const ramp = project(
+      state0(),
+      buildHypotheses(data, {
+        legalAge: 64,
+        schedule: [
+          { year: 2025, legalAge: 62.75 },
+          { year: 2032, legalAge: 64 },
+        ],
+      }),
+      2040,
+      ECON_INIT,
+    )
+    const at = (s: typeof flat, year: number) => s.find((r) => r.year === year)!
+    // During the phase-in the ramp has more retirees; past the last anchor it is clamped
+    // to the target and the two runs converge on the same exit age.
+    expect(at(ramp, 2026).retirees).toBeGreaterThan(at(flat, 2026).retirees)
+    expect(at(ramp, 2029).retirees).toBeGreaterThan(at(flat, 2029).retirees)
+    expect(at(ramp, 2032).retirees).toBeCloseTo(at(flat, 2032).retirees, 6)
+    expect(at(ramp, 2040).retirees).toBeCloseTo(at(flat, 2040).retirees, 6)
+  })
+
+  it('a calendar interpolates between anchors and clamps outside them', () => {
+    const h = buildHypotheses(data, {
+      legalAge: 64,
+      requiredQuarters: 172,
+      schedule: [
+        { year: 2025, legalAge: 62, requiredQuarters: 168 },
+        { year: 2035, legalAge: 64, requiredQuarters: 172 },
+      ],
+    })
+    expect(h.policy(2020).legalAge).toBe(62) // clamped below
+    expect(h.policy(2030).legalAge).toBe(63) // midpoint
+    expect(h.policy(2050).legalAge).toBe(64) // clamped above
+    expect(h.policy(2030).requiredQuarters).toBe(170)
+    expect(Number.isInteger(h.policy(2028).requiredQuarters)).toBe(true)
+    // Fields the calendar does not pin fall through to the flat policy.
+    expect(h.policy(2030).contributionRate).toBe(h.policy(2050).contributionRate)
+  })
+})

@@ -1,5 +1,6 @@
 // URL state sharing + CSV export — native, zero-dependency (ponytail).
 import { DEFAULT_POLICY } from '../data/loader'
+import { REFORM_PRESETS } from '../data/reforms'
 import { SCENARIO_PRESETS } from '../data/scenarioPresets'
 import { SCENARIO_IDS, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams, TimeSeries } from '../engine/types'
@@ -11,6 +12,9 @@ export interface AppState {
   scenarioId: ScenarioId
   horizon: number
   policy: PolicyParams
+  /** Selected turnkey reform ('' = custom). Carries the phase-in calendar, which is an array
+   *  and so can't ride in POLICY_NUM_KEYS — we re-derive it from the preset on decode. */
+  reformKey: string
 }
 
 const VIEWS: View[] = ['macro', 'micro', 'comparaison', 'stochastique']
@@ -35,6 +39,7 @@ export function encodeState(s: AppState): string {
   p.set('v', s.view)
   p.set('s', s.scenarioId)
   p.set('h', String(s.horizon))
+  if (s.reformKey) p.set('r', s.reformKey)
   p.set('idx', s.policy.indexation)
   for (const k of POLICY_NUM_KEYS) {
     const v = s.policy[k]
@@ -52,11 +57,16 @@ export function decodeState(p: URLSearchParams): AppState {
     const v = p.get(key) as T | null
     return v != null && allowed.includes(v) ? v : fallback
   }
-  // The scenario positions the sliders (§ SCENARIO_PRESETS); explicit URL params then win.
+  // The scenario positions the sliders (§ SCENARIO_PRESETS), the reform layers its levers and
+  // its calendar on top; explicit URL params then win over both.
   const scenarioId = oneOf('s', SCENARIO_IDS, 'central')
+  const reformKey = p.get('r') && REFORM_PRESETS[p.get('r')!] ? p.get('r')! : ''
+  const reform = reformKey ? REFORM_PRESETS[reformKey] : undefined
   const policy: PolicyParams = {
     ...DEFAULT_POLICY,
     ...SCENARIO_PRESETS[scenarioId],
+    ...reform?.delta,
+    schedule: reform?.schedule,
     indexation: oneOf('idx', INDEXATIONS, DEFAULT_POLICY.indexation),
   }
   for (const k of POLICY_NUM_KEYS) {
@@ -65,7 +75,7 @@ export function decodeState(p: URLSearchParams): AppState {
       if (Number.isFinite(n)) policy[k] = n
     }
   }
-  return { view: oneOf('v', VIEWS, 'macro'), scenarioId, horizon: num('h', 2070), policy }
+  return { view: oneOf('v', VIEWS, 'macro'), scenarioId, horizon: num('h', 2070), policy, reformKey }
 }
 
 /** Flatten the projected series to CSV (all scalar YearResult fields; `pyramid` omitted). */

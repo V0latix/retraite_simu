@@ -23,6 +23,8 @@ export function computePension(career: Career, ctx: MicroContext): PensionBreakd
     points: comp.points,
     pRG: rg.pRG,
     micoApplied: rg.micoApplied,
+    belowLegalAge: retirementAge < ctx.legalAge && !career.longCareer,
+    legalAgeAtLiquidation: ctx.legalAge,
     pComp: comp.pComp,
     total,
     lastSalary,

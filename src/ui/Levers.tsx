@@ -1,4 +1,4 @@
-import { REFORM_PRESETS } from '../data/reforms'
+import { formatAge, REFORM_PRESETS, scheduleSummary } from '../data/reforms'
 import { SCENARIO_DESCRIPTIONS } from '../data/scenarioPresets'
 import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '../data/schema'
 import type { Indexation, PolicyParams } from '../engine/types'
@@ -234,7 +234,16 @@ export function Levers({
             </SelectContent>
           </Select>
           {reformKey && REFORM_PRESETS[reformKey] && (
-            <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{REFORM_PRESETS[reformKey].source}</p>
+            <>
+              <p className="mt-1.5 text-xs leading-snug text-muted-foreground">{REFORM_PRESETS[reformKey].source}</p>
+              {/* Une loi monte en charge : le curseur ci-dessous montre la cible, le calendrier dit
+                  comment on y arrive (et bouger le curseur l'abandonne). */}
+              {REFORM_PRESETS[reformKey].schedule && scheduleSummary(REFORM_PRESETS[reformKey].schedule!) && (
+                <p className="mt-1 text-xs leading-snug font-medium">
+                  Calendrier : {scheduleSummary(REFORM_PRESETS[reformKey].schedule!)}
+                </p>
+              )}
+            </>
           )}
         </label>
         <Hint>
@@ -246,7 +255,8 @@ export function Levers({
           value={policy.legalAge}
           min={60}
           max={70}
-          fmt={(v) => `${v} ans`}
+          step={0.25}
+          fmt={formatAge}
           onChange={(v) => onPolicy({ legalAge: v })}
           hint={
             <>
