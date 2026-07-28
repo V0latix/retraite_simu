@@ -23,7 +23,7 @@ src/engine/scenarios/  stochastic (Lee-Carter generator) + fanchart (percentile 
 src/data/        loader.ts + real INSEE JSON (scenarios/*.json, initialPyramid.json), historical.json + historicalPyramid.json (observed), schema.ts, systemParams.json, pensionParams.json
 src/worker/      engine.worker.ts — {type:'macro'|'micro'} off-thread
 src/hooks/       useProjection (macro), useMicro (pension × 7 scenarios), useCompare (macro × N scenarios)
-src/ui/          Pyramid, MacroCharts, Levers, ComparisonView (COR validation + scenario overlay), StochasticView (fan charts) · observed.ts + ObservedProjected.tsx (observed/projected convention) · micro/ CareerForm, PensionResult, ScenarioSensitivity, MicroView
+src/ui/          Pyramid, MacroCharts, KpiStrip, Levers, ComparisonView (COR validation + scenario overlay), StochasticView (fan charts) · observed.ts + ObservedProjected.tsx (observed/projected convention + Swatch/Legend) · micro/ CareerForm, PensionResult, ScenarioSensitivity, MicroView
 scripts/         ingest-insee.mjs (projections) + ingest-historical.mjs (observed) — regenerate the JSON from INSEE/COR workbooks (dev-only)
 ```
 
@@ -48,3 +48,6 @@ Lee-Carter fitted at build time on INSEE observed qx 1962-2021 (`scripts/ingest-
 - Each feature → its own `feature/*` branch, commit, then deploy to Vercel.
 - `npm run dev` · `npm run build` · `npm run lint` (oxlint) · `npx vitest run`.
 - Engine changes must keep `src/engine/engine.test.ts` green (population ≥ 0, no runaway, reform monotonicity).
+
+## Macro view UX (shared patterns)
+Sidebar = sticky (`lg:sticky lg:self-start`, needs `self-start` or the grid item stretches). Per-lever pedagogy lives in `<Hint>` (native `<details>`, `Levers.tsx`) — never inline paragraphs between sliders. The main column opens on `KpiStrip` (solde/dépenses/dépendance à l'horizon + « impact de vos leviers » = the same scenario re-run with `DEFAULT_POLICY`, one extra worker). Charts are grouped in three `<Group>`s (système / hypothèses / contexte); chart chrome (`GRID`, `AXIS`, `TOOLTIP`) and legends (`<Legend><Swatch/></Legend>`) are shared — don't re-inline `CartesianGrid`/`stroke`/`<svg><line/>` per chart.

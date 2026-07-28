@@ -3,21 +3,57 @@ import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Too
 import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
-import { ObservedProjectedLegend } from './ObservedProjected'
+import { Legend, ObservedProjectedLegend, Swatch } from './ObservedProjected'
 import { CHART } from './chartColors'
+import { fmtNum, fmtPct } from '../lib/format'
 import { Card } from '@/components/ui/card'
 
-const ratio1 = (n: number) => n.toFixed(1).replace('.', ',')
-const ratio2 = (n: number) => n.toFixed(2).replace('.', ',')
-const pct = (v: number, d = 2) => `${(v * 100).toFixed(d).replace('.', ',')} % PIB`
-const millions = (v: number) => `${(v / 1e6).toFixed(1).replace('.', ',')} M`
+const ratio1 = (n: number) => fmtNum(n, 1)
+const ratio2 = (n: number) => fmtNum(n, 2)
+const pct = (v: number, d = 2) => `${fmtPct(v, d)} PIB`
+const millions = (v: number) => `${fmtNum(v / 1e6, 1)} M`
 const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v / 1000))} 000/an`
-const pctPlain = (v: number, d = 1) => `${(v * 100).toFixed(d).replace('.', ',')} %`
+const pctPlain = (v: number, d = 1) => fmtPct(v, d)
 
-function Panel({ title, desc, children, footer }: { title: string; desc: string; children: React.ReactNode; footer?: React.ReactNode }) {
+// Shared chart chrome. Repeating these ten times is how axes and tooltips drifted apart;
+// the default Recharts tooltip (white, rounded, shadowed) was also the one element left
+// contradicting the flat theme.
+const GRID = <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
+const AXIS = { stroke: CHART.muted, tick: { fontSize: 11 } } as const
+const TOOLTIP = {
+  contentStyle: { background: '#fff', border: `1px solid ${CHART.ink}`, fontSize: 12, padding: '6px 8px' },
+  labelStyle: { fontWeight: 700, color: CHART.ink },
+  cursor: { stroke: CHART.muted, strokeWidth: 1 },
+} as const
+
+/** One titled group of panels — the ten charts read as three stories, not a wall. */
+function Group({ title, children }: { title: string; children: React.ReactNode }) {
   return (
-    <Card className="gap-0 p-3">
-      <h3 className="text-sm font-medium">{title}</h3>
+    <section>
+      <h3 className="mb-3 border-b border-border pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+        {title}
+      </h3>
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
+    </section>
+  )
+}
+
+function Panel({
+  title,
+  desc,
+  children,
+  footer,
+  wide = false,
+}: {
+  title: string
+  desc: string
+  children: React.ReactNode
+  footer?: React.ReactNode
+  wide?: boolean
+}) {
+  return (
+    <Card className={`gap-0 p-3${wide ? ' md:col-span-2' : ''}`}>
+      <h4 className="font-heading text-sm font-semibold">{title}</h4>
       <p className="mb-2 text-xs leading-snug text-muted-foreground">{desc}</p>
       <div className="h-56" role="img" aria-label={`${title}. ${desc}`}>
         <ResponsiveContainer>{children as React.ReactElement}</ResponsiveContainer>
@@ -196,179 +232,181 @@ export function MacroCharts({
   }, [finance, series])
 
   return (
-    <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      <Panel
-        title="Solde annuel du système (% PIB)"
-        desc="Cotisations encaissées moins pensions versées, rapportées à la richesse nationale (PIB). Observé par le COR jusqu'en 2024 ; au-delà, c'est notre modèle qui projette. Il se creuse avec le vieillissement."
-        footer={
-          <>
-            <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-              Convention <b>EEC</b> (« effort de l'État constant ») : le déficit économiquement pertinent, ≈ −8,7 Md€ dès
-              2025 — cohérent avec la Cour des comptes. La convention <b>EPR</b> du rapport COR, qui suppose la fonction
-              publique équilibrée par l'État, afficherait ≈ 0 aujourd'hui ; les deux convergent vers −1,4 % en 2070. Les
-              deux coïncident sur les années observées, elles ne divergent qu'en projection.
-            </p>
-          </>
-        }
-      >
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          {/* One decimal: the observed balances live within ±0,5 pt, so integer ticks collide. */}
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(1).replace('.', ',')}%`} width={52} stroke={CHART.muted} />
-          <ReferenceLine y={0} stroke={CHART.muted} />
-          {frontier()}
-          <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="soldePctGdp" color={CHART.danger} name="Solde" />
-        </LineChart>
-      </Panel>
+    <div className="space-y-6">
+      <Group title="Le système de retraite">
+        <Panel
+          wide
+          title="Solde annuel du système (% PIB)"
+          desc="Cotisations encaissées moins pensions versées, rapportées à la richesse nationale (PIB). Observé par le COR jusqu'en 2024 ; au-delà, c'est notre modèle qui projette. Il se creuse avec le vieillissement."
+          footer={
+            <>
+              <ObservedProjectedLegend />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                Convention <b>EEC</b> (« effort de l'État constant ») : le déficit économiquement pertinent, ≈ −8,7 Md€ dès
+                2025 — cohérent avec la Cour des comptes. La convention <b>EPR</b> du rapport COR, qui suppose la fonction
+                publique équilibrée par l'État, afficherait ≈ 0 aujourd'hui ; les deux convergent vers −1,4 % en 2070. Les
+                deux coïncident sur les années observées, elles ne divergent qu'en projection.
+              </p>
+            </>
+          }
+        >
+          <LineChart data={data}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            {/* One decimal: the observed balances live within ±0,5 pt, so integer ticks collide. */}
+            <YAxis tickFormatter={(v) => `${fmtNum(v * 100, 1)}%`} width={52} {...AXIS} />
+            <ReferenceLine y={0} stroke={CHART.muted} />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
+            <SplitLines k="soldePctGdp" color={CHART.danger} name="Solde" />
+          </LineChart>
+        </Panel>
 
-      <Panel
-        title="Nombre de cotisants par retraité"
-        desc="Combien d'actifs qui cotisent financent chaque retraité. Il est passé de ~2,1 en 2002 à ~1,8 aujourd'hui. Plus il baisse, plus chaque pension repose sur peu de cotisants."
-        footer={
-          <>
-            <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-              La projection est recalée sur le dernier point observé : le modèle compte les retraités comme la population de
-              64 ans et plus, un peu en dessous du décompte administratif du COR (17,1 M, réversions et départs anticipés
-              inclus). On montre donc l'évolution du modèle à partir du niveau réel, pas son niveau absolu.
-            </p>
-          </>
-        }
-      >
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis tickFormatter={ratio1} width={40} stroke={CHART.muted} domain={[0, 'auto']} />
-          {frontier()}
-          <Tooltip formatter={(v) => `${ratio1(Number(v))} cotisant(s) / retraité`} />
-          <SplitLines k="activePerRetiree" color={CHART.amber} name="Cotisants/retraité" />
-        </LineChart>
-      </Panel>
+        <Panel
+          title="Nombre de cotisants par retraité"
+          desc="Combien d'actifs qui cotisent financent chaque retraité. Il est passé de ~2,1 en 2002 à ~1,8 aujourd'hui. Plus il baisse, plus chaque pension repose sur peu de cotisants."
+          footer={
+            <>
+              <ObservedProjectedLegend />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                La projection est recalée sur le dernier point observé : le modèle compte les retraités comme la population de
+                64 ans et plus, un peu en dessous du décompte administratif du COR (17,1 M, réversions et départs anticipés
+                inclus). On montre donc l'évolution du modèle à partir du niveau réel, pas son niveau absolu.
+              </p>
+            </>
+          }
+        >
+          <LineChart data={data}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={ratio1} width={40} {...AXIS} domain={[0, 'auto']} />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => `${ratio1(Number(v))} cotisant(s) / retraité`} />
+            <SplitLines k="activePerRetiree" color={CHART.amber} name="Cotisants/retraité" />
+          </LineChart>
+        </Panel>
 
-      <Panel
-        title="Cotisants vs retraités"
-        desc="Effectifs en millions : actifs qui cotisent (bleu) et retraités (rose). L'écart se resserre à mesure que les générations nombreuses partent à la retraite."
-        footer={<ObservedProjectedLegend />}
-      >
-        <LineChart data={data}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} stroke={CHART.muted} />
-          {frontier()}
-          <Tooltip formatter={(v) => millions(Number(v))} />
-          <SplitLines k="contributors" color={CHART.blue} name="Cotisants" />
-          <SplitLines k="retirees" color={CHART.pink} name="Retraités" />
-        </LineChart>
-      </Panel>
+        <Panel
+          title="Cotisants vs retraités"
+          desc="Effectifs en millions : actifs qui cotisent (bleu) et retraités (rose). L'écart se resserre à mesure que les générations nombreuses partent à la retraite."
+          footer={<ObservedProjectedLegend />}
+        >
+          <LineChart data={data}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v / 1e6).toFixed(0)}M`} width={48} {...AXIS} />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => millions(Number(v))} />
+            <SplitLines k="contributors" color={CHART.blue} name="Cotisants" />
+            <SplitLines k="retirees" color={CHART.pink} name="Retraités" />
+          </LineChart>
+        </Panel>
 
-      <Panel
-        title={`Solde cumulé depuis ${CUMUL_FROM} (% PIB)`}
-        desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date. En projection, le cumul porte intérêt au taux réel choisi (${(realInterestRate * 100).toFixed(2).replace('.', ',')} %) : la dette coûte, les réserves rapportent — l'effet boule de neige du levier « Contexte & risques ».`}
-        footer={
-          <>
-            <ObservedProjectedLegend />
-            <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-              La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
-              {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
-              déficits dépasse ce que le système a mis de côté. À ne pas confondre avec le FRR (fonds de réserve dédié), qui
-              se dénoue : {reserves.frr.valueMdEur[0].toFixed(0)} Md€ ({reserves.frr.years[0]}) →{' '}
-              {reserves.frr.valueMdEur.at(-1)!.toFixed(0)} Md€ ({reserves.frr.years.at(-1)}), versé à la CADES d'ici 2033.
-            </p>
-          </>
-        }
-      >
-        <LineChart data={cumul}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} stroke={CHART.muted} />
-          <ReferenceLine y={0} stroke={CHART.muted} />
-          <ReferenceLine
-            y={-anchors.reservesPctGdp}
-            stroke={CHART.violet}
-            strokeDasharray="4 3"
-            label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
-          />
-          {frontier()}
-          <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
-        </LineChart>
-      </Panel>
+        <Panel
+          wide
+          title={`Solde cumulé depuis ${CUMUL_FROM} (% PIB)`}
+          desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date. En projection, le cumul porte intérêt au taux réel choisi (${fmtNum(realInterestRate * 100, 2)} %) : la dette coûte, les réserves rapportent — l'effet boule de neige du levier « Contexte & risques ».`}
+          footer={
+            <>
+              <ObservedProjectedLegend />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
+                {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
+                déficits dépasse ce que le système a mis de côté. À ne pas confondre avec le FRR (fonds de réserve dédié), qui
+                se dénoue : {reserves.frr.valueMdEur[0].toFixed(0)} Md€ ({reserves.frr.years[0]}) →{' '}
+                {reserves.frr.valueMdEur.at(-1)!.toFixed(0)} Md€ ({reserves.frr.years.at(-1)}), versé à la CADES d'ici 2033.
+              </p>
+            </>
+          }
+        >
+          <LineChart data={cumul}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} {...AXIS} />
+            <ReferenceLine y={0} stroke={CHART.muted} />
+            <ReferenceLine
+              y={-anchors.reservesPctGdp}
+              stroke={CHART.violet}
+              strokeDasharray="4 3"
+              label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
+            />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
+            <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
+          </LineChart>
+        </Panel>
 
-      <div className="md:col-span-2">
+        <Panel
+          wide
+          title="Dépenses vs ressources (% PIB)"
+          desc="Les deux courbes phares du COR : pensions versées (dépenses) et cotisations + transferts (ressources), en part de la richesse nationale. L'écart entre les deux, c'est le solde. Les dépenses montent avec le vieillissement ; les ressources restent à peu près stables."
+          footer={<ObservedProjectedLegend />}
+        >
+          <LineChart data={depRes}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} {...AXIS} domain={['auto', 'auto']} />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
+            <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
+            <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
+          </LineChart>
+        </Panel>
+      </Group>
+
+      <Group title="Hypothèses du scénario — réalité observée vs projection">
         <Panel
           title="Fécondité : réalité observée vs hypothèse du scénario"
           desc={`Nombre d'enfants par femme. Le scénario sélectionné retient ${ratio2(fertilityAssumed)} à long terme, alors qu'en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse plus haute que la réalité rend les projections (cotisants futurs, solde) optimistes ; le scénario « Pragmatique » colle à la tendance observée.`}
           footer={
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
-                </svg>
-                fécondité observée (INSEE, jusqu'à {LAST_OBSERVED_YEAR + 1})
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
-                </svg>
+            <Legend>
+              <Swatch color={CHART.primary}>fécondité observée (INSEE, jusqu'à {LAST_OBSERVED_YEAR + 1})</Swatch>
+              <Swatch color={CHART.danger} dashed>
                 hypothèse du scénario ({ratio2(fertilityAssumed)})
-              </span>
-            </p>
+              </Swatch>
+            </Legend>
           }
         >
           <LineChart data={fertility}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke={CHART.muted} />
-            <YAxis tickFormatter={ratio1} width={32} stroke={CHART.muted} domain={[1.3, 2.2]} />
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={ratio1} width={32} {...AXIS} domain={[1.3, 2.2]} />
             <ReferenceLine
               y={2.1}
               stroke={CHART.muted}
               strokeDasharray="2 3"
-              label={{ value: 'renouvellement des générations (2,1)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+              label={{ value: 'renouvellement (2,1)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
             />
             {frontier(LAST_OBSERVED_YEAR + 1)}
-            <Tooltip formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
+            <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Fécondité observée" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="assumption" name="Hypothèse INSEE" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
-      </div>
 
-      <div className="md:col-span-2">
         <Panel
           title="Immigration : solde migratoire observé vs hypothèse du scénario"
           desc={`Solde migratoire (entrées − sorties), en personnes par an. Le scénario retient une immigration de ${signedK(migrationAssumed)}, alors que l'INSEE observe un solde de ${signedK(migrationNow)} en ${LAST_OBSERVED_YEAR + 1}. Une immigration forte ajoute des actifs et soutient le système — l'effet inverse de la fécondité basse. ${workerExodus > 0 ? `Le scénario Pragmatique retire en plus un exode de ${signedK(-workerExodus)} de jeunes actifs (courbe orange) : le solde net est d'autant plus faible.` : ''} Mesure incertaine et révisée par l'INSEE.`}
           footer={
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
-                </svg>
+            <Legend>
+              <Swatch color={CHART.primary}>
                 solde observé (INSEE, {migrationFrom}–{LAST_OBSERVED_YEAR + 1})
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
-                </svg>
+              </Swatch>
+              <Swatch color={CHART.danger} dashed>
                 immigration (hyp. {signedK(migrationAssumed)})
-              </span>
+              </Swatch>
               {workerExodus > 0 && (
-                <span className="flex items-center gap-1.5">
-                  <svg width="20" height="6" aria-hidden>
-                    <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.amber} strokeWidth="2" strokeDasharray="5 4" />
-                  </svg>
+                <Swatch color={CHART.amber} dashed>
                   exode jeunes actifs ({signedK(-workerExodus)})
-                </span>
+                </Swatch>
               )}
-            </p>
+            </Legend>
           }
         >
           <LineChart data={migration}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke={CHART.muted} />
-            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} stroke={CHART.muted} domain={[(min: number) => Math.min(0, min), 'auto']} />
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${Math.round(v / 1000)}k`} width={40} {...AXIS} domain={[(min: number) => Math.min(0, min), 'auto']} />
             <ReferenceLine
               y={70000}
               stroke={CHART.muted}
@@ -376,39 +414,31 @@ export function MacroCharts({
               label={{ value: 'hyp. INSEE central (+70k)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
             />
             {frontier(LAST_OBSERVED_YEAR + 1)}
-            <Tooltip formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
+            <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Solde observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="immigration" name="Immigration (hyp.)" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
             <Line type="monotone" dataKey="exode" name="Exode jeunes actifs" stroke={CHART.amber} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
-      </div>
 
-      <div className="md:col-span-2">
         <Panel
           title="Chômage : taux observé vs hypothèse du scénario"
           desc={`Un chômeur est un actif qui ne cotise pas : il est déjà retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}, alors que le chômage observé (au sens du BIT) a oscillé entre 7 et 10 % ces 25 dernières années — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}. Le scénario « Pragmatique » colle au dernier niveau observé, quand les projections officielles supposent parfois un retour au plein emploi (4,5 %).`}
           footer={
-            <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
-                </svg>
+            <Legend>
+              <Swatch color={CHART.primary}>
                 chômage observé (INSEE, {unemploymentObs.years[0]}–{LAST_OBSERVED_YEAR})
-              </span>
-              <span className="flex items-center gap-1.5">
-                <svg width="20" height="6" aria-hidden>
-                  <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.danger} strokeWidth="2" strokeDasharray="5 4" />
-                </svg>
+              </Swatch>
+              <Swatch color={CHART.danger} dashed>
                 hypothèse du scénario ({pctPlain(unemploymentAssumed)})
-              </span>
-            </p>
+              </Swatch>
+            </Legend>
           }
         >
           <LineChart data={unemployment}>
-            <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-            <XAxis dataKey="year" stroke={CHART.muted} />
-            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} stroke={CHART.muted} domain={[0.04, 0.11]} />
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} {...AXIS} domain={[0.04, 0.11]} />
             <ReferenceLine
               y={0.045}
               stroke={CHART.muted}
@@ -416,100 +446,69 @@ export function MacroCharts({
               label={{ value: 'hyp. COR favorable (4,5 %)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
             />
             {frontier(LAST_OBSERVED_YEAR + 1)}
-            <Tooltip formatter={(v) => (v == null ? '—' : pctPlain(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
+            <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : pctPlain(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Chômage observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="assumption" name="Hypothèse chômage" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
-      </div>
 
-      <div className="md:col-span-2">
-      <Panel
-        title="Espérance de vie (hypothèse du scénario)"
-        desc={`Elle grimpe : à la naissance de ${ratio1(e0Now)} à ${ratio1(e0End)} ans, et à 65 ans — la durée de retraite espérée — de ${ratio1(e65Now)} à ${ratio1(e65End)} ans d'ici ${series.at(-1)?.year ?? ''}. C'est le moteur du vieillissement : plus on vit longtemps après 65 ans, plus il y a de retraités par cotisant. Sensible au scénario — basculez sur « EV haute » ou « EV basse » pour voir l'écart. Projection seule (dérivée du qx du scénario).`}
-        footer={
-          <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <svg width="20" height="6" aria-hidden>
-                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.violet} strokeWidth="2" strokeDasharray="5 4" />
-              </svg>
-              à la naissance (axe gauche)
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg width="20" height="6" aria-hidden>
-                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.blue} strokeWidth="2" strokeDasharray="5 4" />
-              </svg>
-              à 65 ans (axe droit)
-            </span>
-          </p>
-        }
-      >
-        <LineChart data={lifeExp}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis yAxisId="e0" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.violet} domain={['auto', 'auto']} />
-          <YAxis yAxisId="e65" orientation="right" tickFormatter={(v) => `${Math.round(v)}`} width={32} stroke={CHART.blue} domain={['auto', 'auto']} />
-          <Tooltip formatter={(v, n) => [`${ratio1(Number(v))} ans`, String(n)]} labelFormatter={(y) => `Année ${y}`} />
-          <Line yAxisId="e0" type="monotone" dataKey="e0" name="À la naissance" stroke={CHART.violet} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
-          <Line yAxisId="e65" type="monotone" dataKey="e65" name="À 65 ans" stroke={CHART.blue} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
-        </LineChart>
-      </Panel>
-      </div>
+        <Panel
+          title="Espérance de vie (hypothèse du scénario)"
+          desc={`Elle grimpe : à la naissance de ${ratio1(e0Now)} à ${ratio1(e0End)} ans, et à 65 ans — la durée de retraite espérée — de ${ratio1(e65Now)} à ${ratio1(e65End)} ans d'ici ${series.at(-1)?.year ?? ''}. C'est le moteur du vieillissement : plus on vit longtemps après 65 ans, plus il y a de retraités par cotisant. Sensible au scénario — basculez sur « EV haute » ou « EV basse » pour voir l'écart. Projection seule (dérivée du qx du scénario).`}
+          footer={
+            <Legend>
+              <Swatch color={CHART.violet} dashed>
+                à la naissance (axe gauche)
+              </Swatch>
+              <Swatch color={CHART.blue} dashed>
+                à 65 ans (axe droit)
+              </Swatch>
+            </Legend>
+          }
+        >
+          <LineChart data={lifeExp}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis yAxisId="e0" tickFormatter={(v) => `${Math.round(v)}`} width={32} {...AXIS} stroke={CHART.violet} domain={['auto', 'auto']} />
+            <YAxis yAxisId="e65" orientation="right" tickFormatter={(v) => `${Math.round(v)}`} width={32} {...AXIS} stroke={CHART.blue} domain={['auto', 'auto']} />
+            <Tooltip {...TOOLTIP} formatter={(v, n) => [`${ratio1(Number(v))} ans`, String(n)]} labelFormatter={(y) => `Année ${y}`} />
+            <Line yAxisId="e0" type="monotone" dataKey="e0" name="À la naissance" stroke={CHART.violet} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
+            <Line yAxisId="e65" type="monotone" dataKey="e65" name="À 65 ans" stroke={CHART.blue} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </Group>
 
-      <div className="md:col-span-2">
-      <Panel
-        title="Dépenses vs ressources (% PIB)"
-        desc="Les deux courbes phares du COR : pensions versées (dépenses) et cotisations + transferts (ressources), en part de la richesse nationale. L'écart entre les deux, c'est le solde. Les dépenses montent avec le vieillissement ; les ressources restent à peu près stables."
-        footer={<ObservedProjectedLegend />}
-      >
-        <LineChart data={depRes}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} stroke={CHART.muted} domain={['auto', 'auto']} />
-          {frontier()}
-          <Tooltip formatter={(v) => pct(Number(v))} />
-          <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
-          <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
-        </LineChart>
-      </Panel>
-      </div>
-
-      <div className="md:col-span-2">
-      <Panel
-        title="Inflation observée (INSEE, IPC)"
-        desc={`Hausse annuelle des prix à la consommation, de ${inflationFrom} à ${LAST_OBSERVED_YEAR}. Longtemps proche de la cible BCE (2 %), quasi nulle en 2015, puis pic à ${pctPlain(inflationPeak)} en 2022. À titre indicatif : le simulateur n'utilise PAS cette série — tous les calculs (pensions, cotisations, PIB) sont en euros constants, donc l'inflation est neutralisée par construction. Une pension « indexée sur les prix » est plate en euros constants.`}
-        footer={
-          <p className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground">
-            <span className="flex items-center gap-1.5">
-              <svg width="20" height="6" aria-hidden>
-                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.primary} strokeWidth="2" />
-              </svg>
-              inflation observée (INSEE, {inflationFrom}–{LAST_OBSERVED_YEAR})
-            </span>
-            <span className="flex items-center gap-1.5">
-              <svg width="20" height="6" aria-hidden>
-                <line x1="0" y1="3" x2="20" y2="3" stroke={CHART.muted} strokeWidth="2" strokeDasharray="2 3" />
-              </svg>
-              cible BCE (2 %)
-            </span>
-          </p>
-        }
-      >
-        <LineChart data={inflation}>
-          <CartesianGrid strokeDasharray="3 3" opacity={0.2} />
-          <XAxis dataKey="year" stroke={CHART.muted} />
-          <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={40} stroke={CHART.muted} domain={[0, 'auto']} />
-          <ReferenceLine
-            y={0.02}
-            stroke={CHART.muted}
-            strokeDasharray="2 3"
-            label={{ value: 'cible BCE (2 %)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
-          />
-          <Tooltip formatter={(v) => pctPlain(Number(v))} labelFormatter={(y) => `Année ${y}`} />
-          <Line type="monotone" dataKey="rate" name="Inflation observée" stroke={CHART.primary} dot={false} strokeWidth={2} isAnimationActive={false} />
-        </LineChart>
-      </Panel>
-      </div>
+      <Group title="Contexte">
+        <Panel
+          wide
+          title="Inflation observée (INSEE, IPC)"
+          desc={`Hausse annuelle des prix à la consommation, de ${inflationFrom} à ${LAST_OBSERVED_YEAR}. Longtemps proche de la cible BCE (2 %), quasi nulle en 2015, puis pic à ${pctPlain(inflationPeak)} en 2022. À titre indicatif : le simulateur n'utilise PAS cette série — tous les calculs (pensions, cotisations, PIB) sont en euros constants, donc l'inflation est neutralisée par construction. Une pension « indexée sur les prix » est plate en euros constants.`}
+          footer={
+            <Legend>
+              <Swatch color={CHART.primary}>
+                inflation observée (INSEE, {inflationFrom}–{LAST_OBSERVED_YEAR})
+              </Swatch>
+              <Swatch color={CHART.muted} dashed>
+                cible BCE (2 %)
+              </Swatch>
+            </Legend>
+          }
+        >
+          <LineChart data={inflation}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={40} {...AXIS} domain={[0, 'auto']} />
+            <ReferenceLine
+              y={0.02}
+              stroke={CHART.muted}
+              strokeDasharray="2 3"
+              label={{ value: 'cible BCE (2 %)', position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+            />
+            <Tooltip {...TOOLTIP} formatter={(v) => pctPlain(Number(v))} labelFormatter={(y) => `Année ${y}`} />
+            <Line type="monotone" dataKey="rate" name="Inflation observée" stroke={CHART.primary} dot={false} strokeWidth={2} isAnimationActive={false} />
+          </LineChart>
+        </Panel>
+      </Group>
     </div>
   )
 }

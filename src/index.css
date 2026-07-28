@@ -11,7 +11,9 @@
 
   --background: #f7f7f5;
   --foreground: #0a0a0a;
-  --card: #eeeee8;
+  /* Cards are pure white on the off-white page: the black border carries the edge,
+     and charts sit on a neutral ground instead of a tinted one. */
+  --card: #ffffff;
   --card-foreground: #0a0a0a;
   --popover: #f7f7f5;
   --popover-foreground: #0a0a0a;

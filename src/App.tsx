@@ -1,17 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
-import { BASE_YEAR, historicalPyramid } from './data/loader'
+import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
 import { PRAGMATIQUE_RISK } from './data/pragmatique'
 import { REFORM_PRESETS } from './data/reforms'
 import type { BeyondDataPolicy, ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
-import { fmtBn, fmtPct } from './lib/format'
-import { type View, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
+import { type View, countChangedLevers, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
+import { Skeleton } from '@/components/ui/skeleton'
 import { Slider } from '@/components/ui/slider'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { ComparisonView } from './ui/ComparisonView'
+import { KpiStrip } from './ui/KpiStrip'
 import { Levers } from './ui/Levers'
 import { MacroCharts } from './ui/MacroCharts'
 import { Pyramid } from './ui/Pyramid'
@@ -37,6 +38,16 @@ const sumAges = (H: number[], F: number[], lo: number, hi: number) => {
 
 const init = decodeState(new URLSearchParams(window.location.search))
 
+/** Section header — small caps over a hard rule, same language as the sidebar cards. */
+function SectionTitle({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+  return (
+    <div className="mb-3 flex items-center justify-between gap-3 border-b border-border pb-2">
+      <h2 className="text-sm font-semibold tracking-wide uppercase">{children}</h2>
+      {aside}
+    </div>
+  )
+}
+
 function App() {
   const [view, setView] = useState<View>(init.view)
   const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
@@ -55,11 +66,19 @@ function App() {
 
   const { series, computing } = useProjection(scenarioId, policy, horizon, beyondPolicy)
 
+  // The same scenario with untouched levers — only used to price the user's reform
+  // ("+0,6 pt de PIB"). One extra worker; the engine and the main run are untouched.
+  const basePolicy = useMemo<PolicyParams>(
+    () => (scenarioId === 'pragmatique' ? { ...DEFAULT_POLICY, ...PRAGMATIQUE_RISK } : DEFAULT_POLICY),
+    [scenarioId],
+  )
+  const { series: baseline } = useProjection(scenarioId, basePolicy, horizon, beyondPolicy)
+  const changedCount = countChangedLevers(policy, basePolicy)
+
   const current = useMemo(
     () => series.find((r) => r.year === year) ?? series[0],
     [series, year],
   )
-  const last = series[series.length - 1]
 
   // Up to 2025 the pyramid is measured (INSEE); beyond, the engine projects it.
   const pyramid = useMemo(() => {
@@ -108,6 +127,12 @@ function App() {
     }))
   }
 
+  // Back to the scenario's own reference trajectory (same baseline the delta is measured against).
+  const onReset = () => {
+    setReformKey('')
+    setPolicy(basePolicy)
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 text-foreground">
       <header className="mb-6">
@@ -117,23 +142,6 @@ function App() {
           calée COR.
         </p>
       </header>
-
-      <Card className="mb-6 gap-1 p-4 text-sm">
-        <div className="font-semibold">Qu'est-ce que le COR ?</div>
-        <p className="text-muted-foreground">
-          Le <b>Conseil d'orientation des retraites</b> est l'organisme public qui, depuis 2000, projette
-          l'équilibre du système de retraite français et publie chaque année le rapport de référence. Ce
-          simulateur cale ses trajectoires financières sur le rapport COR de juin 2025.{' '}
-          <a
-            href="https://fr.wikipedia.org/wiki/Conseil_d%27orientation_des_retraites"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-medium text-primary underline underline-offset-2"
-          >
-            En savoir plus (Wikipédia)
-          </a>
-        </p>
-      </Card>
 
       <Tabs value={view} onValueChange={(v) => setView(v as typeof view)} className="mb-6">
         {/* Each tab is styled as a discrete bordered button (same visual language as the
@@ -159,28 +167,23 @@ function App() {
 
       {view === 'macro' && (
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        <aside className="space-y-4">
+        {/* `self-start` is what makes `sticky` work here: without it the grid item is
+            stretched to the row height and never scrolls past its own container. */}
+        <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
           <Levers
             scenarioId={scenarioId}
             beyondPolicy={beyondPolicy}
             policy={policy}
             horizon={horizon}
             reformKey={reformKey}
+            changedCount={changedCount}
             onScenario={onScenario}
             onBeyond={setBeyondPolicy}
             onPolicy={setP}
             onReform={onReform}
             onHorizon={setHorizon}
+            onReset={onReset}
           />
-          {last && (
-            <Card className="gap-1 p-4 text-sm">
-              <div className="text-muted-foreground">Solde en {last.year}</div>
-              <div className={`text-xl font-semibold ${last.balance < 0 ? 'text-destructive' : 'text-success'}`}>
-                {fmtPct(last.soldePctGdp, 1)} PIB
-              </div>
-              <div className="text-xs text-muted-foreground">{fmtBn(last.balance)} · calé COR</div>
-            </Card>
-          )}
           <Button
             type="button"
             variant="outline"
@@ -197,45 +200,81 @@ function App() {
         </aside>
 
         <main className="min-w-0 space-y-6">
+          <KpiStrip series={series} baseline={baseline} changedCount={changedCount} computing={computing} />
+
           <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Pyramide des âges — {year}</h2>
-              <span className="text-sm text-muted-foreground">
-                {computing ? 'Calcul…' : `dép. démographique ${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'}%`}
-              </span>
-            </div>
+            <SectionTitle
+              aside={
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={series.length === 0}
+                  onClick={() => downloadCsv(`retraite-${scenarioId}.csv`, seriesToCsv(series))}
+                >
+                  Exporter CSV
+                </Button>
+              }
+            >
+              Trajectoires financières
+            </SectionTitle>
+            {series.length > 0 ? (
+              <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+                <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} frrFlowPct={policy.frrFlowPct} />
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true">
+                <Skeleton className="h-72" />
+                <Skeleton className="h-72" />
+                <Skeleton className="h-72 md:col-span-2" />
+              </div>
+            )}
+          </section>
+
+          <section>
+            <SectionTitle
+              aside={
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {computing ? 'Calcul…' : `${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'} pour 100 actifs`}
+                </span>
+              }
+            >
+              Pyramide des âges — {year} {pyramid?.observed ? '(observée)' : '(projetée)'}
+            </SectionTitle>
             <Slider
               min={PYRAMID_FROM}
               max={horizon}
               value={[year]}
               onValueChange={([v]) => setYear(v)}
+              aria-label="Année de la pyramide des âges"
               className="my-2"
             />
-            <div className="mb-2 flex justify-between text-[11px] text-muted-foreground">
+            <div className="mb-3 flex justify-between text-[11px] text-muted-foreground">
               <span>{PYRAMID_FROM} — création du régime général</span>
-              <span>{PYRAMID_LAST_OBSERVED} — fin des données observées</span>
+              <span>observé jusqu'à {PYRAMID_LAST_OBSERVED}, projeté ensuite</span>
               <span>{horizon}</span>
             </div>
             {pyramid && <Pyramid {...pyramid} />}
           </section>
 
-          <section>
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-lg font-semibold">Trajectoires financières</h2>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                disabled={series.length === 0}
-                onClick={() => downloadCsv(`retraite-${scenarioId}.csv`, seriesToCsv(series))}
-              >
-                Exporter CSV
-              </Button>
-            </div>
-            {series.length > 0 && (
-              <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} frrFlowPct={policy.frrFlowPct} />
-            )}
-          </section>
+          <Card className="gap-1 p-4 text-sm">
+            <details>
+              <summary className="cursor-pointer font-semibold select-none">Qu'est-ce que le COR ?</summary>
+              <p className="mt-2 text-muted-foreground">
+                Le <b>Conseil d'orientation des retraites</b> est l'organisme public qui, depuis 2000, projette
+                l'équilibre du système de retraite français et publie chaque année le rapport de référence. Ce
+                simulateur cale ses trajectoires financières sur le rapport COR de juin 2025.{' '}
+                <a
+                  href="https://fr.wikipedia.org/wiki/Conseil_d%27orientation_des_retraites"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-medium text-primary underline underline-offset-2"
+                >
+                  En savoir plus (Wikipédia)
+                </a>
+              </p>
+            </details>
+          </Card>
         </main>
       </div>
       )}

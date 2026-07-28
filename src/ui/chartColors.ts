@@ -10,8 +10,9 @@ export const CHART = {
   violet: '#7c3aed', // cumulative balance, reserves line
   amber: '#b45309', // contributors/retiree ratio
   pink: '#be185d', // complémentaire / women
-  blue: '#2563eb', // contributors / secondary blue
+  blue: '#0e7490', // contributors / second cool series — teal, kept far from `primary`
   muted: '#595959', // frontier, grid, axes, unselected bars — WCAG AA (≥4.5:1 on #f7f7f5)
+  ink: '#0a0a0a', // --foreground: hard borders (tooltip frame)
 } as const
 
 // Multi-series overlay palette (scenario comparison), most-distinct first.
