@@ -87,6 +87,19 @@ export interface HistoricalData {
      *  contrasts with the flat 7 % the model assumes. */
     unemployment: { years: number[]; rate: number[] }
   }
+  /** Inscrits à France Travail par catégorie, effectifs bruts trimestriels (STMT).
+   *  Une mesure bien plus large que le chômage BIT — c'est celle du scénario Pragmatique.
+   *  Démarre en 2025T1 : F et G n'existent que depuis la loi plein emploi. */
+  jobseekers: {
+    periods: string[] // « 2025T1 », …
+    a: number[]
+    b: number[]
+    c: number[]
+    d: number[]
+    e: number[]
+    f: number[]
+    g: number[]
+  }
   /** Observed inflation (INSEE IPC, moyenne annuelle), fraction. Display only — the model
    *  runs in constant euros, so inflation is neutralised by construction and never read. */
   economy: { inflation: { years: number[]; rate: number[] } }

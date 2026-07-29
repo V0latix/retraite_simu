@@ -2,9 +2,10 @@ import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
+import { JOBSEEKER_WEIGHTS, jobseekerRate } from '../data/scenarioPresets'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
 import { Legend, ObservedProjectedLegend, Swatch } from './ObservedProjected'
-import { CHART } from './chartColors'
+import { CHART, SERIES } from './chartColors'
 import { fmtNum, fmtPct } from '../lib/format'
 import { Card } from '@/components/ui/card'
 
@@ -15,6 +16,25 @@ const millions = (v: number) => `${fmtNum(v / 1e6, 1)} M`
 const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v / 1000))} 000/an`
 const pctPlain = (v: number, d = 1) => fmtPct(v, d)
 const eurMonth = (v: number) => `${Math.round(v).toLocaleString('fr-FR')} €/mois`
+
+/** Inscrits France Travail A→G rapportés aux 18-64 ans — l'hypothèse chômage du Pragmatique. */
+const JOBSEEKER_RATE = jobseekerRate()
+
+/** Les 7 catégories, dans l'ordre officiel. Couleurs prises dans SERIES, pas réinventées. */
+const JOBSEEKER_CATS = [
+  ['A', SERIES[0], 'sans activité'],
+  ['B', SERIES[1], 'activité réduite ≤ 78 h/mois'],
+  ['C', SERIES[2], 'activité réduite > 78 h/mois'],
+  ['D', SERIES[3], 'dispensés (formation, maladie)'],
+  ['E', SERIES[4], 'dispensés, en emploi'],
+  ['F', SERIES[5], 'accompagnement social'],
+  ['G', SERIES[6], 'RSA en attente d’orientation'],
+] as const
+
+/** Part de l'effectif brut qui subsiste après pondération — 5,5 M sur 7,5 M. */
+const JOBSEEKER_RATE_SHARE =
+  JOBSEEKER_CATS.reduce((s, [k]) => s + JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS] * (historical.jobseekers[k.toLowerCase() as 'a'].at(-1) ?? 0), 0) /
+  JOBSEEKER_CATS.reduce((s, [k]) => s + (historical.jobseekers[k.toLowerCase() as 'a'].at(-1) ?? 0), 0)
 
 // Shared chart chrome. Repeating these ten times is how axes and tooltips drifted apart;
 // the default Recharts tooltip (white, rounded, shadowed) was also the one element left
@@ -47,11 +67,18 @@ function Group({
 }) {
   return (
     <details open={defaultOpen} className="group/vol">
-      <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 border-b border-border pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none hover:text-foreground">
+      <summary
+        title="Afficher / masquer les graphiques"
+        className="mb-3 flex cursor-pointer list-none items-center gap-2 rounded border border-border bg-muted/40 px-2 py-1.5 text-xs font-semibold tracking-wide uppercase select-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      >
         <span className="inline-block transition-transform group-open/vol:rotate-90">▸</span>
         {title}
-        <span className="ml-auto font-normal normal-case tabular-nums">
+        <span className="ml-auto font-normal normal-case text-muted-foreground tabular-nums">
           {count} graphique{count > 1 ? 's' : ''}
+        </span>
+        <span className="font-normal normal-case text-muted-foreground">
+          · <span className="group-open/vol:hidden">afficher</span>
+          <span className="hidden group-open/vol:inline">masquer</span>
         </span>
       </summary>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
@@ -263,6 +290,17 @@ export function MacroCharts({
   const unemploymentObs = historical.demography.unemployment
   const unemploymentNow = unemploymentObs.rate.at(-1) ?? 0.074
   const unemploymentAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.unemployment ?? 0.07
+  // Même piège que le box plot : une <ReferenceLine> hors domaine est silencieusement ignorée,
+  // et l'hypothèse « inscrits A→G » (≈19 %) sort largement du 4-11 % du chômage BIT.
+  const unemploymentMax = Math.ceil(Math.max(0.11, unemploymentAssumed, JOBSEEKER_RATE) * 100 + 1) / 100
+
+  // Inscrits à France Travail par catégorie — la mesure large sur laquelle le scénario
+  // Pragmatique cale son chômage. Trimestriel et court : F et G datent de janvier 2025.
+  const jobseekers = useMemo(() => {
+    const j = historical.jobseekers
+    return j.periods.map((p, i) => ({ p, A: j.a[i], B: j.b[i], C: j.c[i], D: j.d[i], E: j.e[i], F: j.f[i], G: j.g[i] }))
+  }, [])
+  const jobseekersLast = JOBSEEKER_CATS.reduce((s, [k]) => s + (jobseekers.at(-1)?.[k] ?? 0), 0)
 
   // Life expectancy (e0 / e65) derived from the scenario's qx — projection only, no observed
   // series in historical.json. Two very different magnitudes → dual Y axis in the panel below.
@@ -511,7 +549,7 @@ export function MacroCharts({
         </Panel>
       </Group>
 
-      <Group title="Hypothèses du scénario — réalité observée vs projection" count={4}>
+      <Group title="Hypothèses du scénario — réalité observée vs projection" count={5}>
         <Panel
           title="Fécondité : réalité observée vs hypothèse du scénario"
           desc={`Nombre d'enfants par femme. Le scénario sélectionné retient ${ratio2(fertilityAssumed)} à long terme, alors qu'en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse plus haute que la réalité rend les projections (cotisants futurs, solde) optimistes ; le scénario « Pragmatique » colle à la tendance observée.`}
@@ -582,23 +620,93 @@ export function MacroCharts({
         </Panel>
 
         <Panel
-          title="Chômage : taux observé vs hypothèse du scénario"
-          desc={`Un chômeur est un actif qui ne cotise pas : il est déjà retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}, alors que le chômage observé (au sens du BIT) a oscillé entre 7 et 10 % ces 25 dernières années — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}. Le scénario « Pragmatique » colle au dernier niveau observé, quand les projections officielles supposent parfois un retour au plein emploi (4,5 %).`}
+          title="Chômage : deux mesures, deux scénarios"
+          desc={`Un actif qui ne cotise pas est retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}. Deux thermomètres s'opposent : le chômage au sens du BIT — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}, celui du COR et de l'INSEE — et les 7,5 M d'inscrits à France Travail toutes catégories A à G, pondérés par les heures qu'ils travaillent déjà, soit ${pctPlain(JOBSEEKER_RATE)} des actifs, que retient le scénario « Pragmatique ». L'écart n'est pas une erreur de mesure : les deux comptent des gens différents (voir ci-dessous).`}
           footer={
-            <Legend>
-              <Swatch color={CHART.primary}>
-                chômage observé (INSEE, {unemploymentObs.years[0]}–{LAST_OBSERVED_YEAR})
-              </Swatch>
-              <Swatch color={CHART.danger} dashed>
-                hypothèse du scénario ({pctPlain(unemploymentAssumed)})
-              </Swatch>
-            </Legend>
+            <>
+              <Legend>
+                <Swatch color={CHART.primary}>
+                  chômage BIT observé (INSEE, {unemploymentObs.years[0]}–{LAST_OBSERVED_YEAR})
+                </Swatch>
+                <Swatch color={CHART.danger} dashed>
+                  hypothèse du scénario ({pctPlain(unemploymentAssumed)})
+                </Swatch>
+              </Legend>
+              <details className="group/exp mt-2">
+                <summary className="w-fit cursor-pointer list-none text-xs font-medium text-muted-foreground select-none hover:text-foreground">
+                  ⓘ Pourquoi le scénario COR central (7 %) et le Pragmatique ({pctPlain(JOBSEEKER_RATE)}) divergent autant
+                </summary>
+                <div className="mt-1 space-y-2 text-xs leading-snug text-muted-foreground">
+                  <p>
+                    <strong className="text-foreground">Le BIT (7 %, scénario central).</strong> Définition
+                    internationale, celle du COR et de l'INSEE : être sans aucun emploi, disponible sous deux
+                    semaines, et avoir cherché activement dans le mois. Les trois conditions à la fois. C'est un
+                    taux bas par construction, et les projections officielles supposent souvent qu'il baisse encore
+                    — jusqu'à 4,5 % dans les variantes « plein emploi ».
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Les inscrits à France Travail ({pctPlain(JOBSEEKER_RATE)},
+                    Pragmatique).</strong> Un décompte administratif, pas un sondage : toute personne inscrite,
+                    quelle que soit sa catégorie. <em>A</em> sans activité, <em>B</em> et <em>C</em> en activité
+                    réduite (≤ ou &gt; 78 h/mois), <em>D</em> dispensés de recherche (formation, maladie),
+                    <em> E</em> dispensés et en emploi (contrats aidés, créateurs d'entreprise), et depuis janvier
+                    2025 <em>F</em> (accompagnement social) et <em>G</em> (allocataires du RSA en attente
+                    d'orientation) créées par la loi plein emploi — d'où le saut de série et l'absence d'historique
+                    avant 2025.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Être inscrit ≠ ne pas cotiser.</strong> C'est le cœur du
+                    calcul : chaque catégorie est pondérée par la part d'un temps plein (151,67 h/mois) qu'elle ne
+                    travaille <em>pas</em>, mesurée sur les heures réellement déclarées. La catégorie C travaille
+                    139 h/mois en moyenne — 92 % d'un temps plein, et plus de la moitié de ses inscrits font
+                    151 h ou plus : ces gens cotisent déjà presque intégralement, les retirer en bloc serait faux.
+                  </p>
+                  <table className="w-full tabular-nums">
+                    <tbody>
+                      {JOBSEEKER_CATS.map(([k, , label]) => (
+                        <tr key={k} className="border-b border-border/50 last:border-0">
+                          <td className="py-0.5 pr-2 font-semibold text-foreground">{k}</td>
+                          <td className="py-0.5 pr-2">{label}</td>
+                          <td className="py-0.5 text-right font-semibold text-foreground">
+                            {JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS] === 0
+                              ? '0 — cotise'
+                              : `× ${JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS].toString().replace('.', ',')}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p>
+                    Total pondéré : 5,5 M sur 7,5 M d'inscrits, rapportés aux ~33 M d'actifs du modèle — le même
+                    dénominateur que le taux BIT qu'il remplace, et la base exacte à laquelle le moteur applique
+                    ce taux. Sans pondération, le même effectif donnerait 22,8 %.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Ce qui reste discutable.</strong> Les poids de B et C sont
+                    figés sur le trimestre le plus récent. Surtout, les allocataires du RSA (F, G) ne sont pour la
+                    plupart pas « actifs » au sens du modèle : le taux d'activité les exclut déjà en partie, donc
+                    les compter ici les retire un peu deux fois. Le chiffre reste une lecture haute du sous-emploi,
+                    pas une prévision.
+                  </p>
+                </div>
+              </details>
+            </>
           }
         >
           <LineChart data={unemployment}>
             {GRID}
             <XAxis dataKey="year" {...AXIS} />
-            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} {...AXIS} domain={[0.04, 0.11]} />
+            <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} {...AXIS} domain={[0.04, unemploymentMax]} />
+            {/* Repère caché quand le scénario est déjà calé dessus (Pragmatique) : le libellé
+                se poserait pile sur la courbe d'hypothèse et ne dirait rien de neuf. */}
+            {Math.abs(unemploymentAssumed - JOBSEEKER_RATE) > 0.005 && (
+              <ReferenceLine
+                y={JOBSEEKER_RATE}
+                stroke={CHART.muted}
+                strokeDasharray="2 3"
+                label={{ value: `inscrits France Travail A→G (${pctPlain(JOBSEEKER_RATE)})`, position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
+              />
+            )}
             <ReferenceLine
               y={0.045}
               stroke={CHART.muted}
@@ -607,9 +715,33 @@ export function MacroCharts({
             />
             {frontier(LAST_OBSERVED_YEAR + 1)}
             <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : pctPlain(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
-            <Line type="monotone" dataKey="observed" name="Chômage observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="observed" name="Chômage BIT observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
             <Line type="monotone" dataKey="assumption" name="Hypothèse chômage" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
+        </Panel>
+
+        <Panel
+          title="Inscrits à France Travail, par catégorie"
+          desc={`Le décompte derrière l'hypothèse du scénario Pragmatique : ${millions(jobseekersLast)} de personnes inscrites au ${jobseekers.at(-1)?.p ?? ''}, toutes catégories confondues. Toutes ne sont pas sans emploi — B et C sont en activité réduite, E est en emploi par définition — d'où la pondération par les heures travaillées, qui ramène ces ${millions(jobseekersLast)} à ${millions(jobseekersLast * JOBSEEKER_RATE_SHARE)} d'équivalents non-cotisants. Effectifs bruts trimestriels (France entière hors Mayotte, Dares–France Travail STMT). La série démarre en 2025T1 : F et G n'existaient pas avant la loi plein emploi.`}
+          footer={
+            <Legend>
+              {JOBSEEKER_CATS.map(([k, color, label]) => (
+                <Swatch key={k} color={color}>
+                  {k} — {label} (× {JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS].toString().replace('.', ',')})
+                </Swatch>
+              ))}
+            </Legend>
+          }
+        >
+          <BarChart data={jobseekers}>
+            {GRID}
+            <XAxis dataKey="p" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${fmtNum(v / 1e6, 0)} M`} width={40} {...AXIS} />
+            <Tooltip {...TOOLTIP} formatter={(v) => millions(Number(v))} labelFormatter={(p) => `Trimestre ${p}`} />
+            {JOBSEEKER_CATS.map(([k, color]) => (
+              <Bar key={k} dataKey={k} stackId="ft" name={`Catégorie ${k}`} fill={color} isAnimationActive={false} />
+            ))}
+          </BarChart>
         </Panel>
 
         <Panel

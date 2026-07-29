@@ -5,7 +5,7 @@ import { SCENARIO_PRESETS } from './data/scenarioPresets'
 import type { ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
-import { type View, countChangedLevers, decodeState, downloadCsv, encodeState, seriesToCsv } from './lib/share'
+import { type View, countChangedLevers, decodeState, encodeState } from './lib/share'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -202,21 +202,6 @@ function App() {
           <KpiStrip series={series} baseline={baseline} changedCount={changedCount} computing={computing} />
 
           <section>
-            <SectionTitle
-              aside={
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={series.length === 0}
-                  onClick={() => downloadCsv(`retraite-${scenarioId}.csv`, seriesToCsv(series))}
-                >
-                  Exporter CSV
-                </Button>
-              }
-            >
-              Trajectoires financières
-            </SectionTitle>
             {series.length > 0 ? (
               <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
                 <MacroCharts

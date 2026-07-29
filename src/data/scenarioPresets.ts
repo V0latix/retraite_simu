@@ -5,7 +5,56 @@
 // migration ±, productivité COR ±) used to be separate scenarios; each was a single hypothesis
 // moved, so they are now just positions on the corresponding slider.
 import type { PolicyParams } from '../engine/types'
-import type { ScenarioId } from './schema'
+import { ACTIVITY_RATE } from './loader'
+import historicalJson from './historical.json'
+import historicalPyramidJson from './historicalPyramid.json'
+import type { HistoricalData, HistoricalPyramid, ScenarioId } from './schema'
+
+const JOBSEEKER_BASE_YEAR = 2025
+
+/**
+ * Part de chaque catégorie France Travail qui NE cotise PAS — parce qu'être inscrit et être
+ * sans emploi sont deux choses différentes. Le poids est la fraction d'un temps plein
+ * (151,67 h/mois) que la catégorie ne travaille pas, mesurée sur les heures effectivement
+ * déclarées (Dares–France Travail STMT, onglet « DEFM cat BC_heures travaillées »,
+ * moyenne des 4 derniers trimestres au 2026T2) :
+ *   B  35,6 h/mois → 23,5 % d'un temps plein → ne cotise pas à 76,5 %
+ *   C 139,2 h/mois → 91,8 % d'un temps plein → ne cotise pas à  8,2 % (53 % de C font 151 h+)
+ * A, D, F et G sont sans emploi → 1. E est « en emploi » par définition (contrats aidés,
+ * créateurs d'entreprise) → 0.
+ *
+ * ponytail: poids figés au 2026T2, ils bougent lentement. Si l'activité réduite se déforme,
+ * les recalculer depuis l'onglet heures plutôt que d'ajouter un bloc de données pour deux
+ * constantes.
+ */
+export const JOBSEEKER_WEIGHTS = { a: 1, b: 0.765, c: 0.082, d: 1, e: 0, f: 1, g: 1 } as const
+
+/**
+ * Taux de non-emploi du scénario Pragmatique : les inscrits à France Travail pondérés par
+ * JOBSEEKER_WEIGHTS, rapportés à la population active DU MODÈLE (Σ pop × τ_act ≈ 33 M en
+ * 2025) — le même dénominateur que le taux de chômage BIT qu'il remplace, et surtout la
+ * base exacte à laquelle `project()` applique ce taux. Diviser par les 18-64 ans (39,6 M)
+ * perdrait 17 % de l'effet entre le calcul et l'application.
+ *
+ * Calculé, jamais recopié : le nombre magique se périme dès la publication trimestrielle
+ * suivante. Moyenne des 4 derniers trimestres — les séries publiant F et G sont brutes
+ * (non CVS-CJO), quatre trimestres neutralisent la saisonnalité sans rien modéliser.
+ */
+export function jobseekerRate(): number {
+  const j = (historicalJson as unknown as HistoricalData).jobseekers
+  const n = j.periods.length
+  const from = Math.max(0, n - 4)
+  const weighted = (Object.keys(JOBSEEKER_WEIGHTS) as (keyof typeof JOBSEEKER_WEIGHTS)[]).reduce(
+    (sum, k) => sum + JOBSEEKER_WEIGHTS[k] * j[k].slice(from).reduce((s, v) => s + v, 0),
+    0,
+  )
+  const p = historicalPyramidJson as unknown as HistoricalPyramid
+  const yi = p.years.indexOf(JOBSEEKER_BASE_YEAR)
+  let active = 0
+  // ponytail: âge légal figé à 64 pour la borne, l'écart par génération est du 2e ordre ici.
+  for (let a = 15; a <= 64; a++) active += (p.H[yi][a] + p.F[yi][a]) * ACTIVITY_RATE(a, 64)
+  return weighted / (n - from) / active
+}
 
 /** INSEE central « Projections de population 2021-2070 » — measured off central.json. */
 const CENTRAL = {
@@ -23,10 +72,12 @@ export const SCENARIO_PRESETS: Record<ScenarioId, Partial<PolicyParams>> = {
     ...CENTRAL,
     // Observed trends instead of INSEE's hypotheses: fécondité 1,45 (INSEE, en baisse depuis
     // 1,53 en 2025), solde migratoire +176 000/an (Bilan démographique 2025, moyenne 2023-2025
-    // hors pic Ukraine), chômage 7,4 % (BIT, moyenne annuelle 2024).
+    // hors pic Ukraine), et le non-emploi mesuré sur les inscrits à France Travail pondérés
+    // par leurs heures travaillées (≈16,6 % des actifs) plutôt que par le BIT (7,4 %) —
+    // voir JOBSEEKER_WEIGHTS et jobseekerRate().
     tfr: 1.45,
     netMigration: 176_000,
-    unemployment: 0.074,
+    unemployment: jobseekerRate(),
     // Risques macro portés par ce seul scénario : taux OAT 10 ans nominal (effet boule de neige
     // sur le solde cumulé) et émigration nette de jeunes actifs 25-40 ans.
     realInterestRate: 0.033,
@@ -39,7 +90,7 @@ export const SCENARIO_DESCRIPTIONS: Record<ScenarioId, string> = {
   central:
     'Scénario de référence de l’INSEE (et du COR) : 1,8 enfant par femme, solde migratoire +70 000/an, productivité +1,0 %/an. Les curseurs ci-dessous partent de ces valeurs — bougez-en un pour fabriquer votre propre variante.',
   pragmatique:
-    'Les mêmes projections, mais calées sur les tendances réellement observées : fécondité 1,45 (vs 1,8), solde migratoire +176 000/an (vs +70 000), chômage 7,4 % (vs 7 %). Seul scénario à intégrer aussi les risques macro — intérêt sur la dette et exode des jeunes actifs, réglables plus bas.',
+    'Les mêmes projections, mais calées sur les tendances réellement observées : fécondité 1,45 (vs 1,8), solde migratoire +176 000/an (vs +70 000), et surtout un non-emploi mesuré sur les inscrits à France Travail — les 7,5 M de catégories A à G, pondérés par les heures qu’ils travaillent déjà, soit ≈ 16,6 % des actifs — au lieu du taux BIT retenu par le COR (7 %). Seul scénario à intégrer aussi les risques macro — intérêt sur la dette et exode des jeunes actifs, réglables plus bas.',
   'choc-recession':
     'Hypothèses centrales, plus un choc conjoncturel ponctuel : le chômage monte de 7 % à ~10 % entre 2027 et 2028 puis revient à 7 % en 2030. Les chômeurs ne cotisent pas → creux transitoire du solde, résorbé après la crise.',
 }

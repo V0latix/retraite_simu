@@ -1,9 +1,9 @@
-// URL state sharing + CSV export — native, zero-dependency (ponytail).
+// URL state sharing — native, zero-dependency (ponytail).
 import { DEFAULT_POLICY } from '../data/loader'
 import { REFORM_PRESETS } from '../data/reforms'
 import { SCENARIO_PRESETS } from '../data/scenarioPresets'
 import { SCENARIO_IDS, type ScenarioId } from '../data/schema'
-import type { Indexation, PolicyParams, TimeSeries } from '../engine/types'
+import type { Indexation, PolicyParams } from '../engine/types'
 
 export type View = 'macro' | 'micro' | 'comparaison' | 'stochastique'
 
@@ -78,24 +78,3 @@ export function decodeState(p: URLSearchParams): AppState {
   return { view: oneOf('v', VIEWS, 'macro'), scenarioId, horizon: num('h', 2070), policy, reformKey }
 }
 
-/** Flatten the projected series to CSV (all scalar YearResult fields; `pyramid` omitted). */
-export function seriesToCsv(series: TimeSeries): string {
-  if (series.length === 0) return ''
-  const keys = Object.keys(series[0]).filter((k) => k !== 'pyramid')
-  const cell = (v: unknown) => {
-    const s = String(v)
-    return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
-  const lines = [keys.join(',')]
-  for (const row of series) lines.push(keys.map((k) => cell((row as unknown as Record<string, unknown>)[k])).join(','))
-  return lines.join('\n')
-}
-
-export function downloadCsv(name: string, csv: string): void {
-  const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
-  const a = document.createElement('a')
-  a.href = url
-  a.download = name
-  a.click()
-  URL.revokeObjectURL(url)
-}
