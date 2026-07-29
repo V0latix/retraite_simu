@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import central from './scenarios/central.json'
 import type { ScenarioData } from './schema'
 import { applyHypotheses } from './hypotheses'
+import { formatAge, REFORM_PRESETS, scheduleSummary } from './reforms'
 
 const data = central as unknown as ScenarioData
 const idx = (year: number) => data.years.indexOf(year)
@@ -44,5 +45,34 @@ describe('applyHypotheses', () => {
     const out = applyHypotheses(data, { legalAge: 62 })
     expect(out.fertility).toBe(data.fertility)
     expect(out.migration).toBe(data.migration)
+  })
+})
+
+describe('reform template presentation', () => {
+  it('formats a fractional age in years and months', () => {
+    expect(formatAge(64)).toBe('64 ans')
+    expect(formatAge(62.75)).toBe('62 ans 9 mois')
+    expect(formatAge(63.25)).toBe('63 ans 3 mois')
+  })
+
+  it('summarises a calendar, and stays silent when there is nothing to phase in', () => {
+    expect(scheduleSummary(REFORM_PRESETS['suspension-2026'].schedule!)).toBe(
+      '62 ans 9 mois en 2026 → 64 ans en 2033',
+    )
+    expect(scheduleSummary(REFORM_PRESETS['avant-2023'].schedule!)).toBeNull() // âge plat, seule la durée bouge
+  })
+
+  it('every template is a valid policy delta, calendars sorted and in range', () => {
+    for (const [key, r] of Object.entries(REFORM_PRESETS)) {
+      expect(r.label, key).toBeTruthy()
+      expect(r.source, key).toBeTruthy()
+      for (const a of r.schedule ?? []) {
+        expect(a.year, key).toBeGreaterThanOrEqual(2025)
+        if (a.legalAge != null) expect(a.legalAge, key).toBeGreaterThanOrEqual(60)
+        if (a.legalAge != null) expect(a.legalAge, key).toBeLessThanOrEqual(70)
+      }
+      const years = (r.schedule ?? []).map((a) => a.year)
+      expect(years, key).toEqual([...years].sort((x, y) => x - y))
+    }
   })
 })

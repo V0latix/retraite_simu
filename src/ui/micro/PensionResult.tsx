@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { PensionBreakdown } from '../../engine/micro/types'
 import { CHART } from '../chartColors'
 import { BASE_YEAR, referenceIndicators } from '../../data/loader'
+import { formatAge } from '../../data/reforms'
 import { Card } from '@/components/ui/card'
 import { Slider as UiSlider } from '@/components/ui/slider'
 import { Term } from '@/components/ui/tooltip'
@@ -26,6 +27,20 @@ export function PensionResult({ b, scenarioLabel }: { b: PensionBreakdown; scena
   const nominal = b.total * (1 + infl / 100) ** n
   return (
     <div className="space-y-4">
+      {/* La réforme choisie côté macro fixe l'âge légal de l'année de liquidation. On signale
+          le départ trop précoce sans l'interdire : les départs anticipés existent (carrières
+          longues, inaptitude, handicap), le modèle ne sait juste pas vérifier l'éligibilité. */}
+      {b.belowLegalAge && (
+        <Card className="gap-0 border-2 p-3" style={{ borderColor: CHART.pink }}>
+          <p className="text-sm leading-snug">
+            <span className="font-semibold">Départ à {formatAge(b.retirementAge)} en dessous de l'âge légal.</span>{' '}
+            La réforme retenue fixe l'âge légal à {formatAge(b.legalAgeAtLiquidation)} en {b.liquidationYear}. Ce départ
+            suppose un dispositif anticipé (carrière longue, inaptitude, handicap) — cochez « carrière longue » dans le
+            formulaire si c'est votre cas.
+          </p>
+        </Card>
+      )}
+
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Stat label="Pension totale" value={mo(b.total)} hint={`${eur(b.total)}/an · euros d'aujourd'hui`} />
         <Stat label="Taux de remplacement" value={`${(b.replacementRate * 100).toFixed(0)} %`} hint={`vs ${eur(b.lastSalary)} de dernier salaire`} />

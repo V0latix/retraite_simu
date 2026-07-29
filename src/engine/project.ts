@@ -28,6 +28,16 @@ export interface EconInit {
   /** Reference required quarters (the base-config value the shift anchors to, so the
    *  reference scenario is unshifted and the COR calibration stays intact). */
   quartersRef: number
+  /** Share (0-1) of a legal-age move that actually converts into the retiree→contributor
+   *  reclassification. The raw mechanism assumes everyone exits the day they become eligible
+   *  and immediately holds a job — an upper bound (OFCE flags the same one). In reality much
+   *  of the band was already inactive without being retired, part was already working past the
+   *  age, and early-exit routes exempt a chunk of departures. Calibrated on the published
+   *  estimates of the 2023 reform (see systemParams `_sources`). */
+  legalAgeEffectiveness: number
+  /** Reference legal age the effectiveness damping anchors to: at this age the deviation is
+   *  zero, so the COR calibration is untouched (same trick as quartersRef). */
+  legalAgeRef: number
   /**
    * Optional per-year COR calibration (built in loader.ts from corReference.json).
    * When present, it pins the CENTRAL scenario's dépenses and resources to the COR EEC
@@ -49,24 +59,32 @@ const DEFAULT_ECON: EconInit = {
   pensionDriftShare: 0.22,
   quartersAgeShare: 0.5,
   quartersRef: 172,
+  legalAgeEffectiveness: 0.26,
+  legalAgeRef: 64,
 }
 
 // ponytail: carrières longues départ age fixed at 60 (RN « 60 ans si commencé avant 20 »).
 // Move to systemParams if a second early-exit age is ever needed.
 const EARLY_RETIREMENT_AGE = 60
 
-function countByAge(state: PopulationState, lo: number, hi: number): number {
-  let sum = 0
-  for (let a = lo; a <= hi; a++) sum += state.H[a] + state.F[a]
-  return sum
+/** Share of an age-year cohort already past a (possibly fractional) retirement age. Real reforms
+ *  move the age by quarters — 62,75 means a quarter of the age-62 cohort has already left. At an
+ *  integer age this is exactly the old 0/1 step, so the COR calibration is untouched. */
+function retiredWeight(age: number, retireAge: number): number {
+  return Math.min(1, Math.max(0, age + 1 - retireAge))
 }
 
 /** Retirees = everyone at/above the effective retirement age (≈ legal age in v1), plus an
  *  optional share of the [60, legalAge) band leaving early (carrières longues, §3.2). */
 function retirees(state: PopulationState, retireAge: number, earlyShare = 0): number {
-  const full = countByAge(state, Math.min(retireAge, OMEGA), OMEGA)
-  if (earlyShare <= 0 || EARLY_RETIREMENT_AGE >= retireAge) return full
-  return full + earlyShare * countByAge(state, EARLY_RETIREMENT_AGE, retireAge - 1)
+  const lo = earlyShare > 0 ? EARLY_RETIREMENT_AGE : Math.min(Math.floor(retireAge), OMEGA)
+  let sum = 0
+  for (let a = lo; a <= OMEGA; a++) {
+    const w = retiredWeight(a, retireAge)
+    // Early exits only bite on the part of the cohort not already retired ⇒ no double count.
+    sum += (state.H[a] + state.F[a]) * (w + (1 - w) * earlyShare)
+  }
+  return sum
 }
 
 /** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..legalAge. A share of the
@@ -74,10 +92,12 @@ function retirees(state: PopulationState, retireAge: number, earlyShare = 0): nu
 function contributors(state: PopulationState, h: HypothesisSet, year: number, legalAge: number, earlyShare = 0): number {
   const u = h.unemployment(year)
   let active = 0
-  for (let a = 15; a < legalAge && a <= OMEGA; a++) {
+  for (let a = 15; a <= OMEGA; a++) {
+    const stillActive = 1 - retiredWeight(a, legalAge)
+    if (stillActive <= 0) break // weight is monotone in age
     const pop = state.H[a] + state.F[a]
     const early = earlyShare > 0 && a >= EARLY_RETIREMENT_AGE ? 1 - earlyShare : 1
-    active += pop * h.activityRate(year, a, legalAge) * early
+    active += pop * h.activityRate(year, a, legalAge) * early * stillActive
   }
   return active * (1 - u)
 }
@@ -108,8 +128,8 @@ export function project(
     if (year > baseYear) avgWage *= 1 + h.productivity(year)
 
     // Effective retirement age = legal age, indexed on life expectancy (§2 lever) and
-    // shifted by the required-duration lever (§4.4). Rounded once at the end — the age
-    // bounds index by integer age.
+    // shifted by the required-duration lever (§4.4). Kept fractional — the age bounds
+    // pro-rate the boundary cohort (see retiredWeight).
     let legalAge = p.legalAge
     // Life-expectancy indexation: raise the age by a share of the longevity gains since
     // the base year. ponytail: LE recomputed each year (~45 steps, negligible).
@@ -125,7 +145,11 @@ export function project(
     // référence inchangé (calage COR intact).
     // ponytail: canal décote (pension moindre) ignoré — seul l'effet âge de sortie modélisé.
     legalAge += (econ.quartersAgeShare * (p.requiredQuarters - econ.quartersRef)) / 4
-    legalAge = Math.round(legalAge)
+    // Behavioural pass-through: only a share of the theoretical shift converts into people
+    // actually moving from retiree to employed contributor. Anchored on legalAgeRef so the
+    // reference config is unshifted — raw, the lever priced the 2023 reform at ~4× the
+    // published estimates (see systemParams.calibration._sources).
+    legalAge = econ.legalAgeRef + econ.legalAgeEffectiveness * (legalAge - econ.legalAgeRef)
 
     const earlyShare = p.earlyRetirementShare ?? 0
     const contrib = contributors(state, h, year, legalAge, earlyShare)

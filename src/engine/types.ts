@@ -14,8 +14,18 @@ export interface PopulationState {
 
 export type Indexation = 'prices' | 'wages' | 'mix'
 
+/** One anchor of a reform calendar: the values in force for pensions liquidated that year.
+ *  Serializable on purpose — it crosses postMessage, so no functions here. */
+export interface PolicyAnchor {
+  year: number
+  legalAge?: number
+  requiredQuarters?: number
+}
+
 /** Reform levers, as a function of time (cahier des charges §4.4 / §6.1). */
 export interface PolicyParams {
+  /** Effective legal age, in years. Fractional: 0.25 = 3 months (the unit real French
+   *  reforms move in — 62,75 = « 62 ans 9 mois »). */
   legalAge: number
   requiredQuarters: number
   contributionRate: number
@@ -57,6 +67,10 @@ export interface PolicyParams {
   /** Share (0-1) of the [60, legalAge) band retiring early (carrières longues, §3.2): they
    *  move from contributors to retirees. Absent ⇒ 0 ⇒ uniform exit age (reference unchanged). */
   earlyRetirementShare?: number
+  /** Reform calendar: a real law phases in (2023: +3 months per génération, 2023→2032) instead
+   *  of switching overnight. Anchors are interpolated linearly, clamped outside their range, and
+   *  override the flat fields above. Absent ⇒ the flat value applies from BASE_YEAR (status quo). */
+  schedule?: PolicyAnchor[]
 }
 
 /**
