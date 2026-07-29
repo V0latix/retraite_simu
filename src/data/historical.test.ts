@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { historical, historicalPyramid, LAST_OBSERVED_YEAR } from './loader'
+import { SCENARIO_PRESETS, jobseekerRate } from './scenarioPresets'
 
 const strictlyIncreasing = (ys: readonly number[]) => ys.every((y, i) => i === 0 || y > ys[i - 1])
 
@@ -76,6 +77,23 @@ describe('historical.json', () => {
       expect(v).toBeGreaterThan(0)
       expect(v).toBeLessThan(1)
     }
+  })
+
+  it('carries the France Travail A→G headcounts, aligned and summing to the published total', () => {
+    const j = historical.jobseekers
+    expect(j.periods[0]).toBe('2025T1') // F et G n'existent pas avant la loi plein emploi
+    for (const cat of [j.a, j.b, j.c, j.d, j.e, j.f, j.g]) {
+      expect(cat).toHaveLength(j.periods.length)
+      for (const v of cat) expect(v).toBeGreaterThan(0)
+    }
+    // Total A→G publié au 2025T1 : 7 409 100 (arrondi à la centaine près par la Dares).
+    const t0 = [j.a, j.b, j.c, j.d, j.e, j.f, j.g].reduce((s, cat) => s + cat[0], 0)
+    expect(t0).toBeCloseTo(7_409_100, -3)
+    // Le taux qui en découle est bien la mesure large, pas le BIT.
+    expect(jobseekerRate()).toBeGreaterThan(0.15)
+    expect(jobseekerRate()).toBeLessThan(0.25)
+    expect(SCENARIO_PRESETS.pragmatique.unemployment).toBe(jobseekerRate())
+    expect(SCENARIO_PRESETS.central.unemployment).toBe(0.07) // la référence COR ne bouge pas
   })
 
   it('shows the 65+ share rising over the observed period', () => {

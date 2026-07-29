@@ -194,14 +194,17 @@ export function Levers({
           label="Taux de chômage"
           value={policy.unemployment ?? 0.07}
           min={0.045}
-          max={0.11}
+          max={0.25}
           step={0.005}
           fmt={(v) => `${(v * 100).toFixed(1).replace('.', ',')} %`}
           onChange={(v) => onPolicy({ unemployment: v })}
           hint={
             <>
-              Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Les projections
-              officielles supposent souvent un retour vers 4,5&nbsp;% ; l'observé récent ≈ 7,4&nbsp;%.
+              Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Deux mesures
+              coexistent, d'où l'amplitude du curseur : le chômage au sens du BIT (7,4&nbsp;% en 2024,
+              celui du COR, qui suppose souvent un retour vers 4,5&nbsp;%) et l'inscription à France
+              Travail toutes catégories A à G (≈&nbsp;19&nbsp;% des 18-64 ans, retenue par le scénario
+              Pragmatique).
             </>
           }
         />
