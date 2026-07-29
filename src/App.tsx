@@ -219,7 +219,13 @@ function App() {
             </SectionTitle>
             {series.length > 0 ? (
               <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-                <MacroCharts series={series} realInterestRate={policy.realInterestRate} workerExodus={policy.workerExodus} frrFlowPct={policy.frrFlowPct} />
+                <MacroCharts
+                  series={series}
+                  realInterestRate={policy.realInterestRate}
+                  workerExodus={policy.workerExodus}
+                  frrFlowPct={policy.frrFlowPct}
+                  pensionCap={policy.pensionCap}
+                />
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true">

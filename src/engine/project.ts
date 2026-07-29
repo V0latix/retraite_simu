@@ -249,12 +249,20 @@ export function project(
     // L'INTÉRIEUR du dernier décile (là où la distribution est la plus étalée) est donc chiffré à
     // la louche. Passer à une lognormale calée sur les mêmes déciles si le plafond doit devenir
     // autre chose qu'un ordre de grandeur, ou s'il faut l'exprimer en percentile.
+    // Les montants par décile sont produits dans tous les cas (pas seulement sous plafond) :
+    // c'est ce tableau que le graphe à boîtes affiche, et le calculer ici plutôt que dans l'UI
+    // garantit que la boîte dessinée et le solde affiché décrivent le même écrêtement.
+    const avgMonthly = econ.avgPensionObservedMonthly * (avgPension / econ.avgAnnualPension)
+    const cap = p.pensionCap && p.pensionCap > 0 ? p.pensionCap : 0
+    const deciles = cap > 0
+      ? econ.pensionDeciles.map((ratio) => Math.min(ratio * avgMonthly, cap))
+      : econ.pensionDeciles.map((ratio) => ratio * avgMonthly)
     let capFactor = 1
-    if (p.pensionCap && p.pensionCap > 0) {
-      const avgMonthly = econ.avgPensionObservedMonthly * (avgPension / econ.avgAnnualPension)
-      let kept = 0
-      for (const ratio of econ.pensionDeciles) kept += Math.min(ratio * avgMonthly, p.pensionCap)
-      capFactor = kept / (econ.pensionDeciles.length * avgMonthly)
+    if (cap > 0 && avgMonthly > 0) {
+      // Sans plafond on NE recalcule pas ce rapport : Σ(r·a)/(10·a) ne rend pas exactement 1 en
+      // flottant, et le moindre ulp sur `benefits` décalerait la trajectoire de référence calée
+      // sur le COR. Hors plafond, le facteur est 1 par construction.
+      capFactor = deciles.reduce((s, v) => s + v, 0) / (deciles.length * avgMonthly)
       benefits *= capFactor
     }
 
@@ -286,6 +294,7 @@ export function project(
       // calage COR (qui pilote la masse, pas le montant individuel) mais APRÈS écrêtement.
       // C'est la série qui porte la dynamique du montant : indexation, noria, plafonnement.
       avgPension: avgPension * capFactor,
+      pensionDeciles: deciles,
       wageBill,
       contributions,
       benefits,

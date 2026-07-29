@@ -225,4 +225,26 @@ describe('fractional legal age + reform calendars', () => {
     expect(at2000).toBeLessThan(at4000)
     expect(run(2000).soldePctGdp).toBeGreaterThan(none.soldePctGdp)
   })
+
+  it('les déciles publiés décrivent le MÊME écrêtement que la masse (le graphe ne ment pas)', () => {
+    const run = (pensionCap?: number) =>
+      project(state0(), buildHypotheses(data, { pensionCap }), 2040, ECON_INIT).at(-1)!
+    const none = run()
+    const mean = (d: number[]) => d.reduce((s, v) => s + v, 0) / d.length
+    // Hors plafond, la distribution est croissante et sa moyenne retombe sur le niveau observé
+    // servant d'échelle (1 770 €/mois en base, dérivé par le noria).
+    expect(none.pensionDeciles).toHaveLength(10)
+    for (let i = 1; i < 10; i++) expect(none.pensionDeciles[i]).toBeGreaterThan(none.pensionDeciles[i - 1])
+    // Sous plafond : aucun décile ne dépasse le plafond, et la baisse de la moyenne des déciles
+    // est exactement celle de la masse versée. C'est ce qui autorise le graphe à boîtes à
+    // illustrer le levier — sinon la boîte et le solde raconteraient deux histoires.
+    for (const cap of [4000, 3000, 2000]) {
+      const capped = run(cap)
+      for (const d of capped.pensionDeciles) expect(d).toBeLessThanOrEqual(cap + 1e-9)
+      expect(mean(capped.pensionDeciles) / mean(none.pensionDeciles)).toBeCloseTo(
+        capped.benefits / none.benefits,
+        9,
+      )
+    }
+  })
 })
