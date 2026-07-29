@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { historical, historicalPyramid, LAST_OBSERVED_YEAR } from './loader'
-import { JOBSEEKER_WEIGHTS, SCENARIO_PRESETS, jobseekerRate } from './scenarioPresets'
+import { JOBSEEKER_WEIGHTS, SCENARIO_PRESETS, jobseekerRate, jobseekerRateByYear } from './scenarioPresets'
 
 const strictlyIncreasing = (ys: readonly number[]) => ys.every((y, i) => i === 0 || y > ys[i - 1])
 
@@ -81,13 +81,22 @@ describe('historical.json', () => {
 
   it('carries the France Travail A→G headcounts, aligned and summing to the published total', () => {
     const j = historical.jobseekers
-    expect(j.periods[0]).toBe('2025T1') // F et G n'existent pas avant la loi plein emploi
+    expect(j.periods[0]).toBe('1996T1')
+    expect(strictlyIncreasing(j.periods.map((p) => Number(p.replace('T', '.'))))).toBe(true)
     for (const cat of [j.a, j.b, j.c, j.d, j.e, j.f, j.g]) {
       expect(cat).toHaveLength(j.periods.length)
-      for (const v of cat) expect(v).toBeGreaterThan(0)
+      for (const v of cat) expect(v).toBeGreaterThanOrEqual(0)
     }
+    // F et G ne naissent qu'avec la loi plein emploi : nulles avant, peuplées après. La série
+    // n'est donc pas homogène de part et d'autre — c'est la marche que l'UI doit expliquer.
+    const born = j.periods.indexOf('2025T1')
+    for (const cat of [j.f, j.g]) {
+      expect(cat.slice(0, born).every((v) => v === 0)).toBe(true)
+      expect(cat.slice(born).every((v) => v > 0)).toBe(true)
+    }
+    for (const cat of [j.a, j.b, j.c, j.d, j.e]) expect(Math.min(...cat)).toBeGreaterThan(0)
     // Total A→G publié au 2025T1 : 7 409 100 (arrondi à la centaine près par la Dares).
-    const t0 = [j.a, j.b, j.c, j.d, j.e, j.f, j.g].reduce((s, cat) => s + cat[0], 0)
+    const t0 = [j.a, j.b, j.c, j.d, j.e, j.f, j.g].reduce((s, cat) => s + cat[born], 0)
     expect(t0).toBeCloseTo(7_409_100, -3)
     // Le taux qui en découle est bien la mesure large, pas le BIT — mais pondéré : la somme
     // brute rapportée à la même base donnerait ~22,8 %, la pondération doit mordre.
@@ -99,8 +108,29 @@ describe('historical.json', () => {
       0,
     )
     expect(weighted / raw).toBeCloseTo(0.73, 2) // 5,5 M d'équivalents sur 7,5 M d'inscrits
+    // Ancrage dur : l'ajout de l'historique 1996-2024 ne doit RIEN changer à l'hypothèse du
+    // Pragmatique, qui reste la moyenne des 4 derniers trimestres sur les actifs de 2025.
+    expect(jobseekerRate()).toBeCloseTo(0.1661, 4)
     expect(SCENARIO_PRESETS.pragmatique.unemployment).toBe(jobseekerRate())
     expect(SCENARIO_PRESETS.central.unemployment).toBe(0.07) // la référence COR ne bouge pas
+  })
+
+  it('derives the observed France Travail rate year by year, break included', () => {
+    const { years, rate } = jobseekerRateByYear()
+    expect(years).toHaveLength(rate.length)
+    expect(strictlyIncreasing(years)).toBe(true)
+    expect(years[0]).toBe(1996)
+    expect(years.at(-1)).toBe(2025) // 2026 est incomplet (2 trimestres) et hors pyramide observée
+    for (const v of rate) {
+      expect(v).toBeGreaterThan(0)
+      expect(v).toBeLessThan(0.25)
+    }
+    const at = (y: number) => rate[years.indexOf(y)]
+    expect(at(2025)).toBeCloseTo(0.164, 3)
+    // L'entrée de F et G en janvier 2025 : un changement de périmètre, pas du marché du travail.
+    expect(at(2025) - at(2024)).toBeGreaterThan(0.03)
+    // Le dernier point observé et l'hypothèse projetée décrivent bien la même mesure.
+    expect(at(2025)).toBeCloseTo(jobseekerRate(), 2)
   })
 
   it('shows the 65+ share rising over the observed period', () => {

@@ -206,6 +206,7 @@ function App() {
               <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
                 <MacroCharts
                   series={series}
+                  scenario={scenarioId}
                   realInterestRate={policy.realInterestRate}
                   workerExodus={policy.workerExodus}
                   frrFlowPct={policy.frrFlowPct}
