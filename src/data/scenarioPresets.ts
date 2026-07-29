@@ -44,16 +44,51 @@ export function jobseekerRate(): number {
   const j = (historicalJson as unknown as HistoricalData).jobseekers
   const n = j.periods.length
   const from = Math.max(0, n - 4)
-  const weighted = (Object.keys(JOBSEEKER_WEIGHTS) as (keyof typeof JOBSEEKER_WEIGHTS)[]).reduce(
-    (sum, k) => sum + JOBSEEKER_WEIGHTS[k] * j[k].slice(from).reduce((s, v) => s + v, 0),
+  const weighted = weigh(j, from, n)
+  return weighted / (n - from) / activePopulation(JOBSEEKER_BASE_YEAR)
+}
+
+/**
+ * La même mesure, mais année par année : la contrepartie OBSERVÉE de l'hypothèse ci-dessus, celle
+ * que le graphe chômage affiche à la place du taux BIT quand le Pragmatique est sélectionné.
+ * Années civiles complètes seulement (4 trimestres publiés) et couvertes par la pyramide observée,
+ * soit 1996-2025 : le dénominateur suit la population active de CHAQUE année, pas celle de 2025.
+ *
+ * La série n'est pas homogène : F et G naissent en janvier 2025 et ajoutent ≈ 3,5 pts d'un coup
+ * (12,7 % en 2024 → 16,4 % en 2025). C'est un changement de périmètre, pas du marché du travail.
+ */
+export function jobseekerRateByYear(): { years: number[]; rate: number[] } {
+  const j = (historicalJson as unknown as HistoricalData).jobseekers
+  const pyramidYears = (historicalPyramidJson as unknown as HistoricalPyramid).years
+  const years: number[] = []
+  const rate: number[] = []
+  for (let i = 0; i + 4 <= j.periods.length; i += 4) {
+    const year = Number(j.periods[i].slice(0, 4))
+    // Année incomplète (série qui ne démarrerait pas sur un T1) ou hors pyramide observée : sautée.
+    if (j.periods.slice(i, i + 4).some((p) => Number(p.slice(0, 4)) !== year)) continue
+    if (!pyramidYears.includes(year)) continue
+    years.push(year)
+    rate.push(weigh(j, i, i + 4) / 4 / activePopulation(year))
+  }
+  return { years, rate }
+}
+
+/** Inscrits pondérés par JOBSEEKER_WEIGHTS, cumulés sur les trimestres [from, to[. */
+function weigh(j: HistoricalData['jobseekers'], from: number, to: number): number {
+  return (Object.keys(JOBSEEKER_WEIGHTS) as (keyof typeof JOBSEEKER_WEIGHTS)[]).reduce(
+    (sum, k) => sum + JOBSEEKER_WEIGHTS[k] * j[k].slice(from, to).reduce((s, v) => s + v, 0),
     0,
   )
+}
+
+/** Population active DU MODÈLE une année observée — le dénominateur de tout taux de chômage ici. */
+function activePopulation(year: number): number {
   const p = historicalPyramidJson as unknown as HistoricalPyramid
-  const yi = p.years.indexOf(JOBSEEKER_BASE_YEAR)
+  const yi = p.years.indexOf(year)
   let active = 0
   // ponytail: âge légal figé à 64 pour la borne, l'écart par génération est du 2e ordre ici.
   for (let a = 15; a <= 64; a++) active += (p.H[yi][a] + p.F[yi][a]) * ACTIVITY_RATE(a, 64)
-  return weighted / (n - from) / active
+  return active
 }
 
 /** INSEE central « Projections de population 2021-2070 » — measured off central.json. */

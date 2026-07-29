@@ -25,6 +25,25 @@ Sources:
 Re-run when INSEE publishes a new projection vintage. Update `FILES`/`BASE_YEAR`
 in the script if the pages or base year change, then re-run and commit the JSON.
 
+## `ingest-jobseekers.mjs`
+Remplit `historical.jobseekers` — les inscrits à France Travail par catégorie
+A→G, effectifs bruts trimestriels (1996T1→aujourd'hui), sur lesquels le scénario
+Pragmatique cale son taux de non-emploi.
+
+```bash
+node scripts/ingest-jobseekers.mjs [chemin/vers/export.csv]   # défaut : scripts/.cache/defm_brut_trim.csv
+```
+
+Le CSV n'est **pas** téléchargeable automatiquement : `statistiques.francetravail.org`
+est derrière une protection anti-bot, et la seule ressource stable de data.gouv est
+le fichier CVS-CJO, qui ne publie ni F ni G. À exporter à la main, une fois par
+trimestre, sur <https://statistiques.francetravail.org/stmt/teleselo> :
+stock trimestriel, données **Brutes**, champ France, catégories A à G, tous les
+croisements sur « Total », export CSV (`;`).
+
+Le script ne réécrit que la clé `jobseekers` et sa ligne `_sources` — le reste de
+`historical.json` (blocs saisis à la main compris) est relu et conservé.
+
 ## `systemParams.json`
 Hand-curated (NOT ingested): PASS, legal age, required quarters, contribution
 rate, economic hypotheses (COR), and system init figures (DREES). Each field is

@@ -89,9 +89,10 @@ export interface HistoricalData {
   }
   /** Inscrits à France Travail par catégorie, effectifs bruts trimestriels (STMT).
    *  Une mesure bien plus large que le chômage BIT — c'est celle du scénario Pragmatique.
-   *  Démarre en 2025T1 : F et G n'existent que depuis la loi plein emploi. */
+   *  A→E remontent à 1996T1 ; F et G, créées en janvier 2025 par la loi plein emploi, valent 0
+   *  avant — la série n'est donc pas homogène de part et d'autre de 2025. */
   jobseekers: {
-    periods: string[] // « 2025T1 », …
+    periods: string[] // « 1996T1 », …
     a: number[]
     b: number[]
     c: number[]
