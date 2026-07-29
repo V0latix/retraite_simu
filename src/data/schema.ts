@@ -66,6 +66,13 @@ export interface HistoricalData {
     retirees: (number | null)[]
     gdp: (number | null)[] // Md€ courants
   }
+  /** Montants mensuels observés, en euros 2023 constants (COR, onglet Rému_pensions).
+   *  La pension s'arrête un an avant la rémunération : les trous sont `null`. */
+  pensions: {
+    years: number[]
+    pensionBruteMoyenne: (number | null)[]
+    remuBruteMoyenne: (number | null)[]
+  }
   demography: {
     years: number[]
     ratio2064over65: (number | null)[]

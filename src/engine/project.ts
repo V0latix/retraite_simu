@@ -38,6 +38,17 @@ export interface EconInit {
   /** Reference legal age the effectiveness damping anchors to: at this age the deviation is
    *  zero, so the COR calibration is untouched (same trick as quartersRef). */
   legalAgeRef: number
+  /** Distribution des pensions par décile, en ratio à la moyenne (Σ = 10, une valeur par
+   *  dixième de la population retraitée). Sert uniquement au levier `pensionCap` : sans
+   *  plafond elle n'est jamais lue, la trajectoire de référence est donc inchangée.
+   *  Donnée, jamais en dur — voir pensionDistribution.json. */
+  pensionDeciles: number[]
+  /** Pension brute moyenne OBSERVÉE à l'année de base, en €/mois. Sert d'échelle au plafond,
+   *  qui est en euros réels : `benefits / retirees` ne convient pas (le modèle compte plus de
+   *  retraités que le champ administratif, et hérite du multiplicateur de calage COR), et
+   *  `avgAnnualPension` fixe l'échelle interne du bloc finance, pas un montant de pension
+   *  comparable. On projette ce niveau observé avec la dynamique du modèle. */
+  avgPensionObservedMonthly: number
   /**
    * Optional per-year COR calibration (built in loader.ts from corReference.json).
    * When present, it pins the CENTRAL scenario's dépenses and resources to the COR EEC
@@ -61,6 +72,8 @@ const DEFAULT_ECON: EconInit = {
   quartersRef: 172,
   legalAgeEffectiveness: 0.26,
   legalAgeRef: 64,
+  pensionDeciles: [0.263, 0.447, 0.579, 0.7, 0.815, 0.936, 1.078, 1.262, 1.552, 2.368],
+  avgPensionObservedMonthly: 1770,
 }
 
 // ponytail: carrières longues départ age fixed at 60 (RN « 60 ans si commencé avant 20 »).
@@ -74,30 +87,40 @@ function retiredWeight(age: number, retireAge: number): number {
   return Math.min(1, Math.max(0, age + 1 - retireAge))
 }
 
-/** Retirees = everyone at/above the effective retirement age (≈ legal age in v1), plus an
- *  optional share of the [60, legalAge) band leaving early (carrières longues, §3.2). */
-function retirees(state: PopulationState, retireAge: number, earlyShare = 0): number {
-  const lo = earlyShare > 0 ? EARLY_RETIREMENT_AGE : Math.min(Math.floor(retireAge), OMEGA)
+/** Retirees = everyone at/above the effective retirement age **de sa génération**, plus an
+ *  optional share of the [60, legalAge) band leaving early (carrières longues, §3.2).
+ *  `effAge[a]` = âge effectif de sortie de la génération qui a l'âge `a` cette année-là. */
+function retirees(state: PopulationState, effAge: Float64Array, earlyShare = 0): number {
+  // ponytail: on balaie tous les âges — l'âge de sortie varie par génération, il n'y a plus de
+  // borne basse commune à calculer. 106 itérations, coût négligeable.
+  const lo = earlyShare > 0 ? EARLY_RETIREMENT_AGE : 0
   let sum = 0
   for (let a = lo; a <= OMEGA; a++) {
-    const w = retiredWeight(a, retireAge)
+    const w = retiredWeight(a, effAge[a])
     // Early exits only bite on the part of the cohort not already retired ⇒ no double count.
     sum += (state.H[a] + state.F[a]) * (w + (1 - w) * earlyShare)
   }
   return sum
 }
 
-/** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..legalAge. A share of the
- *  [60, legalAge) band retires early (carrières longues) and stops contributing. */
-function contributors(state: PopulationState, h: HypothesisSet, year: number, legalAge: number, earlyShare = 0): number {
+/** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..âge légal de la génération.
+ *  A share of the [60, legalAge) band retires early (carrières longues) and stops contributing. */
+function contributors(
+  state: PopulationState,
+  h: HypothesisSet,
+  year: number,
+  effAge: Float64Array,
+  earlyShare = 0,
+): number {
   const u = h.unemployment(year)
   let active = 0
+  // ponytail: plus de `break` — avec un âge par génération le poids n'est plus monotone en âge.
   for (let a = 15; a <= OMEGA; a++) {
-    const stillActive = 1 - retiredWeight(a, legalAge)
-    if (stillActive <= 0) break // weight is monotone in age
+    const stillActive = 1 - retiredWeight(a, effAge[a])
+    if (stillActive <= 0) continue
     const pop = state.H[a] + state.F[a]
     const early = earlyShare > 0 && a >= EARLY_RETIREMENT_AGE ? 1 - earlyShare : 1
-    active += pop * h.activityRate(year, a, legalAge) * early * stillActive
+    active += pop * h.activityRate(year, a, effAge[a]) * early * stillActive
   }
   return active * (1 - u)
 }
@@ -127,32 +150,40 @@ export function project(
     // Economy (§4.2) — real wage grows with productivity.
     if (year > baseYear) avgWage *= 1 + h.productivity(year)
 
-    // Effective retirement age = legal age, indexed on life expectancy (§2 lever) and
-    // shifted by the required-duration lever (§4.4). Kept fractional — the age bounds
-    // pro-rate the boundary cohort (see retiredWeight).
-    let legalAge = p.legalAge
-    // Life-expectancy indexation: raise the age by a share of the longevity gains since
-    // the base year. ponytail: LE recomputed each year (~45 steps, negligible).
-    if (p.legalAgeLEShare) {
-      const gain =
-        periodLifeExpectancy(h.mortality, p.legalAge, year) -
-        periodLifeExpectancy(h.mortality, p.legalAge, baseYear)
-      legalAge += p.legalAgeLEShare * Math.max(0, gain)
+    // Effective retirement age, résolu GÉNÉRATION PAR GÉNÉRATION : la loi fixe l'âge par année
+    // de naissance (2023 : 62 → 64 ans, +3 mois par génération). effAge[a] est l'âge de sortie
+    // de la génération `year - a`. Conséquence voulue : le calendrier est « collant » — qui a
+    // liquidé à 62 ans 9 mois reste retraité, il ne redevient pas cotisant quand l'âge monte.
+    // Kept fractional — les bornes pro-ratisent la cohorte frontière (voir retiredWeight).
+    //
+    // L'indexation sur l'espérance de vie est un curseur (décalage uniforme), pas un calendrier :
+    // elle se calcule une fois par an. ponytail: LE recalculée chaque année (~45 pas, négligeable).
+    const leShift = p.legalAgeLEShare
+      ? p.legalAgeLEShare *
+        Math.max(
+          0,
+          periodLifeExpectancy(h.mortality, p.legalAge, year) -
+            periodLifeExpectancy(h.mortality, p.legalAge, baseYear),
+        )
+      : 0
+    const effAge = new Float64Array(OMEGA + 1)
+    for (let a = 0; a <= OMEGA; a++) {
+      const c = h.cohortPolicy(year - a)
+      // Required quarters: exiger plus de trimestres que la référence (econ.quartersRef)
+      // repousse l'âge effectif de sortie (4 trim = 1 an), pondéré par une élasticité
+      // comportementale. À la valeur de référence le décalage est nul ⇒ scénario de
+      // référence inchangé (calage COR intact).
+      // ponytail: canal décote (pension moindre) ignoré — seul l'effet âge de sortie modélisé.
+      const raw = c.legalAge + leShift + (econ.quartersAgeShare * (c.requiredQuarters - econ.quartersRef)) / 4
+      // Behavioural pass-through: only a share of the theoretical shift converts into people
+      // actually moving from retiree to employed contributor. Anchored on legalAgeRef so the
+      // reference config is unshifted — raw, the lever priced the 2023 reform at ~4× the
+      // published estimates (see systemParams.calibration._sources).
+      effAge[a] = econ.legalAgeRef + econ.legalAgeEffectiveness * (raw - econ.legalAgeRef)
     }
-    // Required quarters: exiger plus de trimestres que la référence (econ.quartersRef)
-    // repousse l'âge effectif de sortie (4 trim = 1 an), pondéré par une élasticité
-    // comportementale. À la valeur de référence le décalage est nul ⇒ scénario de
-    // référence inchangé (calage COR intact).
-    // ponytail: canal décote (pension moindre) ignoré — seul l'effet âge de sortie modélisé.
-    legalAge += (econ.quartersAgeShare * (p.requiredQuarters - econ.quartersRef)) / 4
-    // Behavioural pass-through: only a share of the theoretical shift converts into people
-    // actually moving from retiree to employed contributor. Anchored on legalAgeRef so the
-    // reference config is unshifted — raw, the lever priced the 2023 reform at ~4× the
-    // published estimates (see systemParams.calibration._sources).
-    legalAge = econ.legalAgeRef + econ.legalAgeEffectiveness * (legalAge - econ.legalAgeRef)
 
     const earlyShare = p.earlyRetirementShare ?? 0
-    const contrib = contributors(state, h, year, legalAge, earlyShare)
+    const contrib = contributors(state, h, year, effAge, earlyShare)
     const wageBill = contrib * avgWage
     const contributions = wageBill * p.contributionRate
 
@@ -172,7 +203,7 @@ export function project(
       }
       avgPension *= 1 + growth
     }
-    const nRetirees = retirees(state, legalAge, earlyShare)
+    const nRetirees = retirees(state, effAge, earlyShare)
     let benefits = nRetirees * avgPension
 
     // Total fertility rate = sum of age-specific fertility over childbearing ages.
@@ -208,6 +239,25 @@ export function project(
       const tShare = tShareBase - (resourcesShareBase - econ.resources2070Share) * frac
       otherResources = tShare * gdp
     }
+    // Écrêtement des pensions les plus élevées (§3.3). La distribution est en ratios à la moyenne,
+    // mise à l'échelle du niveau OBSERVÉ de la pension moyenne (econ.avgPensionObservedMonthly) et
+    // dérivée avec la dynamique du modèle (noria + indexation, portée par avgPension). On tronque
+    // chaque décile au plafond et on applique la part conservée à la masse — un rapport, donc
+    // insensible au calage COR appliqué juste au-dessus.
+    // ponytail: 10 seaux, pas de loi paramétrique. Plafond connu : chaque décile est traité comme
+    // s'il était concentré sur sa moyenne, ce qui écrase la queue haute — un plafond posé À
+    // L'INTÉRIEUR du dernier décile (là où la distribution est la plus étalée) est donc chiffré à
+    // la louche. Passer à une lognormale calée sur les mêmes déciles si le plafond doit devenir
+    // autre chose qu'un ordre de grandeur, ou s'il faut l'exprimer en percentile.
+    let capFactor = 1
+    if (p.pensionCap && p.pensionCap > 0) {
+      const avgMonthly = econ.avgPensionObservedMonthly * (avgPension / econ.avgAnnualPension)
+      let kept = 0
+      for (const ratio of econ.pensionDeciles) kept += Math.min(ratio * avgMonthly, p.pensionCap)
+      capFactor = kept / (econ.pensionDeciles.length * avgMonthly)
+      benefits *= capFactor
+    }
+
     // « Mise à contribution des retraités » (§3.3): extra revenue in % GDP, additive on top
     // of the calibration/taper so the reference (0) is untouched. Feeds balance + resourcesPctGdp.
     const resources = contributions + otherResources + (p.additionalResourcesPct ?? 0) * gdp
@@ -232,6 +282,10 @@ export function project(
       contributors: contrib,
       retirees: nRetirees,
       avgWage,
+      // Pension brute moyenne du modèle, euros constants annuels, AVANT le multiplicateur de
+      // calage COR (qui pilote la masse, pas le montant individuel) mais APRÈS écrêtement.
+      // C'est la série qui porte la dynamique du montant : indexation, noria, plafonnement.
+      avgPension: avgPension * capFactor,
       wageBill,
       contributions,
       benefits,

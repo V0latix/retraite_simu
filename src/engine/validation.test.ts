@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import central from '../data/scenarios/central.json'
 import initialPyramid from '../data/initialPyramid.json'
-import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
+import { buildHypotheses, buildInitialState, DEFAULT_POLICY, ECON_INIT } from '../data/loader'
 import corRef from '../data/corReference.json'
 import { REFORM_PRESETS } from '../data/reforms'
 import type { InitialPyramid, ScenarioData } from '../data/schema'
@@ -84,12 +84,24 @@ describe('reform templates vs published estimates', () => {
     }
   })
 
-  it('the reform template IS the calibrated reference (its calendar is already in the COR baseline)', () => {
+  it('the reform template IS the calibrated reference (same calendar as DEFAULT_POLICY)', () => {
     const apres = run('reforme-2023')
-    expect(REFORM_PRESETS['reforme-2023'].schedule).toBeUndefined()
+    // Le droit en vigueur est un calendrier par génération, et c'est celui que porte
+    // DEFAULT_POLICY : la calibration COR est construite dessus, donc sélectionner ce template
+    // ne doit rien changer — le solde reste sur la référence COR à tous les horizons.
+    expect(REFORM_PRESETS['reforme-2023'].schedule).toEqual(DEFAULT_POLICY.schedule)
     for (const p of corRef.points) {
       expect(at(apres, p.year).soldePctGdp).toBeCloseTo(p.soldePctGdp, 3)
     }
+  })
+
+  it('the 2026 suspension costs only the deferred générations, not the whole 62-64 stock', () => {
+    // Le garde-fou de la résolution par génération. Indexé sur l'année de liquidation, le gel
+    // décalait tout le stock des 62-64 ans et coûtait ≈ 7 Md€ en 2027, contre 1,8 Md€ au
+    // chiffrage gouvernemental. Par génération, seules 1964-1965 sont décalées.
+    const cost2027 = (at(run('reforme-2023'), 2027).balance - at(run('suspension-2026'), 2027).balance) / 1e9
+    expect(cost2027).toBeGreaterThan(0)
+    expect(cost2027).toBeLessThan(4)
   })
 
   it('the 2026 suspension costs nothing before it starts and closes back onto the reference', () => {

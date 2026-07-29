@@ -322,6 +322,25 @@ export function Levers({
                 </>
               }
             />
+            <Slider
+              label="Plafonnement des pensions"
+              value={policy.pensionCap ?? 0}
+              min={0}
+              max={6000}
+              step={100}
+              fmt={(v) => (v === 0 ? 'aucun' : `${v.toLocaleString('fr-FR')} €/mois`)}
+              onChange={(v) => onPolicy({ pensionCap: v })}
+              hint={
+                <>
+                  Écrête les pensions brutes au-dessus du plafond. L'économie est calculée sur la{' '}
+                  <strong>distribution des pensions par décile</strong> (DREES) appliquée à la pension
+                  moyenne projetée : un plafond à <em>4 000 €</em> ne touche que le dernier dixième des
+                  retraités, un plafond à <em>2 000 €</em> mord sur près de la moitié. Le plafond est en
+                  euros constants — il se resserre donc à mesure que les pensions dérivent. Ordre de
+                  grandeur : la distribution est approximative, pas un chiffrage d'étude d'impact.
+                </>
+              }
+            />
             <label className="block">
               <span className="text-sm text-muted-foreground">Règle d'indexation</span>
               <Select value={policy.indexation} onValueChange={(v) => onPolicy({ indexation: v as Indexation })}>

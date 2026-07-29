@@ -26,3 +26,6 @@ dist-ssr
 
 # ingestion cache (downloaded INSEE workbooks)
 scripts/.cache/
+
+# playwright-mcp scratch output
+.playwright-mcp/

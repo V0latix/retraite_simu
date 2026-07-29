@@ -102,10 +102,10 @@ async function runMicro(req: MicroRequest): Promise<MicroResponse> {
       const data = applyHypotheses(await loadScenario(scenarioId), p)
       const h = buildHypotheses(data, p)
       const series = project(state0, h, horizon, ECON_INIT)
-      // Policy read AT the liquidation year, not flat: a reform calendar means liquidating in
-      // 2027 and in 2035 are not governed by the same legal age / required duration.
-      const atLiq = h.policy(liqYear)
-      const ctx = buildMicroContext(series, h.mortality, atLiq.legalAge, atLiq.requiredQuarters)
+      // Policy read for the career's GÉNÉRATION, not flat: un calendrier de réforme veut dire
+      // que naître en 1964 ou en 1970 ne donne pas le même âge légal ni la même durée requise.
+      const atGen = h.cohortPolicy(req.career.birthYear)
+      const ctx = buildMicroContext(series, h.mortality, atGen.legalAge, atGen.requiredQuarters)
       return { scenarioId, breakdown: computePension(career, ctx) }
     }),
   )

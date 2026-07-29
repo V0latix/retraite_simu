@@ -9,11 +9,21 @@
     "requiredQuarters": 172,
     "contributionRate": 0.281,
     "fullRate": 0.5,
-    "indexation": "prices"
+    "indexation": "prices",
+    "schedule": [
+      { "generation": 1960, "legalAge": 62, "requiredQuarters": 167 },
+      { "generation": 1961, "legalAge": 62.25, "requiredQuarters": 169 },
+      { "generation": 1962, "legalAge": 62.5, "requiredQuarters": 169 },
+      { "generation": 1963, "legalAge": 62.75, "requiredQuarters": 170 },
+      { "generation": 1964, "legalAge": 63, "requiredQuarters": 171 },
+      { "generation": 1965, "legalAge": 63.25, "requiredQuarters": 172 },
+      { "generation": 1968, "legalAge": 64, "requiredQuarters": 172 }
+    ]
   },
   "init": {
     "retirees": 17000000,
     "avgAnnualPension": 18480,
+    "avgPensionObservedMonthly": 1770,
     "avgAnnualWage": 40000,
     "pass": 47100
   },
@@ -28,18 +38,20 @@
     "resources2070Share": 0.1275,
     "pensionDriftShare": 0.22,
     "quartersAgeShare": 0.5,
-    "legalAgeEffectiveness": 0.26,
+    "legalAgeEffectiveness": 0.29,
     "legalAgeRef": 64,
     "note": "Anchors the finance block to the COR reference (see corReference.json), convention EEC (« effort de l'État constant ») — le solde économiquement pertinent, retenu par la Cour des comptes et le débat public. Base-year pension mass = 13,9 % PIB, base solde ≈ −0,48 % PIB (soit ≈ −8,7 Md€ en 2025), other resources T(t) taper from base to 12,75 % PIB by 2070. La convention EPR du COR (fonction publique équilibrée par construction) afficherait ≈ 0 aujourd'hui mais converge vers le même −1,4 % en 2070. pensionDriftShare = structural drift of the average pension from new (higher, wage-based) retirees — effet noria — as a share of productivity; keeps dépenses/PIB from collapsing under price indexation. Constant (real) euros."
   },
   "_sources": {
     "legalAge/requiredQuarters": "Réforme 2023 — 64 ans, 172 trim. (génération 1965+)",
+    "policy.schedule": "Calendrier du droit en vigueur (loi n° 2023-270 du 14 avril 2023), exprimé par année de naissance : âge légal 62 → 64 ans par paliers de +3 mois de la génération née à partir du 1ᵉʳ septembre 1961 à la génération 1968 ; durée requise accélérée à 172 trimestres dès la génération 1965 (au lieu de 1973 sous Touraine). Porté par DEFAULT_POLICY : la calibration COR (buildCorCalibration) est construite dessus, donc la référence reste calée sur COR juin 2025 tout en cessant d'appliquer 64 ans à des générations qui, en 2025-2031, sont encore à 62-63 ans. Les templates de réforme sont des écarts À ce calendrier (voir reforms.ts).",
     "contributionRate": "≈ taux cotisation vieillesse déplafonné+plafonné employeur+salarié (CNAV), ordre de grandeur",
     "pass": "PASS 2025 = 47 100 € (Sécurité sociale)",
     "retirees": "≈ 17 M retraités de droit direct (DREES 2023-24)",
-    "avgAnnualPension": "≈ 1 540 €/mois brut tous régimes (DREES) → 18 480 €/an",
+    "avgAnnualPension": "≈ 1 540 €/mois brut tous régimes (DREES) → 18 480 €/an. Fixe l'échelle interne du bloc finance (masse × effectifs → PIB de base) ; ce n'est PAS un montant de pension comparable au champ administratif, le modèle comptant plus de retraités (tous les 64+) que les 17 M de droit direct.",
+    "avgPensionObservedMonthly": "Pension brute moyenne observée de l'ensemble des retraités, 1 770 €/mois en 2023 (COR, rapport annuel juin 2025, onglet Rému_pensions — même série que historical.pensions). Sert d'échelle en euros réels au levier de plafonnement, dérivée ensuite avec la dynamique de pension du modèle.",
     "productivity/unemployment": "Aligné COR (productivité ~1,0 %/an ; chômage 7 %)",
-    "legalAgeEffectiveness": "Élasticité comportementale du levier âge légal (0-1), ancrée sur legalAgeRef = 64 ans (écart nul à la référence ⇒ calage COR intact). Le mécanisme brut suppose que chacun part le jour de son éligibilité et occupe aussitôt un emploi : appliqué tel quel, le recul de 2 ans de la réforme 2023 rapportait ≈ 59 Md€ à l'horizon 2030, contre ≈ 10 Md€ estimés par la Cour des comptes (Situation financière et perspectives du système de retraites, février 2025) et ≈ 17,7 Md€ par l'étude d'impact du PLFRSS 2023. 0,26 cale le modèle au milieu de cette fourchette (≈ 13,8 Md€ à 2030). L'écart tient à ce que le modèle ignore : la part de la tranche d'âge déjà inactive sans être retraitée, celle qui travaillait déjà au-delà de l'âge légal, et les départs anticipés (carrières longues, inaptitude, handicap) qui exemptent ~25 % des liquidations. L'OFCE signale la même hypothèse de départ immédiat comme majorante. Limite connue : une élasticité unique et linéaire ne peut pas être juste à la fois pour un recul marginal de 2 ans en haut de la distribution (beaucoup d'exemptions) et pour un retour à 60 ans, qui mobiliserait une population plus jeune et bien plus souvent en emploi. Ordre de grandeur, à affiner.",
+    "legalAgeEffectiveness": "Élasticité comportementale du levier âge légal (0-1), ancrée sur legalAgeRef = 64 ans (écart nul à la référence ⇒ calage COR intact). Le mécanisme brut suppose que chacun part le jour de son éligibilité et occupe aussitôt un emploi : appliqué tel quel, le recul de 2 ans de la réforme 2023 rapportait ≈ 59 Md€ à l'horizon 2030, contre ≈ 10 Md€ estimés par la Cour des comptes (Situation financière et perspectives du système de retraites, février 2025) et ≈ 17,7 Md€ par l'étude d'impact du PLFRSS 2023. 0,29 cale le modèle dans cette fourchette à tous les horizons (≈ 12,1 Md€ à 2030, ≈ 10,9 Md€ à 2040 — le point bas, contraignant —, ≈ 14,8 Md€ à 2070). Valeur relevée de 0,26 à 0,29 en passant à la résolution par génération : l'écart entre `avant-2023` et le droit en vigueur ne porte plus sur tout le stock des 62-64 ans mais sur les seules générations décalées, mécaniquement plus petit à élasticité donnée. L'écart tient à ce que le modèle ignore : la part de la tranche d'âge déjà inactive sans être retraitée, celle qui travaillait déjà au-delà de l'âge légal, et les départs anticipés (carrières longues, inaptitude, handicap) qui exemptent ~25 % des liquidations. L'OFCE signale la même hypothèse de départ immédiat comme majorante. Limite connue : une élasticité unique et linéaire ne peut pas être juste à la fois pour un recul marginal de 2 ans en haut de la distribution (beaucoup d'exemptions) et pour un retour à 60 ans, qui mobiliserait une population plus jeune et bien plus souvent en emploi. Ordre de grandeur, à affiner.",
     "quartersAgeShare": "Élasticité comportementale approximative (0-1) : part des trimestres requis en plus, au-delà de la référence (172), convertie en années de travail effectives au macro. 0,5 = la moitié de l'allongement de durée se traduit par un recul de l'âge de sortie (le reste part en décote, non modélisé). Ordre de grandeur, à affiner.",
     "realInterestRate": "Intérêt sur le solde cumulé : 0 pour les scénarios de base (calage COR intact) ; le scénario Pragmatique l'active à 3,3 % (OAT 10 ans nominale) — voir PRAGMATIQUE_RISK dans pragmatique.ts. Réglable dans l'UI (0-4 %).",
     "calibration": "Calage sur COR juin 2025, scénario de référence (dépenses/ressources/solde en % PIB)"

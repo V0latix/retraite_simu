@@ -57,7 +57,7 @@ describe('reform template presentation', () => {
 
   it('summarises a calendar, and stays silent when there is nothing to phase in', () => {
     expect(scheduleSummary(REFORM_PRESETS['suspension-2026'].schedule!)).toBe(
-      '62 ans 9 mois en 2026 → 64 ans en 2033',
+      '62 ans (gén. 1960) → 64 ans (gén. 1969)',
     )
     expect(scheduleSummary(REFORM_PRESETS['avant-2023'].schedule!)).toBeNull() // âge plat, seule la durée bouge
   })
@@ -67,12 +67,15 @@ describe('reform template presentation', () => {
       expect(r.label, key).toBeTruthy()
       expect(r.source, key).toBeTruthy()
       for (const a of r.schedule ?? []) {
-        expect(a.year, key).toBeGreaterThanOrEqual(2025)
+        // Les ancres sont des années de NAISSANCE : les générations concernées par les réformes
+        // en débat sont nées entre l'après-guerre et la fin du siècle.
+        expect(a.generation, key).toBeGreaterThanOrEqual(1940)
+        expect(a.generation, key).toBeLessThanOrEqual(2000)
         if (a.legalAge != null) expect(a.legalAge, key).toBeGreaterThanOrEqual(60)
         if (a.legalAge != null) expect(a.legalAge, key).toBeLessThanOrEqual(70)
       }
-      const years = (r.schedule ?? []).map((a) => a.year)
-      expect(years, key).toEqual([...years].sort((x, y) => x - y))
+      const generations = (r.schedule ?? []).map((a) => a.generation)
+      expect(generations, key).toEqual([...generations].sort((x, y) => x - y))
     }
   })
 })

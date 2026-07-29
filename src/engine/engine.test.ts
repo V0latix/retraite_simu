@@ -153,44 +153,76 @@ describe('fractional legal age + reform calendars', () => {
     expect(s[y].retirees).toBeCloseTo(sixtyThreePlus + 0.25 * cohort62, 6)
   })
 
-  it('a reform calendar phases the age in instead of stepping it', () => {
-    const flat = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2040, ECON_INIT)
+  it('a reform calendar phases the age in by génération instead of stepping it', () => {
+    const flat = project(state0(), buildHypotheses(data, { legalAge: 64 }), 2045, ECON_INIT)
     const ramp = project(
       state0(),
       buildHypotheses(data, {
         legalAge: 64,
         schedule: [
-          { year: 2025, legalAge: 62.75 },
-          { year: 2032, legalAge: 64 },
+          { generation: 1963, legalAge: 62.75 },
+          { generation: 1968, legalAge: 64 },
         ],
       }),
-      2040,
+      2045,
       ECON_INIT,
     )
     const at = (s: typeof flat, year: number) => s.find((r) => r.year === year)!
-    // During the phase-in the ramp has more retirees; past the last anchor it is clamped
-    // to the target and the two runs converge on the same exit age.
+    // Pendant la montée en charge, les générations concernées partent plus tôt → plus de retraités.
     expect(at(ramp, 2026).retirees).toBeGreaterThan(at(flat, 2026).retirees)
     expect(at(ramp, 2029).retirees).toBeGreaterThan(at(flat, 2029).retirees)
-    expect(at(ramp, 2032).retirees).toBeCloseTo(at(flat, 2032).retirees, 6)
-    expect(at(ramp, 2040).retirees).toBeCloseTo(at(flat, 2040).retirees, 6)
+    // Une fois toutes les générations vivantes au-delà de la dernière ancre (gén. 1968 a 64 ans
+    // en 2032, et toutes les suivantes sont clampées à 64), les deux courses convergent.
+    expect(at(ramp, 2045).retirees).toBeCloseTo(at(flat, 2045).retirees, 6)
   })
 
-  it('a calendar interpolates between anchors and clamps outside them', () => {
+  it('a calendar never un-retires a génération (keyed by birth year, not by liquidation year)', () => {
+    // Gel puis reprise : sous un calendrier indexé sur l'année de liquidation, l'âge remonte et
+    // des gens déjà partis redeviendraient cotisants. Par génération, c'est structurellement
+    // impossible — l'âge d'une génération ne dépend pas de l'année où on l'interroge.
+    const h = buildHypotheses(data, {
+      legalAge: 64,
+      schedule: [
+        { generation: 1960, legalAge: 64 },
+        { generation: 1963, legalAge: 62 },
+        { generation: 1966, legalAge: 64 },
+      ],
+    })
+    expect(h.cohortPolicy(1963).legalAge).toBe(62)
+    expect(h.cohortPolicy(1966).legalAge).toBe(64)
+    const s = project(state0(), h, 2040, ECON_INIT)
+    for (let i = 1; i < s.length; i++) expect(s[i].retirees).toBeGreaterThanOrEqual(s[i - 1].retirees)
+  })
+
+  it('a calendar interpolates between générations and clamps outside them', () => {
     const h = buildHypotheses(data, {
       legalAge: 64,
       requiredQuarters: 172,
       schedule: [
-        { year: 2025, legalAge: 62, requiredQuarters: 168 },
-        { year: 2035, legalAge: 64, requiredQuarters: 172 },
+        { generation: 1961, legalAge: 62, requiredQuarters: 168 },
+        { generation: 1971, legalAge: 64, requiredQuarters: 172 },
       ],
     })
-    expect(h.policy(2020).legalAge).toBe(62) // clamped below
-    expect(h.policy(2030).legalAge).toBe(63) // midpoint
-    expect(h.policy(2050).legalAge).toBe(64) // clamped above
-    expect(h.policy(2030).requiredQuarters).toBe(170)
-    expect(Number.isInteger(h.policy(2028).requiredQuarters)).toBe(true)
+    expect(h.cohortPolicy(1955).legalAge).toBe(62) // clamped below
+    expect(h.cohortPolicy(1966).legalAge).toBe(63) // midpoint
+    expect(h.cohortPolicy(1990).legalAge).toBe(64) // clamped above
+    expect(h.cohortPolicy(1966).requiredQuarters).toBe(170)
+    expect(Number.isInteger(h.cohortPolicy(1964).requiredQuarters)).toBe(true)
     // Fields the calendar does not pin fall through to the flat policy.
-    expect(h.policy(2030).contributionRate).toBe(h.policy(2050).contributionRate)
+    expect(h.cohortPolicy(1966).contributionRate).toBe(h.cohortPolicy(1990).contributionRate)
+  })
+
+  it('le plafonnement écrête la masse des pensions, et seulement au-dessus du plafond', () => {
+    const run = (pensionCap?: number) =>
+      project(state0(), buildHypotheses(data, { pensionCap }), 2040, ECON_INIT).at(-1)!
+    const none = run()
+    // Un plafond au-dessus du dernier décile (2,368 × la moyenne, ~4 400 €/mois ici) ne mord pas.
+    expect(run(50_000).benefits).toBeCloseTo(none.benefits, 6)
+    // Plus le plafond descend, plus la masse baisse — strictement et de façon monotone.
+    const at4000 = run(4000).benefits
+    const at2000 = run(2000).benefits
+    expect(at4000).toBeLessThan(none.benefits)
+    expect(at2000).toBeLessThan(at4000)
+    expect(run(2000).soldePctGdp).toBeGreaterThan(none.soldePctGdp)
   })
 })
