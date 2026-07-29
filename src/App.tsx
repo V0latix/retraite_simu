@@ -102,11 +102,13 @@ function App() {
   }, [year, current])
 
   // Manual slider edit detaches from the selected reform (empty sentinel), like MicroView's setC.
-  // The calendar goes with it: it overrides legalAge year by year, so keeping it would silently
-  // swallow the slider the user just moved.
+  // Le calendrier ne saute QUE si l'utilisateur bouge un curseur d'âge ou de durée : ce sont les
+  // deux seuls champs qu'il pilote, et le garder les avalerait silencieusement. Bouger la
+  // productivité ou l'indexation ne doit pas effacer la montée en charge de la réforme 2023.
   const setP = (p: Partial<PolicyParams>) => {
     setReformKey('')
-    setPolicy((prev) => ({ ...prev, ...p, schedule: undefined }))
+    const breaksCalendar = p.legalAge !== undefined || p.requiredQuarters !== undefined
+    setPolicy((prev) => ({ ...prev, ...p, ...(breaksCalendar ? { schedule: undefined } : {}) }))
   }
 
   // Selecting a turnkey reform applies its PolicyParams delta in one go (same merge channel),

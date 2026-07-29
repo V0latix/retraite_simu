@@ -1,0 +1,8 @@
+{
+  "meta": {
+    "note": "APPROXIMATIF, saisi à la main — même statut que pensionParams.json. Pension brute mensuelle totale (droit direct + réversion), tous régimes, retraités résidant en France. Chaque valeur est la moyenne d'un dixième de la population retraitée, exprimée EN RATIO À LA MOYENNE et non en euros : la table suit ainsi automatiquement la pension moyenne projetée par le moteur, sans avoir à réconcilier les champs statistiques (COR 1 770 €/mois « ensemble des retraités », DREES 1 666 € « droit direct », 18 480 €/an dans systemParams). Somme = 10 par construction.",
+    "source": "DREES, « Les retraités et les retraites », édition 2025 (montants au 31/12/2023) — distribution reconstituée à partir des déciles publiés puis normalisée à la moyenne. Ordres de grandeur en euros avant normalisation : 500 / 850 / 1 100 / 1 330 / 1 550 / 1 780 / 2 050 / 2 400 / 2 950 / 4 500 €/mois, soit un rapport interdécile D10/D1 ≈ 9.",
+    "retrieved": "2026-07-29"
+  },
+  "deciles": [0.263, 0.447, 0.579, 0.7, 0.815, 0.936, 1.078, 1.262, 1.552, 2.368]
+}

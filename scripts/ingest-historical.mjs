@@ -9,7 +9,7 @@
 //   COR — Rapport annuel juin 2025, fichiers sources des figures
 //     https://www.cor-retraites.fr/rapports-du-cor/rapport-annuel-cor-juin-2025-evolutions-perspectives-retraites-france
 import XLSX from 'xlsx'
-import { mkdirSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -117,6 +117,21 @@ function extractFinance(synth, comp) {
     gdp: pick(series.gdp, 1), // Md€ courants
     _gdpByYear: series.gdp,
   }
+}
+
+/**
+ * Onglet Rému_pensions — montants mensuels en euros 2023 constants. Trois libellés commencent par
+ * « Pension … moyenne » et deux par « Rémunération brute moyenne des cotisants » : `corObserved`
+ * fait du substring et prend le PREMIER, d'où les libellés complets ci-dessous (ensemble des
+ * retraités plutôt que « vivant en France », cotisants hors correction activité partielle).
+ */
+function extractPensions(comp) {
+  const ws = comp.Sheets['Rému_pensions']
+  const pension = corObserved(ws, "Pension brute moyenne de l'ensemble des retraités")
+  const remu = corObserved(ws, 'Rémunération brute moyenne des cotisants (euros 2023)')
+  const years = [...new Set([...pension.keys(), ...remu.keys()])].sort((a, b) => a - b)
+  const pick = (m) => years.map((y) => (m.has(y) ? round(m.get(y), 0) : null))
+  return { years, pensionBruteMoyenne: pick(pension), remuBruteMoyenne: pick(remu) }
 }
 
 /** Tab 2.3 — réserves financières des régimes en répartition au 31/12/2024. */
@@ -228,6 +243,7 @@ async function main() {
     },
     lastObserved: finance.years[finance.years.length - 1],
     finance,
+    pensions: extractPensions(comp),
     demography: {
       years: ratioYears,
       ratio2064over65: ratioYears.map((y) => round(ratio.get(y), 4)),
@@ -236,12 +252,26 @@ async function main() {
     anchors,
     _sources: {
       finance: 'COR juin 2025, Données_RA2025_Synthèse.xlsx (lignes « Obs ») et Données_complémentaires_RA2025.xlsx',
+      pensions:
+        'COR juin 2025, Données_complémentaires_RA2025.xlsx, onglet Rému_pensions (lignes « Obs ») — pension brute moyenne de l’ensemble des retraités et rémunération brute moyenne des cotisants, en euros 2023 par mois. Champ : ensemble des régimes légalement obligatoires, FSV inclus, hors RAFP.',
       anchors: 'COR juin 2025, Données_RA2025_P2_2.xlsx, Tableau 2.3 — réserves en valeur de marché au 31/12/2024',
       demography: 'COR juin 2025, Données_RA2025_P1.xlsx, Figure 1.5 · part des 65+ calculée depuis INSEE POP3',
       pyramid: 'INSEE, POP3 — Population au 1er janvier par sexe et âge détaillé (recensements et estimations)',
     },
   }
-  writeFileSync(join(OUT, 'historical.json'), JSON.stringify(historical))
+  // historical.json porte aussi des blocs saisis à la main que ce script ne sait pas produire
+  // (fécondité / migration / chômage observés, inflation INSEE, réserves du FRR). Écraser le
+  // fichier les effacerait silencieusement : on fusionne, l'ingéré gagne clé à clé.
+  const previous = existsSync(join(OUT, 'historical.json'))
+    ? JSON.parse(readFileSync(join(OUT, 'historical.json'), 'utf8'))
+    : {}
+  const merged = {
+    ...previous,
+    ...historical,
+    demography: { ...previous.demography, ...historical.demography },
+    _sources: { ...previous._sources, ...historical._sources },
+  }
+  writeFileSync(join(OUT, 'historical.json'), JSON.stringify(merged))
 
   const pyramid = {
     meta: {

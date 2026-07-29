@@ -24,7 +24,7 @@ const POLICY_NUM_KEYS = [
   'legalAge', 'requiredQuarters', 'contributionRate', 'productivity',
   'realInterestRate', 'workerExodus', 'underIndexation', 'underIndexationYears',
   'legalAgeLEShare', 'unemployment', 'additionalResourcesPct', 'frrFlowPct',
-  'earlyRetirementShare', 'tfr', 'netMigration',
+  'earlyRetirementShare', 'tfr', 'netMigration', 'pensionCap',
 ] as const
 
 /** How many levers the user moved away from the scenario's own baseline (drives the badge + reset). */

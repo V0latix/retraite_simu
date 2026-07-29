@@ -14,6 +14,7 @@ const pct = (v: number, d = 2) => `${fmtPct(v, d)} PIB`
 const millions = (v: number) => `${fmtNum(v / 1e6, 1)} M`
 const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v / 1000))} 000/an`
 const pctPlain = (v: number, d = 1) => fmtPct(v, d)
+const eurMonth = (v: number) => `${Math.round(v).toLocaleString('fr-FR')} €/mois`
 
 // Shared chart chrome. Repeating these ten times is how axes and tooltips drifted apart;
 // the default Recharts tooltip (white, rounded, shadowed) was also the one element left
@@ -100,7 +101,7 @@ export function MacroCharts({
   workerExodus?: number
   frrFlowPct?: number
 }) {
-  const { finance, anchors, reserves } = historical
+  const { finance, anchors, reserves, pensions } = historical
 
   const data = useMemo(() => {
     const observed = toRows(finance.years, {
@@ -231,6 +232,23 @@ export function MacroCharts({
     return mergeObservedProjected(observed, projected, ['depensesPctGdp', 'resourcesPctGdp'])
   }, [finance, series])
 
+  // Montants mensuels, euros constants. Comme pour les effectifs, les NIVEAUX diffèrent : le
+  // moteur pilote une pension moyenne ancrée sur systemParams et un salaire moyen par cotisant
+  // occupé, quand le COR publie des moyennes de champ administratif. On recale donc chaque jambe
+  // projetée sur sa dernière valeur observée — la courbe en pointillé prolonge l'observé par
+  // l'évolution relative du modèle, jamais par son niveau absolu.
+  const montants = useMemo(() => {
+    const observed = toRows(pensions.years, {
+      pension: pensions.pensionBruteMoyenne,
+      salaire: pensions.remuBruteMoyenne,
+    })
+    const projRaw = series.map((d) => ({ year: d.year, pension: d.avgPension / 12, salaire: d.avgWage / 12 }))
+    const kP = rebaseFactor(observed, projRaw, 'pension')
+    const kS = rebaseFactor(observed, projRaw, 'salaire')
+    const projected = projRaw.map((d) => ({ year: d.year, pension: d.pension * kP, salaire: d.salaire * kS }))
+    return mergeObservedProjected(observed, projected, ['pension', 'salaire'])
+  }, [pensions, series])
+
   return (
     <div className="space-y-6">
       <Group title="Le système de retraite">
@@ -350,6 +368,23 @@ export function MacroCharts({
             <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
             <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
             <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
+          </LineChart>
+        </Panel>
+
+        <Panel
+          wide
+          title="Pension moyenne et salaire moyen (€/mois, euros constants)"
+          desc="Ce que touche un retraité et ce que gagne un cotisant, en pouvoir d'achat d'aujourd'hui. L'écart entre les deux courbes, c'est le niveau de vie relatif des retraités : le salaire suit la productivité, la pension seulement l'indexation (prix, par défaut) plus l'effet noria — les nouveaux retraités ayant eu de meilleures carrières que ceux qu'ils remplacent. C'est ce décrochage lent qui équilibre le système sans jamais baisser aucune pension. Le curseur « plafonnement » (leviers avancés) écrête cette courbe par le haut."
+          footer={<ObservedProjectedLegend />}
+        >
+          <LineChart data={montants}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${ratio1(Number(v) / 1000)} k€`} width={46} {...AXIS} domain={['auto', 'auto']} />
+            <Tooltip {...TOOLTIP} formatter={(v) => eurMonth(Number(v))} />
+            {frontier()}
+            <SplitLines k="salaire" color={CHART.primary} name="Salaire moyen" />
+            <SplitLines k="pension" color={CHART.danger} name="Pension moyenne" />
           </LineChart>
         </Panel>
       </Group>

@@ -14,10 +14,15 @@ export interface PopulationState {
 
 export type Indexation = 'prices' | 'wages' | 'mix'
 
-/** One anchor of a reform calendar: the values in force for pensions liquidated that year.
- *  Serializable on purpose — it crosses postMessage, so no functions here. */
+/**
+ * One anchor of a reform calendar, keyed by **année de naissance**, not by year of liquidation:
+ * c'est ainsi que la loi est écrite (2023 : 62 → 64 ans, +3 mois par génération, gén. sept. 1961
+ * → 1968). Le moteur résout l'âge légal génération par génération (voir `HypothesisSet.cohortPolicy`),
+ * ce qui rend le calendrier « collant » : qui a liquidé à 62 ans 9 mois le reste ensuite.
+ * Serializable on purpose — it crosses postMessage, so no functions here.
+ */
 export interface PolicyAnchor {
-  year: number
+  generation: number
   legalAge?: number
   requiredQuarters?: number
 }
@@ -67,9 +72,14 @@ export interface PolicyParams {
   /** Share (0-1) of the [60, legalAge) band retiring early (carrières longues, §3.2): they
    *  move from contributors to retirees. Absent ⇒ 0 ⇒ uniform exit age (reference unchanged). */
   earlyRetirementShare?: number
-  /** Reform calendar: a real law phases in (2023: +3 months per génération, 2023→2032) instead
-   *  of switching overnight. Anchors are interpolated linearly, clamped outside their range, and
-   *  override the flat fields above. Absent ⇒ the flat value applies from BASE_YEAR (status quo). */
+  /** Plafond de pension brute, en €/mois. L'écrêtement porte sur la part de la masse au-dessus
+   *  du plafond, calculée sur la distribution par décile (`EconInit.pensionDeciles`).
+   *  Absent ou 0 ⇒ aucun plafonnement ⇒ trajectoire de référence inchangée. */
+  pensionCap?: number
+  /** Reform calendar: a real law phases in by birth cohort (2023: +3 months per génération,
+   *  gén. 1961 → 1968) instead of switching overnight. Anchors are keyed by génération,
+   *  interpolated linearly, clamped outside their range, and override `legalAge` /
+   *  `requiredQuarters` above. Absent ⇒ the flat value applies to every génération (status quo). */
   schedule?: PolicyAnchor[]
 }
 
@@ -84,7 +94,11 @@ export interface HypothesisSet {
   productivity: (year: number) => number // g
   unemployment: (year: number) => number // u
   activityRate: (year: number, age: number, legalAge: number) => number // τ_act
+  /** Flat levers (cotisation, indexation, plafond…) — sans le calendrier, qui est générationnel. */
   policy: (year: number) => PolicyParams
+  /** Âge légal et durée requise **de la génération g**, calendrier de la loi résolu. Sans
+   *  calendrier, renvoie les mêmes paramètres plats pour toute génération. */
+  cohortPolicy: (generation: number) => PolicyParams
 }
 
 /** One year of macro outputs. */
@@ -101,6 +115,9 @@ export interface YearResult {
   contributors: number
   retirees: number
   avgWage: number
+  /** Pension brute moyenne, euros constants annuels. Avant le multiplicateur de calage COR
+   *  (qui pilote la masse, pas le montant individuel), après écrêtement `pensionCap`. */
+  avgPension: number
   wageBill: number
   contributions: number
   benefits: number

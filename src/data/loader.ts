@@ -3,6 +3,7 @@ import { OMEGA, type HypothesisSet, type PolicyAnchor, type PolicyParams, type P
 import { type EconInit, project } from '../engine/project'
 import type { BeyondDataPolicy, CorReference, HistoricalData, HistoricalPyramid, InitialPyramid, OecdComparison, ReferenceIndicators, ScenarioData } from './schema'
 import params from './systemParams.json'
+import pensionDistributionJson from './pensionDistribution.json'
 import corReferenceJson from './corReference.json'
 import referenceIndicatorsJson from './referenceIndicators.json'
 import oecdComparisonJson from './oecdComparison.json'
@@ -30,6 +31,10 @@ export const DEFAULT_POLICY: PolicyParams = {
   requiredQuarters: params.policy.requiredQuarters,
   contributionRate: params.policy.contributionRate,
   indexation: params.policy.indexation as PolicyParams['indexation'],
+  // Le droit en vigueur est un calendrier, pas un âge unique : la réforme 2023 monte en charge
+  // génération par génération jusqu'en 1968. C'est sur ce calendrier que buildCorCalibration()
+  // cale la référence, et c'est de lui que les templates de réforme s'écartent.
+  schedule: params.policy.schedule as PolicyAnchor[],
   productivity: params.economy.productivity,
   realInterestRate: 0, // basic scenarios stay clean; the Pragmatique risk overlay sets these
   workerExodus: 0,
@@ -45,6 +50,8 @@ const ECON_SEEDS: EconInit = {
   quartersRef: params.policy.requiredQuarters,
   legalAgeEffectiveness: params.calibration.legalAgeEffectiveness,
   legalAgeRef: params.calibration.legalAgeRef,
+  pensionDeciles: pensionDistributionJson.deciles,
+  avgPensionObservedMonthly: params.init.avgPensionObservedMonthly,
   depensesShareBase: params.calibration.depensesShareBase,
   soldeShareBase: params.calibration.soldeShareBase,
   resources2070Share: params.calibration.resources2070Share,
@@ -78,13 +85,17 @@ export function interpByYear<T extends { year: number }>(pts: T[], year: number,
   return last[field] as number
 }
 
-/** A reform calendar resolved at one year: the fields it pins, others left to the flat policy. */
-function atSchedule(anchors: PolicyAnchor[], year: number): Partial<PolicyParams> {
-  const pts = [...anchors].sort((a, b) => a.year - b.year)
+/**
+ * A reform calendar resolved for one **génération**: the fields it pins, others left to the flat
+ * policy. Les ancres sont clefées par année de naissance ; on les remappe sur `year` pour
+ * réutiliser `interpByYear` tel quel (même interpolation, une seule implémentation).
+ */
+function atSchedule(anchors: PolicyAnchor[], generation: number): Partial<PolicyParams> {
+  const pts = anchors.map((a) => ({ ...a, year: a.generation })).sort((a, b) => a.year - b.year)
   const out: Partial<PolicyParams> = {}
-  const legalAge = interpByYear(pts, year, 'legalAge')
+  const legalAge = interpByYear(pts, generation, 'legalAge')
   if (legalAge != null) out.legalAge = legalAge
-  const quarters = interpByYear(pts, year, 'requiredQuarters')
+  const quarters = interpByYear(pts, generation, 'requiredQuarters')
   // Quarters are integers by nature — the law never asks for 170.5 trimestres.
   if (quarters != null) out.requiredQuarters = Math.round(quarters)
   return out
@@ -166,6 +177,13 @@ export function buildHypotheses(
   beyond: BeyondDataPolicy = 'hold',
 ): HypothesisSet {
   const merged: PolicyParams = { ...DEFAULT_POLICY, ...policy }
+  // Un âge (ou une durée) passé à plat écrase le calendrier hérité de DEFAULT_POLICY : sinon le
+  // calendrier du droit en vigueur avalerait silencieusement le levier, puisqu'il pilote
+  // exactement ces deux champs. Même règle que l'UI (setP dans App.tsx). Une réforme qui fournit
+  // son propre calendrier le garde, évidemment.
+  if (policy.schedule === undefined && (policy.legalAge !== undefined || policy.requiredQuarters !== undefined)) {
+    merged.schedule = undefined
+  }
   const { years } = data
   // « Exode des actifs » lever: net emigration of workerExodus persons/year, spread
   // uniformly over ages 25-40 (16 ages) and both sexes — 32 equal slices.
@@ -186,8 +204,12 @@ export function buildHypotheses(
       if (age >= legalAge - 5) return 0.55
       return 0.9
     },
-    // A reform with a calendar (montée en charge, gel) overrides the flat fields year by year;
-    // without one we keep the constant closure — the status-quo path, byte-identical.
-    policy: merged.schedule?.length ? (y) => ({ ...merged, ...atSchedule(merged.schedule!, y) }) : () => merged,
+    policy: () => merged,
+    // A reform with a calendar (montée en charge, gel) overrides âge légal et durée requise
+    // génération par génération ; sans calendrier on renvoie le MÊME objet — pas de spread,
+    // c'est le chemin chaud (106 générations × 45 ans × K tirages en mode stochastique).
+    cohortPolicy: merged.schedule?.length
+      ? (g) => ({ ...merged, ...atSchedule(merged.schedule!, g) })
+      : () => merged,
   }
 }
