@@ -118,6 +118,11 @@ export interface YearResult {
   /** Pension brute moyenne, euros constants annuels. Avant le multiplicateur de calage COR
    *  (qui pilote la masse, pas le montant individuel), après écrêtement `pensionCap`. */
   avgPension: number
+  /** Pension brute MENSUELLE de chaque dixième de retraités, euros constants, après écrêtement.
+   *  Au niveau observé (échelle `EconInit.avgPensionObservedMonthly`) — donc à un facteur près
+   *  de `avgPension`, qui porte lui l'échelle interne du bloc finance. Sert au graphe de
+   *  répartition ; c'est le tableau même sur lequel le plafond a été chiffré. */
+  pensionDeciles: number[]
   wageBill: number
   contributions: number
   benefits: number

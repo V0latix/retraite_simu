@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
@@ -27,17 +27,73 @@ const TOOLTIP = {
   cursor: { stroke: CHART.muted, strokeWidth: 1 },
 } as const
 
-/** One titled group of panels — the ten charts read as three stories, not a wall. */
-function Group({ title, children }: { title: string; children: React.ReactNode }) {
+/**
+ * One collapsible volet of panels — a dozen charts stacked is a wall, so they read as five
+ * stories you open one at a time. Native <details>, like <Hint> in the sidebar: keyboard
+ * accessible, zero JS, no state to keep in sync.
+ * `count` is passed rather than derived from React.Children: a `wide` panel still counts once,
+ * and a conditional child would silently skew the tally.
+ */
+function Group({
+  title,
+  count,
+  defaultOpen = false,
+  children,
+}: {
+  title: string
+  count: number
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
   return (
-    <section>
-      <h3 className="mb-3 border-b border-border pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+    <details open={defaultOpen} className="group/vol">
+      <summary className="mb-3 flex cursor-pointer list-none items-center gap-2 border-b border-border pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase select-none hover:text-foreground">
+        <span className="inline-block transition-transform group-open/vol:rotate-90">▸</span>
         {title}
-      </h3>
+        <span className="ml-auto font-normal normal-case tabular-nums">
+          {count} graphique{count > 1 ? 's' : ''}
+        </span>
+      </summary>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">{children}</div>
-    </section>
+    </details>
   )
 }
+
+/**
+ * Box-and-whisker drawn as a custom Bar shape — Recharts has no boxplot, and one <g> of lines
+ * beats a charting dependency. The Bar's value is the [Q1, Q3] tuple, so `y`/`height` already
+ * bracket the box: the pixel scale follows from them and we never touch the axis.
+ */
+function BoxWhisker({ x = 0, y = 0, width = 0, height = 0, payload }: BoxShapeProps) {
+  if (!payload) return null
+  const { box, median, low, high } = payload
+  const [q1, q3] = box
+  // A very low cap can flatten the box (q3 → q1) and kill the scale; fall back to the box line.
+  const k = q3 > q1 ? height / (q3 - q1) : 0
+  const px = (v: number) => (k === 0 ? y : y + (q3 - v) * k)
+  const cx = x + width / 2
+  const capW = width * 0.25
+  return (
+    <g stroke={CHART.violet} strokeWidth={1.5} fill="none">
+      <line x1={cx} y1={px(high)} x2={cx} y2={y} />
+      <line x1={cx} y1={y + height} x2={cx} y2={px(low)} />
+      <line x1={cx - capW} y1={px(high)} x2={cx + capW} y2={px(high)} />
+      <line x1={cx - capW} y1={px(low)} x2={cx + capW} y2={px(low)} />
+      <rect x={x} y={y} width={width} height={Math.max(height, 1)} fill={CHART.violet} fillOpacity={0.15} />
+      <line x1={x} y1={px(median)} x2={x + width} y2={px(median)} strokeWidth={2.5} />
+    </g>
+  )
+}
+interface BoxRow {
+  year: number
+  low: number
+  high: number
+  median: number
+  box: [number, number]
+}
+// Tout optionnel : Recharts déclare `payload?: any` sur le shape d'une Bar, il faut donc que ce
+// type soit un sur-type du sien pour rester assignable sous strictFunctionTypes.
+type BoxShapeProps = { x?: number; y?: number; width?: number; height?: number; payload?: BoxRow }
 
 function Panel({
   title,
@@ -95,11 +151,13 @@ export function MacroCharts({
   realInterestRate = 0,
   workerExodus = 0,
   frrFlowPct = 0,
+  pensionCap = 0,
 }: {
   series: TimeSeries
   realInterestRate?: number
   workerExodus?: number
   frrFlowPct?: number
+  pensionCap?: number
 }) {
   const { finance, anchors, reserves, pensions } = historical
 
@@ -249,9 +307,32 @@ export function MacroCharts({
     return mergeObservedProjected(observed, projected, ['pension', 'salaire'])
   }, [pensions, series])
 
+  // Répartition par décile, à quatre horizons témoins pris à intervalles réguliers dans la série
+  // (jamais en dur : l'horizon est réglable de 2025 à 2100). Les quartiles sont interpolés entre
+  // moyennes de déciles — une approximation, pas des quantiles mesurés ; le `desc` le dit.
+  const boxes = useMemo<BoxRow[]>(() => {
+    if (series.length === 0) return []
+    const idx = [...new Set([0, 1, 2, 3].map((i) => Math.round((i * (series.length - 1)) / 3)))]
+    return idx.map((i) => {
+      const d = series[i].pensionDeciles
+      return {
+        year: series[i].year,
+        low: d[0],
+        high: d[9],
+        median: (d[4] + d[5]) / 2,
+        box: [(d[1] + d[2]) / 2, (d[6] + d[7]) / 2] as [number, number],
+      }
+    })
+  }, [series])
+  // L'axe doit être borné à la main : Recharts ne connaît que la valeur portée par la <Bar>
+  // (le couple [Q1, Q3]). Sans ça il cadre sur la boîte — les moustaches débordent hors du
+  // graphe, et la ligne de plafond, hors domaine, n'est même pas dessinée.
+  const boxMax = Math.max(pensionCap, ...boxes.map((b) => b.high), 0)
+  const boxDomain: [number, number] = [0, Math.ceil((boxMax * 1.08) / 500) * 500]
+
   return (
     <div className="space-y-6">
-      <Group title="Le système de retraite">
+      <Group title="Trajectoire financière" count={3} defaultOpen>
         <Panel
           wide
           title="Solde annuel du système (% PIB)"
@@ -280,6 +361,59 @@ export function MacroCharts({
           </LineChart>
         </Panel>
 
+        <Panel
+          wide
+          title="Dépenses vs ressources (% PIB)"
+          desc="Les deux courbes phares du COR : pensions versées (dépenses) et cotisations + transferts (ressources), en part de la richesse nationale. L'écart entre les deux, c'est le solde. Les dépenses montent avec le vieillissement ; les ressources restent à peu près stables."
+          footer={<ObservedProjectedLegend />}
+        >
+          <LineChart data={depRes}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} {...AXIS} domain={['auto', 'auto']} />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
+            <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
+            <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
+          </LineChart>
+        </Panel>
+
+        <Panel
+          wide
+          title={`Solde cumulé depuis ${CUMUL_FROM} (% PIB)`}
+          desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date. En projection, le cumul porte intérêt au taux réel choisi (${fmtNum(realInterestRate * 100, 2)} %) : la dette coûte, les réserves rapportent — l'effet boule de neige du levier « Contexte & risques ».`}
+          footer={
+            <>
+              <ObservedProjectedLegend />
+              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
+                {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
+                déficits dépasse ce que le système a mis de côté. À ne pas confondre avec le FRR (fonds de réserve dédié), qui
+                se dénoue : {reserves.frr.valueMdEur[0].toFixed(0)} Md€ ({reserves.frr.years[0]}) →{' '}
+                {reserves.frr.valueMdEur.at(-1)!.toFixed(0)} Md€ ({reserves.frr.years.at(-1)}), versé à la CADES d'ici 2033.
+              </p>
+            </>
+          }
+        >
+          <LineChart data={cumul}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} {...AXIS} />
+            <ReferenceLine y={0} stroke={CHART.muted} />
+            <ReferenceLine
+              y={-anchors.reservesPctGdp}
+              stroke={CHART.violet}
+              strokeDasharray="4 3"
+              label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
+            />
+            {frontier()}
+            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
+            <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
+          </LineChart>
+        </Panel>
+      </Group>
+
+      <Group title="Démographie du système" count={2}>
         <Panel
           title="Nombre de cotisants par retraité"
           desc="Combien d'actifs qui cotisent financent chaque retraité. Il est passé de ~2,1 en 2002 à ~1,8 aujourd'hui. Plus il baisse, plus chaque pension repose sur peu de cotisants."
@@ -319,58 +453,9 @@ export function MacroCharts({
             <SplitLines k="retirees" color={CHART.pink} name="Retraités" />
           </LineChart>
         </Panel>
+      </Group>
 
-        <Panel
-          wide
-          title={`Solde cumulé depuis ${CUMUL_FROM} (% PIB)`}
-          desc={`Soldes annuels accumulés depuis ${CUMUL_FROM} (premier solde publié par le COR), rapportés au PIB de chaque année — comme on mesure la dette publique. Sous zéro, le système a versé plus qu'il n'a encaissé depuis cette date. En projection, le cumul porte intérêt au taux réel choisi (${fmtNum(realInterestRate * 100, 2)} %) : la dette coûte, les réserves rapportent — l'effet boule de neige du levier « Contexte & risques ».`}
-          footer={
-            <>
-              <ObservedProjectedLegend />
-              <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
-                La ligne violette situe les réserves du système fin 2024 — {anchors.reserves2024.toFixed(0)} Md€, soit{' '}
-                {pct(anchors.reservesPctGdp, 1)} (COR, tableau 2.3). L'année où la courbe la franchit est celle où le cumul des
-                déficits dépasse ce que le système a mis de côté. À ne pas confondre avec le FRR (fonds de réserve dédié), qui
-                se dénoue : {reserves.frr.valueMdEur[0].toFixed(0)} Md€ ({reserves.frr.years[0]}) →{' '}
-                {reserves.frr.valueMdEur.at(-1)!.toFixed(0)} Md€ ({reserves.frr.years.at(-1)}), versé à la CADES d'ici 2033.
-              </p>
-            </>
-          }
-        >
-          <LineChart data={cumul}>
-            {GRID}
-            <XAxis dataKey="year" {...AXIS} />
-            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={48} {...AXIS} />
-            <ReferenceLine y={0} stroke={CHART.muted} />
-            <ReferenceLine
-              y={-anchors.reservesPctGdp}
-              stroke={CHART.violet}
-              strokeDasharray="4 3"
-              label={{ value: 'réserves fin 2024', position: 'insideBottomRight', fontSize: 10, fill: CHART.violet }}
-            />
-            {frontier()}
-            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
-            <SplitLines k="cumul" color={CHART.violet} name="Solde cumulé" />
-          </LineChart>
-        </Panel>
-
-        <Panel
-          wide
-          title="Dépenses vs ressources (% PIB)"
-          desc="Les deux courbes phares du COR : pensions versées (dépenses) et cotisations + transferts (ressources), en part de la richesse nationale. L'écart entre les deux, c'est le solde. Les dépenses montent avec le vieillissement ; les ressources restent à peu près stables."
-          footer={<ObservedProjectedLegend />}
-        >
-          <LineChart data={depRes}>
-            {GRID}
-            <XAxis dataKey="year" {...AXIS} />
-            <YAxis tickFormatter={(v) => `${(v * 100).toFixed(0)}%`} width={44} {...AXIS} domain={['auto', 'auto']} />
-            {frontier()}
-            <Tooltip {...TOOLTIP} formatter={(v) => pct(Number(v))} />
-            <SplitLines k="depensesPctGdp" color={CHART.danger} name="Dépenses" />
-            <SplitLines k="resourcesPctGdp" color={CHART.primary} name="Ressources" />
-          </LineChart>
-        </Panel>
-
+      <Group title="Niveau des pensions" count={2}>
         <Panel
           wide
           title="Pension moyenne et salaire moyen (€/mois, euros constants)"
@@ -387,9 +472,46 @@ export function MacroCharts({
             <SplitLines k="pension" color={CHART.danger} name="Pension moyenne" />
           </LineChart>
         </Panel>
+
+        <Panel
+          wide
+          title="Répartition des pensions par décile (€/mois, euros constants)"
+          desc={`Comment la pension se répartit entre les retraités, à quatre horizons. La boîte couvre la moitié centrale (du 1ᵉʳ au 3ᵉ quartile), le trait épais est la médiane, les moustaches vont de la moyenne du dixième le plus modeste à celle du dixième le plus aisé. Toute la distribution monte lentement avec l'effet noria — l'écart entre le haut et le bas, lui, ne bouge pas : le modèle applique une forme fixe (DREES) qu'il met à l'échelle. Les quartiles sont interpolés entre moyennes de déciles, ce sont des ordres de grandeur et non des quantiles mesurés.${pensionCap > 0 ? ` Le plafond de ${pensionCap.toLocaleString('fr-FR')} €/mois est en euros constants : il mord de plus en plus à mesure que les pensions dérivent.` : ' Le curseur « plafonnement » (leviers avancés) fait apparaître la ligne d\'écrêtement.'}`}
+          footer={
+            <Legend>
+              <Swatch color={CHART.violet}>
+                moustaches = 1ᵉʳ et 10ᵉ décile · boîte = Q1–Q3 · trait épais = médiane
+              </Swatch>
+              {pensionCap > 0 && <Swatch color={CHART.danger} dashed>plafond ({eurMonth(pensionCap)})</Swatch>}
+            </Legend>
+          }
+        >
+          <BarChart data={boxes}>
+            {GRID}
+            <XAxis dataKey="year" {...AXIS} />
+            <YAxis tickFormatter={(v) => `${ratio1(Number(v) / 1000)} k€`} width={46} {...AXIS} domain={boxDomain} allowDataOverflow={false} />
+            <Tooltip
+              {...TOOLTIP}
+              formatter={(_v, _n, item) => {
+                const d = item.payload as { low: number; high: number; median: number; box: [number, number] }
+                return [`${eurMonth(d.low)} … ${eurMonth(d.high)} · médiane ${eurMonth(d.median)}`, 'D1 → D10']
+              }}
+              labelFormatter={(y) => `Année ${y}`}
+            />
+            {pensionCap > 0 && (
+              <ReferenceLine
+                y={pensionCap}
+                stroke={CHART.danger}
+                strokeDasharray={PROJECTED_DASH}
+                label={{ value: `plafond ${eurMonth(pensionCap)}`, position: 'insideTopRight', fontSize: 10, fill: CHART.danger }}
+              />
+            )}
+            <Bar dataKey="box" shape={BoxWhisker} isAnimationActive={false} />
+          </BarChart>
+        </Panel>
       </Group>
 
-      <Group title="Hypothèses du scénario — réalité observée vs projection">
+      <Group title="Hypothèses du scénario — réalité observée vs projection" count={4}>
         <Panel
           title="Fécondité : réalité observée vs hypothèse du scénario"
           desc={`Nombre d'enfants par femme. Le scénario sélectionné retient ${ratio2(fertilityAssumed)} à long terme, alors qu'en ${LAST_OBSERVED_YEAR + 1} la fécondité observée n'est déjà plus que de ${ratio2(fertilityNow)}. Une hypothèse plus haute que la réalité rend les projections (cotisants futurs, solde) optimistes ; le scénario « Pragmatique » colle à la tendance observée.`}
@@ -415,7 +537,10 @@ export function MacroCharts({
             {frontier(LAST_OBSERVED_YEAR + 1)}
             <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : `${ratio2(Number(v))} enf./femme`)} labelFormatter={(y) => `Année ${y}`} />
             <Line type="monotone" dataKey="observed" name="Fécondité observée" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="assumption" name="Hypothèse INSEE" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+            {/* L'hypothèse affichée est celle du CURSEUR, pas celle de l'INSEE : le libellé de
+                l'infobulle disait « Hypothèse INSEE » même à 1,45, une valeur que l'INSEE ne
+                retient dans aucune de ses variantes. */}
+            <Line type="monotone" dataKey="assumption" name="Hypothèse du scénario" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
 
@@ -446,7 +571,7 @@ export function MacroCharts({
               y={70000}
               stroke={CHART.muted}
               strokeDasharray="2 3"
-              label={{ value: 'hyp. INSEE central (+70k)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
+              label={{ value: 'repère : INSEE central (+70k)', position: 'insideBottomRight', fontSize: 10, fill: CHART.muted }}
             />
             {frontier(LAST_OBSERVED_YEAR + 1)}
             <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : signedK(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
@@ -513,7 +638,7 @@ export function MacroCharts({
         </Panel>
       </Group>
 
-      <Group title="Contexte">
+      <Group title="Contexte" count={1}>
         <Panel
           wide
           title="Inflation observée (INSEE, IPC)"
