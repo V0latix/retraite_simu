@@ -200,11 +200,12 @@ export function Levers({
           onChange={(v) => onPolicy({ unemployment: v })}
           hint={
             <>
-              Un chômeur ne cotise pas : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Deux mesures
-              coexistent, d'où l'amplitude du curseur : le chômage au sens du BIT (7,4&nbsp;% en 2024,
-              celui du COR, qui suppose souvent un retour vers 4,5&nbsp;%) et l'inscription à France
-              Travail toutes catégories A à G (≈&nbsp;19&nbsp;% des 18-64 ans, retenue par le scénario
-              Pragmatique).
+              Un actif qui ne cotise pas est retiré du compte : les cotisants sont comptés
+              × (1&nbsp;−&nbsp;u). Deux mesures coexistent, d'où l'amplitude du curseur : le chômage au
+              sens du BIT (7,4&nbsp;% en 2024, celui du COR, qui suppose souvent un retour vers
+              4,5&nbsp;%) et les 7,5&nbsp;M d'inscrits à France Travail toutes catégories A à G,
+              pondérés par les heures qu'ils travaillent déjà (≈&nbsp;16,6&nbsp;% des actifs, retenu par
+              le scénario Pragmatique). Le même effectif sans pondération donnerait 22,8&nbsp;%.
             </>
           }
         />

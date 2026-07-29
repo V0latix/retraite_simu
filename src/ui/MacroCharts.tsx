@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimeSeries } from '../engine/types'
 import { historical } from '../data/loader'
-import { jobseekerRate } from '../data/scenarioPresets'
+import { JOBSEEKER_WEIGHTS, jobseekerRate } from '../data/scenarioPresets'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
 import { Legend, ObservedProjectedLegend, Swatch } from './ObservedProjected'
 import { CHART, SERIES } from './chartColors'
@@ -30,6 +30,11 @@ const JOBSEEKER_CATS = [
   ['F', SERIES[5], 'accompagnement social'],
   ['G', SERIES[6], 'RSA en attente d’orientation'],
 ] as const
+
+/** Part de l'effectif brut qui subsiste après pondération — 5,5 M sur 7,5 M. */
+const JOBSEEKER_RATE_SHARE =
+  JOBSEEKER_CATS.reduce((s, [k]) => s + JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS] * (historical.jobseekers[k.toLowerCase() as 'a'].at(-1) ?? 0), 0) /
+  JOBSEEKER_CATS.reduce((s, [k]) => s + (historical.jobseekers[k.toLowerCase() as 'a'].at(-1) ?? 0), 0)
 
 // Shared chart chrome. Repeating these ten times is how axes and tooltips drifted apart;
 // the default Recharts tooltip (white, rounded, shadowed) was also the one element left
@@ -295,6 +300,7 @@ export function MacroCharts({
     const j = historical.jobseekers
     return j.periods.map((p, i) => ({ p, A: j.a[i], B: j.b[i], C: j.c[i], D: j.d[i], E: j.e[i], F: j.f[i], G: j.g[i] }))
   }, [])
+  const jobseekersLast = JOBSEEKER_CATS.reduce((s, [k]) => s + (jobseekers.at(-1)?.[k] ?? 0), 0)
 
   // Life expectancy (e0 / e65) derived from the scenario's qx — projection only, no observed
   // series in historical.json. Two very different magnitudes → dual Y axis in the panel below.
@@ -615,7 +621,7 @@ export function MacroCharts({
 
         <Panel
           title="Chômage : deux mesures, deux scénarios"
-          desc={`Un actif qui ne cotise pas est retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}. Deux thermomètres s'opposent : le chômage au sens du BIT — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}, celui du COR et de l'INSEE — et le nombre de personnes inscrites à France Travail, toutes catégories A à G, soit ${pctPlain(JOBSEEKER_RATE)} des 18-64 ans, que retient le scénario « Pragmatique ». L'écart n'est pas une erreur de mesure : les deux comptent des gens différents (voir ci-dessous).`}
+          desc={`Un actif qui ne cotise pas est retiré du nombre de cotisants (× (1 − taux de chômage)). Le scénario sélectionné retient ${pctPlain(unemploymentAssumed)}. Deux thermomètres s'opposent : le chômage au sens du BIT — ${pctPlain(unemploymentNow)} en ${LAST_OBSERVED_YEAR}, celui du COR et de l'INSEE — et les 7,5 M d'inscrits à France Travail toutes catégories A à G, pondérés par les heures qu'ils travaillent déjà, soit ${pctPlain(JOBSEEKER_RATE)} des actifs, que retient le scénario « Pragmatique ». L'écart n'est pas une erreur de mesure : les deux comptent des gens différents (voir ci-dessous).`}
           footer={
             <>
               <Legend>
@@ -649,19 +655,38 @@ export function MacroCharts({
                     avant 2025.
                   </p>
                   <p>
-                    <strong className="text-foreground">D'où vient l'écart.</strong> Quelqu'un qui travaille
-                    quelques heures par mois, ou qui suit une formation, est « en emploi » ou « inactif » pour le
-                    BIT mais reste inscrit à France Travail. L'inscription automatique des allocataires du RSA
-                    ajoute à elle seule plusieurs centaines de milliers de personnes que le BIT ne compte pas,
-                    faute de recherche active. Les deux chiffres sont justes ; ils ne répondent pas à la même
-                    question.
+                    <strong className="text-foreground">Être inscrit ≠ ne pas cotiser.</strong> C'est le cœur du
+                    calcul : chaque catégorie est pondérée par la part d'un temps plein (151,67 h/mois) qu'elle ne
+                    travaille <em>pas</em>, mesurée sur les heures réellement déclarées. La catégorie C travaille
+                    139 h/mois en moyenne — 92 % d'un temps plein, et plus de la moitié de ses inscrits font
+                    151 h ou plus : ces gens cotisent déjà presque intégralement, les retirer en bloc serait faux.
+                  </p>
+                  <table className="w-full tabular-nums">
+                    <tbody>
+                      {JOBSEEKER_CATS.map(([k, , label]) => (
+                        <tr key={k} className="border-b border-border/50 last:border-0">
+                          <td className="py-0.5 pr-2 font-semibold text-foreground">{k}</td>
+                          <td className="py-0.5 pr-2">{label}</td>
+                          <td className="py-0.5 text-right font-semibold text-foreground">
+                            {JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS] === 0
+                              ? '0 — cotise'
+                              : `× ${JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS].toString().replace('.', ',')}`}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <p>
+                    Total pondéré : 5,5 M sur 7,5 M d'inscrits, rapportés aux ~33 M d'actifs du modèle — le même
+                    dénominateur que le taux BIT qu'il remplace, et la base exacte à laquelle le moteur applique
+                    ce taux. Sans pondération, le même effectif donnerait 22,8 %.
                   </p>
                   <p>
-                    <strong className="text-foreground">La limite de ce choix.</strong> Le modèle traite ce taux
-                    comme une part d'actifs qui ne cotisent pas. Or les catégories B, C et E travaillent et
-                    cotisent déjà, au moins partiellement. Le Pragmatique est donc une <strong>borne haute</strong>
-                    {' '}du sous-emploi, pas une prévision — le dénominateur retenu (les 18-64 ans, plus large que
-                    la population active) en amortit une partie.
+                    <strong className="text-foreground">Ce qui reste discutable.</strong> Les poids de B et C sont
+                    figés sur le trimestre le plus récent. Surtout, les allocataires du RSA (F, G) ne sont pour la
+                    plupart pas « actifs » au sens du modèle : le taux d'activité les exclut déjà en partie, donc
+                    les compter ici les retire un peu deux fois. Le chiffre reste une lecture haute du sous-emploi,
+                    pas une prévision.
                   </p>
                 </div>
               </details>
@@ -697,12 +722,12 @@ export function MacroCharts({
 
         <Panel
           title="Inscrits à France Travail, par catégorie"
-          desc={`Le décompte derrière l'hypothèse du scénario Pragmatique : ${millions(jobseekers.at(-1) ? Object.values(jobseekers.at(-1)!).filter((v) => typeof v === 'number').reduce((s, v) => s + (v as number), 0) : 0)} de personnes inscrites au ${jobseekers.at(-1)?.p ?? ''}, toutes catégories confondues. Effectifs bruts trimestriels (France entière hors Mayotte, Dares–France Travail STMT). La série démarre en 2025T1 : les catégories F et G n'existaient pas avant la loi plein emploi.`}
+          desc={`Le décompte derrière l'hypothèse du scénario Pragmatique : ${millions(jobseekersLast)} de personnes inscrites au ${jobseekers.at(-1)?.p ?? ''}, toutes catégories confondues. Toutes ne sont pas sans emploi — B et C sont en activité réduite, E est en emploi par définition — d'où la pondération par les heures travaillées, qui ramène ces ${millions(jobseekersLast)} à ${millions(jobseekersLast * JOBSEEKER_RATE_SHARE)} d'équivalents non-cotisants. Effectifs bruts trimestriels (France entière hors Mayotte, Dares–France Travail STMT). La série démarre en 2025T1 : F et G n'existaient pas avant la loi plein emploi.`}
           footer={
             <Legend>
               {JOBSEEKER_CATS.map(([k, color, label]) => (
                 <Swatch key={k} color={color}>
-                  {k} — {label}
+                  {k} — {label} (× {JOBSEEKER_WEIGHTS[k.toLowerCase() as keyof typeof JOBSEEKER_WEIGHTS].toString().replace('.', ',')})
                 </Swatch>
               ))}
             </Legend>

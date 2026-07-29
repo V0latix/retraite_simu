@@ -171,6 +171,17 @@ function unemploymentFn(base: number, shock?: { from: number; peak: number; to: 
 }
 
 /** Central deterministic scenario from real data; reform levers override policy. */
+/** Taux d'activité : hypothèse à la COR, qui décroît à l'approche de l'âge légal.
+ *  Exporté parce que c'est la définition de la population active DU MODÈLE — la base à
+ *  laquelle `project()` applique le taux de chômage, donc celle sur laquelle un taux de
+ *  chômage doit être calculé (voir jobseekerRate, scenarioPresets.ts). */
+export function ACTIVITY_RATE(age: number, legalAge: number): number {
+  if (age < 20) return 0.25
+  if (age >= legalAge) return 0
+  if (age >= legalAge - 5) return 0.55
+  return 0.9
+}
+
 export function buildHypotheses(
   data: ScenarioData,
   policy: Partial<PolicyParams> = {},
@@ -197,13 +208,7 @@ export function buildHypotheses(
     // systemParams is the fallback for direct engine calls that pass no policy.
     productivity: () => merged.productivity ?? params.economy.productivity,
     unemployment: unemploymentFn(merged.unemployment ?? params.economy.unemployment, data.unemploymentShock),
-    // Activity rate: COR-style hypothesis, ramps down toward the legal age.
-    activityRate: (_y, age, legalAge) => {
-      if (age < 20) return 0.25
-      if (age >= legalAge) return 0
-      if (age >= legalAge - 5) return 0.55
-      return 0.9
-    },
+    activityRate: (_y, age, legalAge) => ACTIVITY_RATE(age, legalAge),
     policy: () => merged,
     // A reform with a calendar (montée en charge, gel) overrides âge légal et durée requise
     // génération par génération ; sans calendrier on renvoie le MÊME objet — pas de spread,

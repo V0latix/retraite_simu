@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { historical, historicalPyramid, LAST_OBSERVED_YEAR } from './loader'
-import { SCENARIO_PRESETS, jobseekerRate } from './scenarioPresets'
+import { JOBSEEKER_WEIGHTS, SCENARIO_PRESETS, jobseekerRate } from './scenarioPresets'
 
 const strictlyIncreasing = (ys: readonly number[]) => ys.every((y, i) => i === 0 || y > ys[i - 1])
 
@@ -89,9 +89,16 @@ describe('historical.json', () => {
     // Total A→G publié au 2025T1 : 7 409 100 (arrondi à la centaine près par la Dares).
     const t0 = [j.a, j.b, j.c, j.d, j.e, j.f, j.g].reduce((s, cat) => s + cat[0], 0)
     expect(t0).toBeCloseTo(7_409_100, -3)
-    // Le taux qui en découle est bien la mesure large, pas le BIT.
-    expect(jobseekerRate()).toBeGreaterThan(0.15)
-    expect(jobseekerRate()).toBeLessThan(0.25)
+    // Le taux qui en découle est bien la mesure large, pas le BIT — mais pondéré : la somme
+    // brute rapportée à la même base donnerait ~22,8 %, la pondération doit mordre.
+    expect(jobseekerRate()).toBeGreaterThan(0.13)
+    expect(jobseekerRate()).toBeLessThan(0.2)
+    const raw = [j.a, j.b, j.c, j.d, j.e, j.f, j.g].reduce((s, cat) => s + cat.slice(-4).reduce((x, v) => x + v, 0), 0)
+    const weighted = (Object.keys(JOBSEEKER_WEIGHTS) as (keyof typeof JOBSEEKER_WEIGHTS)[]).reduce(
+      (s, k) => s + JOBSEEKER_WEIGHTS[k] * historical.jobseekers[k].slice(-4).reduce((x, v) => x + v, 0),
+      0,
+    )
+    expect(weighted / raw).toBeCloseTo(0.73, 2) // 5,5 M d'équivalents sur 7,5 M d'inscrits
     expect(SCENARIO_PRESETS.pragmatique.unemployment).toBe(jobseekerRate())
     expect(SCENARIO_PRESETS.central.unemployment).toBe(0.07) // la référence COR ne bouge pas
   })
