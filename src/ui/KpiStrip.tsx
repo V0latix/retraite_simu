@@ -2,16 +2,33 @@
 // at the horizon year. Everything comes straight from the projected series — no new
 // engine call except the reference run passed in as `baseline` (the same scenario with
 // untouched levers), which turns "the curve moved" into "your levers are worth +0,6 pt".
+//
+// Depuis que choisir une réforme clés en main REMPLACE les leviers de réforme au lieu de s'empiler
+// dessus (`applyReform`), ce chiffre décrit la réforme nommée SEULE. Avant, un plafond de pension
+// essayé puis oublié restait dans le compte et « impact de vos leviers » ne parlait plus de la
+// réforme affichée dans le sélecteur.
 import type { TimeSeries } from '../engine/types'
 import { fmtBn, fmtNum, fmtPct } from '../lib/format'
 import { Skeleton } from '@/components/ui/skeleton'
 
-function Tile({ label, value, sub, tone }: { label: string; value: string; sub?: string; tone?: 'good' | 'bad' }) {
+function Tile({
+  label,
+  value,
+  sub,
+  tone,
+}: {
+  label: string
+  value: string
+  sub?: string
+  tone?: 'good' | 'bad'
+}) {
   const color = tone === 'bad' ? 'text-destructive' : tone === 'good' ? 'text-success' : ''
   return (
     <div className="bg-card p-3">
       <div className="text-[11px] leading-tight tracking-wide text-muted-foreground uppercase">{label}</div>
-      <div className={`mt-1 font-heading text-xl leading-none font-semibold tabular-nums ${color}`}>{value}</div>
+      <div className={`mt-1 font-heading text-xl leading-none font-semibold tabular-nums ${color}`}>
+        {value}
+      </div>
       {sub && <div className="mt-1 text-[11px] leading-snug text-muted-foreground">{sub}</div>}
     </div>
   )
@@ -37,7 +54,9 @@ export function KpiStrip({
   const delta = ref ? (last.soldePctGdp - ref.soldePctGdp) * 100 : 0
 
   return (
-    <div className={`grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4 ${computing ? 'opacity-60' : ''}`}>
+    <div
+      className={`grid grid-cols-2 gap-px border border-border bg-border lg:grid-cols-4 ${computing ? 'opacity-60' : ''}`}
+    >
       <Tile
         label={`Solde en ${last.year}`}
         value={`${fmtPct(last.soldePctGdp, 1)} PIB`}

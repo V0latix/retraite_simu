@@ -3,6 +3,7 @@ import central from '../data/scenarios/central.json'
 import initialPyramid from '../data/initialPyramid.json'
 import { buildHypotheses, buildInitialState, DEFAULT_POLICY, ECON_INIT } from '../data/loader'
 import corRef from '../data/corReference.json'
+import { applyReform } from '../data/reformLevers'
 import { REFORM_PRESETS } from '../data/reforms'
 import type { InitialPyramid, ScenarioData } from '../data/schema'
 import { project } from './project'
@@ -26,7 +27,13 @@ describe('COR calibration', () => {
   // endpoints — this pins the mid-century, which the raw taper used to overshoot to ~-2.5%.
   it('central tracks the COR EEC solde across all horizons', () => {
     const s = series()
-    const corSolde: Record<number, number> = { 2030: -0.0047, 2040: -0.0076, 2050: -0.0107, 2060: -0.0116, 2070: -0.0139 }
+    const corSolde: Record<number, number> = {
+      2030: -0.0047,
+      2040: -0.0076,
+      2050: -0.0107,
+      2060: -0.0116,
+      2070: -0.0139,
+    }
     for (const [y, target] of Object.entries(corSolde)) {
       expect(at(s, Number(y)).soldePctGdp).toBeCloseTo(target, 3)
     }
@@ -49,14 +56,34 @@ describe('COR calibration', () => {
   })
 
   it('raising the contribution rate improves the long-run solde', () => {
-    const base = project(buildInitialState(pyr), buildHypotheses(data, { contributionRate: 0.28 }), 2070, ECON_INIT)
-    const higher = project(buildInitialState(pyr), buildHypotheses(data, { contributionRate: 0.33 }), 2070, ECON_INIT)
+    const base = project(
+      buildInitialState(pyr),
+      buildHypotheses(data, { contributionRate: 0.28 }),
+      2070,
+      ECON_INIT,
+    )
+    const higher = project(
+      buildInitialState(pyr),
+      buildHypotheses(data, { contributionRate: 0.33 }),
+      2070,
+      ECON_INIT,
+    )
     expect(at(higher, 2070).soldePctGdp).toBeGreaterThan(at(base, 2070).soldePctGdp)
   })
 
   it('higher productivity growth improves the long-run solde', () => {
-    const low = project(buildInitialState(pyr), buildHypotheses(data, { productivity: 0.006 }), 2070, ECON_INIT)
-    const high = project(buildInitialState(pyr), buildHypotheses(data, { productivity: 0.016 }), 2070, ECON_INIT)
+    const low = project(
+      buildInitialState(pyr),
+      buildHypotheses(data, { productivity: 0.006 }),
+      2070,
+      ECON_INIT,
+    )
+    const high = project(
+      buildInitialState(pyr),
+      buildHypotheses(data, { productivity: 0.016 }),
+      2070,
+      ECON_INIT,
+    )
     expect(at(high, 2070).soldePctGdp).toBeGreaterThan(at(low, 2070).soldePctGdp)
   })
 
@@ -69,7 +96,12 @@ describe('COR calibration', () => {
 describe('reform templates vs published estimates', () => {
   const run = (key: string) => {
     const r = REFORM_PRESETS[key]
-    return project(buildInitialState(pyr), buildHypotheses(data, { ...r.delta, schedule: r.schedule }), 2070, ECON_INIT)
+    return project(
+      buildInitialState(pyr),
+      buildHypotheses(data, { ...r.delta, schedule: r.schedule }),
+      2070,
+      ECON_INIT,
+    )
   }
 
   // The lever that prices every age reform. Raw (no legalAgeEffectiveness) the 2023 reform came
@@ -111,5 +143,21 @@ describe('reform templates vs published estimates', () => {
     expect(cost(2025)).toBeCloseTo(0, 6) // applies to pensions taking effect from 01/09/2026
     expect(cost(2027)).toBeLessThan(0) // the freeze bites
     expect(cost(2035)).toBeCloseTo(0, 6) // calendar resumed, 64 ans reached in 2033
+  })
+
+  // Le chemin que suit VRAIMENT l'application : `applyReform`, pas un delta bricolé à la main.
+  it('une réforme de recette vaut sa recette, et rien de plus — le calendrier du droit en vigueur survit', () => {
+    // Le bug : `schedule: preset.schedule` inconditionnel abolissait la montée en charge 2023 pour
+    // les cinq presets sans calendrier, appliquant 64 ans dès 2025 à des générations encore à
+    // 62-63 ans. « Suppression de l'abattement de 10 % » (≈ 0,16 pt de PIB) affichait +0,52 pt en
+    // 2027 : trois fois la mesure dont elle porte le nom.
+    const ref = project(buildInitialState(pyr), buildHypotheses(data, DEFAULT_POLICY), 2070, ECON_INIT)
+    const applied = applyReform(DEFAULT_POLICY, DEFAULT_POLICY, REFORM_PRESETS['abattement-10'])
+    const after = project(buildInitialState(pyr), buildHypotheses(data, applied), 2070, ECON_INIT)
+    expect(applied.schedule).toEqual(DEFAULT_POLICY.schedule)
+    for (const year of [2027, 2030, 2040, 2070]) {
+      const gain = at(after, year).soldePctGdp - at(ref, year).soldePctGdp
+      expect(gain, String(year)).toBeCloseTo(0.0016, 5)
+    }
   })
 })

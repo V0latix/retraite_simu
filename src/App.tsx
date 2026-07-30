@@ -1,11 +1,27 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BASE_YEAR, DEFAULT_POLICY, historicalPyramid } from './data/loader'
-import { REFORM_PRESETS } from './data/reforms'
+import {
+  applyReform,
+  extractReformDelta,
+  hypothesisDefaults,
+  reformDefaults,
+  type ReformMode,
+} from './data/reformLevers'
+import { REFORM_PRESETS, type ReformPreset } from './data/reforms'
 import { SCENARIO_PRESETS } from './data/scenarioPresets'
 import type { ScenarioId } from './data/schema'
 import type { PolicyParams } from './engine/types'
 import { useProjection } from './hooks/useEngine'
-import { type View, countChangedLevers, decodeState, encodeState } from './lib/share'
+import {
+  CUSTOM_KEY_PREFIX,
+  type CustomReform,
+  deleteCustomReform,
+  isStorageAvailable,
+  loadCustomReforms,
+  saveCustomReform,
+  toReformPreset,
+} from './lib/customReforms'
+import { type View, countChangedHypotheses, countChangedLevers, decodeState, encodeState } from './lib/share'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -52,16 +68,26 @@ function App() {
   const [view, setView] = useState<View>(init.view)
   const [scenarioId, setScenarioId] = useState<ScenarioId>(init.scenarioId)
   const [policy, setPolicy] = useState<PolicyParams>(init.policy)
-  const [reformKey, setReformKey] = useState(init.reformKey)
+  const [savedReforms, setSavedReforms] = useState<CustomReform[]>(loadCustomReforms)
+  const [reformMode, setReformMode] = useState<ReformMode>(init.reformMode)
+  // Un lien peut désigner une réforme enregistrée que CET appareil ne connaît pas (localStorage ne
+  // voyage pas). Ses réglages sont dans les params, donc la courbe est juste ; seule l'étiquette
+  // manque — on lâche la clé plutôt que de laisser le sélecteur pointer un item fantôme.
+  const [reformKey, setReformKey] = useState(() =>
+    init.reformKey.startsWith(CUSTOM_KEY_PREFIX) && !savedReforms.some((r) => r.key === init.reformKey)
+      ? ''
+      : init.reformKey,
+  )
+  const [reformName, setReformName] = useState(init.reformName ?? '')
   const [horizon, setHorizon] = useState(init.horizon)
   const [year, setYear] = useState(BASE_YEAR)
   const [copied, setCopied] = useState(false)
 
   // Sync the whole app state into the URL (shareable/reproducible), no re-render.
   useEffect(() => {
-    const qs = encodeState({ view, scenarioId, horizon, policy, reformKey })
+    const qs = encodeState({ view, scenarioId, horizon, policy, reformKey, reformMode, reformName })
     window.history.replaceState(null, '', `?${qs}`)
-  }, [view, scenarioId, horizon, policy, reformKey])
+  }, [view, scenarioId, horizon, policy, reformKey, reformMode, reformName])
 
   const { series, computing } = useProjection(scenarioId, policy, horizon)
 
@@ -73,11 +99,17 @@ function App() {
   )
   const { series: baseline } = useProjection(scenarioId, basePolicy, horizon)
   const changedCount = countChangedLevers(policy, basePolicy)
+  const hypothesisChangedCount = countChangedHypotheses(policy, basePolicy)
 
-  const current = useMemo(
-    () => series.find((r) => r.year === year) ?? series[0],
-    [series, year],
+  // Presets intégrés + réformes enregistrées, même canal : une réforme maison s'applique, se
+  // récapitule et se chiffre exactement comme une loi. Les intégrés écrasent en dernier — le préfixe
+  // `custom:` interdit déjà la collision, ceinture et bretelles.
+  const allPresets = useMemo<Record<string, ReformPreset>>(
+    () => ({ ...Object.fromEntries(savedReforms.map((r) => [r.key, toReformPreset(r)])), ...REFORM_PRESETS }),
+    [savedReforms],
   )
+
+  const current = useMemo(() => series.find((r) => r.year === year) ?? series[0], [series, year])
 
   // Up to 2025 the pyramid is measured (INSEE); beyond, the engine projects it.
   const pyramid = useMemo(() => {
@@ -101,23 +133,72 @@ function App() {
     }
   }, [year, current])
 
-  // Manual slider edit detaches from the selected reform (empty sentinel), like MicroView's setC.
-  // Le calendrier ne saute QUE si l'utilisateur bouge un curseur d'âge ou de durée : ce sont les
-  // deux seuls champs qu'il pilote, et le garder les avalerait silencieusement. Bouger la
-  // productivité ou l'indexation ne doit pas effacer la montée en charge de la réforme 2023.
-  const setP = (p: Partial<PolicyParams>) => {
+  // Deux canaux de curseurs, parce qu'ils ne veulent pas dire la même chose.
+  //
+  // Un LEVIER DE RÉFORME bougé à la main détache de la réforme sélectionnée (sentinelle vide),
+  // comme le `setC` de MicroView : la réforme ne décrit plus ce qu'on regarde. Le calendrier ne
+  // saute QUE si c'est le curseur d'âge ou de durée qui bouge — ce sont les deux seuls champs qu'il
+  // pilote, et le garder les avalerait silencieusement ; bouger l'indexation ou le plafond ne doit
+  // pas effacer la montée en charge du droit en vigueur.
+  const setReformLever = (p: Partial<PolicyParams>) => {
     setReformKey('')
     const breaksCalendar = p.legalAge !== undefined || p.requiredQuarters !== undefined
     setPolicy((prev) => ({ ...prev, ...p, ...(breaksCalendar ? { schedule: undefined } : {}) }))
   }
 
-  // Selecting a turnkey reform applies its PolicyParams delta in one go (same merge channel),
-  // plus its phase-in calendar when it has one (a law, as opposed to a debate proposal).
+  // Une HYPOTHÈSE (ou un risque macro) ne touche pas à la réforme : elle décrit le monde dans lequel
+  // la réforme est chiffrée, pas la réforme. Bouger la fécondité doit laisser « Réforme 2023 »
+  // sélectionnée et son récapitulatif à l'écran.
+  const setHypothesis = (p: Partial<PolicyParams>) => setPolicy((prev) => ({ ...prev, ...p }))
+
+  // Appliquer une réforme clés en main est un REMPLACEMENT, pas une couche : `applyReform` remet
+  // d'abord tous les leviers de réforme sur la référence du scénario. Sans ça, « Réforme 2023 »
+  // choisie après un essai de plafonnement chiffrait « réforme 2023 + plafond » sous le nom de la
+  // seule réforme 2023. Les hypothèses et les risques, eux, sont conservés : ils ont leurs cartes.
   const onReform = (key: string) => {
-    const preset = REFORM_PRESETS[key]
+    const preset = allPresets[key]
     if (!preset) return
     setReformKey(key)
-    setPolicy((prev) => ({ ...prev, ...preset.delta, schedule: preset.schedule }))
+    setReformMode('preset')
+    setPolicy((prev) => applyReform(prev, basePolicy, preset))
+  }
+
+  // Passer en sur mesure EST le fork : la policy ne bouge pas (donc la courbe non plus), on lâche
+  // seulement le nom de la réforme, qui ne décrirait plus ce qu'on va régler. Le bouton « Partir de
+  // cette réforme → » n'est que l'affordance nommée de cette même transition.
+  const onCustomMode = () => {
+    setReformMode('custom')
+    setReformKey('')
+  }
+
+  // Retour vers la liste sans rien perdre : le mode est un état de vue, il n'écrit pas la policy.
+  const onPresetMode = () => setReformMode('preset')
+
+  // Deux réinitialisations, une par carte : celle d'avant vivait sous le titre « Leviers de
+  // réforme » tout en remettant aussi la fécondité et la migration.
+  const onResetReform = () => {
+    setReformKey('')
+    setPolicy((prev) => ({ ...prev, ...reformDefaults(basePolicy), schedule: basePolicy.schedule }))
+  }
+  const onResetHypotheses = () => setPolicy((prev) => ({ ...prev, ...hypothesisDefaults(basePolicy) }))
+
+  // Âge, durée et calendrier reviennent ENSEMBLE : restaurer le calendrier en laissant le curseur à
+  // 60 ans le laisserait l'emporter pour les gén. 1960-1968 (et clamper au-delà), le curseur
+  // deviendrait un mensonge.
+  const onRestoreCalendar = () =>
+    setPolicy((prev) => ({
+      ...prev,
+      legalAge: basePolicy.legalAge,
+      requiredQuarters: basePolicy.requiredQuarters,
+      schedule: basePolicy.schedule,
+    }))
+
+  const onSaveReform = (name: string) => {
+    setSavedReforms(saveCustomReform(name, extractReformDelta(policy, basePolicy)))
+  }
+  const onDeleteReform = (key: string) => {
+    setSavedReforms(deleteCustomReform(key))
+    if (reformKey === key) setReformKey('') // ne jamais pointer un item disparu
   }
 
   // Un scénario = un jeu de positions de curseurs : le choisir les déplace sous les yeux de
@@ -128,19 +209,12 @@ function App() {
     setPolicy((prev) => ({ ...prev, ...SCENARIO_PRESETS[id] }))
   }
 
-  // Back to the scenario's own reference trajectory (same baseline the delta is measured against).
-  const onReset = () => {
-    setReformKey('')
-    setPolicy(basePolicy)
-  }
-
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 text-foreground">
       <header className="mb-6">
         <h1 className="text-2xl font-bold">Simulateur de retraite — France</h1>
         <p className="text-sm text-muted-foreground">
-          Modèle macro + micro sur données INSEE (Projections 2021-2070), finance
-          calée COR.
+          Modèle macro + micro sur données INSEE (Projections 2021-2070), finance calée COR.
         </p>
       </header>
 
@@ -167,107 +241,123 @@ function App() {
       {view === 'stochastique' && <StochasticView policy={policy} />}
 
       {view === 'macro' && (
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-        {/* `self-start` is what makes `sticky` work here: without it the grid item is
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          {/* `self-start` is what makes `sticky` work here: without it the grid item is
             stretched to the row height and never scrolls past its own container. */}
-        <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
-          <Levers
-            scenarioId={scenarioId}
-            policy={policy}
-            horizon={horizon}
-            reformKey={reformKey}
-            changedCount={changedCount}
-            onScenario={onScenario}
-            onPolicy={setP}
-            onReform={onReform}
-            onHorizon={setHorizon}
-            onReset={onReset}
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className="w-full"
-            onClick={() => {
-              navigator.clipboard?.writeText(window.location.href)
-              setCopied(true)
-              setTimeout(() => setCopied(false), 2000)
-            }}
-          >
-            {copied ? 'Copié !' : 'Copier le lien (scénario + leviers)'}
-          </Button>
-        </aside>
-
-        <main className="min-w-0 space-y-6">
-          <KpiStrip series={series} baseline={baseline} changedCount={changedCount} computing={computing} />
-
-          <section>
-            {series.length > 0 ? (
-              <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
-                <MacroCharts
-                  series={series}
-                  scenario={scenarioId}
-                  realInterestRate={policy.realInterestRate}
-                  workerExodus={policy.workerExodus}
-                  frrFlowPct={policy.frrFlowPct}
-                  pensionCap={policy.pensionCap}
-                />
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true">
-                <Skeleton className="h-72" />
-                <Skeleton className="h-72" />
-                <Skeleton className="h-72 md:col-span-2" />
-              </div>
-            )}
-          </section>
-
-          <section>
-            <SectionTitle
-              aside={
-                <span className="text-xs text-muted-foreground tabular-nums">
-                  {computing ? 'Calcul…' : `${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'} pour 100 actifs`}
-                </span>
-              }
-            >
-              Pyramide des âges — {year} {pyramid?.observed ? '(observée)' : '(projetée)'}
-            </SectionTitle>
-            <Slider
-              min={PYRAMID_FROM}
-              max={horizon}
-              value={[year]}
-              onValueChange={([v]) => setYear(v)}
-              aria-label="Année de la pyramide des âges"
-              className="my-2"
+          <aside className="space-y-4 lg:sticky lg:top-4 lg:max-h-[calc(100vh-2rem)] lg:self-start lg:overflow-y-auto lg:pr-1">
+            <Levers
+              scenarioId={scenarioId}
+              policy={policy}
+              basePolicy={basePolicy}
+              horizon={horizon}
+              reformKey={reformKey}
+              reformMode={reformMode}
+              reformName={reformName}
+              presets={allPresets}
+              savedReforms={savedReforms}
+              canSaveReforms={isStorageAvailable()}
+              hypothesisChangedCount={hypothesisChangedCount}
+              onScenario={onScenario}
+              onPolicy={setReformLever}
+              onHypothesis={setHypothesis}
+              onReform={onReform}
+              onCustomMode={onCustomMode}
+              onPresetMode={onPresetMode}
+              onHorizon={setHorizon}
+              onResetHypotheses={onResetHypotheses}
+              onResetReform={onResetReform}
+              onRestoreCalendar={onRestoreCalendar}
+              onReformName={setReformName}
+              onSaveReform={onSaveReform}
+              onDeleteReform={onDeleteReform}
             />
-            <div className="mb-3 flex justify-between text-[11px] text-muted-foreground">
-              <span>{PYRAMID_FROM} — création du régime général</span>
-              <span>observé jusqu'à {PYRAMID_LAST_OBSERVED}, projeté ensuite</span>
-              <span>{horizon}</span>
-            </div>
-            {pyramid && <Pyramid {...pyramid} />}
-          </section>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => {
+                navigator.clipboard?.writeText(window.location.href)
+                setCopied(true)
+                setTimeout(() => setCopied(false), 2000)
+              }}
+            >
+              {copied ? 'Copié !' : 'Copier le lien (scénario + leviers)'}
+            </Button>
+          </aside>
 
-          <Card className="gap-1 p-4 text-sm">
-            <details>
-              <summary className="cursor-pointer font-semibold select-none">Qu'est-ce que le COR ?</summary>
-              <p className="mt-2 text-muted-foreground">
-                Le <b>Conseil d'orientation des retraites</b> est l'organisme public qui, depuis 2000, projette
-                l'équilibre du système de retraite français et publie chaque année le rapport de référence. Ce
-                simulateur cale ses trajectoires financières sur le rapport COR de juin 2025.{' '}
-                <a
-                  href="https://fr.wikipedia.org/wiki/Conseil_d%27orientation_des_retraites"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-medium text-primary underline underline-offset-2"
-                >
-                  En savoir plus (Wikipédia)
-                </a>
-              </p>
-            </details>
-          </Card>
-        </main>
-      </div>
+          <main className="min-w-0 space-y-6">
+            <KpiStrip series={series} baseline={baseline} changedCount={changedCount} computing={computing} />
+
+            <section>
+              {series.length > 0 ? (
+                <div className={computing ? 'opacity-60 transition-opacity' : 'transition-opacity'}>
+                  <MacroCharts
+                    series={series}
+                    scenario={scenarioId}
+                    realInterestRate={policy.realInterestRate}
+                    workerExodus={policy.workerExodus}
+                    frrFlowPct={policy.frrFlowPct}
+                    pensionCap={policy.pensionCap}
+                  />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2" aria-busy="true">
+                  <Skeleton className="h-72" />
+                  <Skeleton className="h-72" />
+                  <Skeleton className="h-72 md:col-span-2" />
+                </div>
+              )}
+            </section>
+
+            <section>
+              <SectionTitle
+                aside={
+                  <span className="text-xs text-muted-foreground tabular-nums">
+                    {computing
+                      ? 'Calcul…'
+                      : `${pyramid ? (pyramid.dependency * 100).toFixed(0) : '–'} pour 100 actifs`}
+                  </span>
+                }
+              >
+                Pyramide des âges — {year} {pyramid?.observed ? '(observée)' : '(projetée)'}
+              </SectionTitle>
+              <Slider
+                min={PYRAMID_FROM}
+                max={horizon}
+                value={[year]}
+                onValueChange={([v]) => setYear(v)}
+                aria-label="Année de la pyramide des âges"
+                className="my-2"
+              />
+              <div className="mb-3 flex justify-between text-[11px] text-muted-foreground">
+                <span>{PYRAMID_FROM} — création du régime général</span>
+                <span>observé jusqu'à {PYRAMID_LAST_OBSERVED}, projeté ensuite</span>
+                <span>{horizon}</span>
+              </div>
+              {pyramid && <Pyramid {...pyramid} />}
+            </section>
+
+            <Card className="gap-1 p-4 text-sm">
+              <details>
+                <summary className="cursor-pointer font-semibold select-none">Qu'est-ce que le COR ?</summary>
+                <p className="mt-2 text-muted-foreground">
+                  Le <b>Conseil d'orientation des retraites</b> est l'organisme public qui, depuis 2000,
+                  projette l'équilibre du système de retraite français et publie chaque année le rapport de
+                  référence. Ce simulateur cale ses trajectoires financières sur le rapport COR de juin 2025.{' '}
+                  <a
+                    href="https://fr.wikipedia.org/wiki/Conseil_d%27orientation_des_retraites"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="font-medium text-primary underline underline-offset-2"
+                  >
+                    En savoir plus (Wikipédia)
+                  </a>
+                </p>
+              </details>
+            </Card>
+          </main>
+        </div>
       )}
     </div>
   )
