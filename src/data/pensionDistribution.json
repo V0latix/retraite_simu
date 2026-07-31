@@ -1,8 +1,43 @@
 {
   "meta": {
-    "note": "APPROXIMATIF, saisi à la main — même statut que pensionParams.json. Pension brute mensuelle totale (droit direct + réversion), tous régimes, retraités résidant en France. Chaque valeur est la moyenne d'un dixième de la population retraitée, exprimée EN RATIO À LA MOYENNE et non en euros : la table suit ainsi automatiquement la pension moyenne projetée par le moteur, sans avoir à réconcilier les champs statistiques (COR 1 770 €/mois « ensemble des retraités », DREES 1 666 € « droit direct », 18 480 €/an dans systemParams). Somme = 10 par construction.",
-    "source": "DREES, « Les retraités et les retraites », édition 2025 (montants au 31/12/2023) — distribution reconstituée à partir des déciles publiés puis normalisée à la moyenne. Ordres de grandeur en euros avant normalisation : 500 / 850 / 1 100 / 1 330 / 1 550 / 1 780 / 2 050 / 2 400 / 2 950 / 4 500 €/mois, soit un rapport interdécile D10/D1 ≈ 9.",
+    "note": "APPROXIMATIF, recopié à la main — même statut que pensionParams.json. Distribution des pensions par tranches de 100 €, exprimée EN RATIO À LA MOYENNE de la table elle-même (1 548 €/mois) et non en euros : la table suit ainsi automatiquement la pension moyenne projetée par le moteur, sans avoir à réconcilier les champs statistiques (COR 1 770 €/mois « ensemble des retraités », DREES 1 666 € « droit direct », 18 480 €/an dans systemParams).",
+    "champ": "Pension brute mensuelle de DROIT DIRECT (y c. majoration pour trois enfants ou plus), tous régimes — la réversion n'y est pas. C'est un champ plus étroit que l'ancienne table de déciles (ensemble droit direct + réversion) : le bas de la distribution est nettement plus épais (D1 ≈ 0,15 × la moyenne contre 0,26 ; D10/D1 ≈ 16 contre 9). La queue haute, celle qui chiffre le plafonnement, coïncide à ~5 % près (D9 1,57 vs 1,55 ; D10 2,48 vs 2,37).",
+    "tranches": "Les libellés de la fiche sont lus comme des BORNES HAUTES : « < 100 » = [0, 100), « 200 » = [100, 200), …, « 4400 » = [4300, 4400), puis un dernier seau OUVERT (1,7 % des retraités). La fiche libelle ce dernier « > 4500 » — décalage d'une tranche dans la recopie, sans effet à cette échelle. `edge` porte la borne haute de chaque tranche, `ratio` son milieu ; pour le seau ouvert les deux valent sa moyenne.",
+    "seauOuvert": "Le seau ouvert est représenté par sa moyenne, posée à 4 400 × 1,5 = 6 600 €/mois — queue de Pareto d'indice α = 3, ordre de grandeur usuel pour une queue haute de revenus, moyenne = seuil × α/(α−1). C'est la LIMITE RÉSIDUELLE du chiffrage du plafonnement : un plafond posé au-dessus de 4 400 € traite ces 1,7 % comme concentrés sur 6 600 €, donc à la louche. En dessous, l'écrêtement est chiffré sur 44 tranches de 100 € et non plus sur 10 déciles concentrés sur leur moyenne. Découper ce seau en une vraie queue de Pareto si le plafond doit devenir autre chose qu'un ordre de grandeur au-delà de 4 400 €.",
+    "parts": "`share` reprend VERBATIM les pourcentages de la fiche, colonne par colonne — la colonne Hommes y somme à 99,6 et non 100. La normalisation à 100 se fait à la lecture (loader.ts), pour que le JSON reste une transcription vérifiable de la source.",
+    "transposition": "Comme la table est en RATIO à sa propre moyenne (1 548 €), elle est étirée sur l'échelle du moteur (1 770 €/mois en base, niveau COR « ensemble des retraités ») : tous les montants affichés sont donc ~14 % au-dessus de ceux de la fiche. C'est le prix de la non-réconciliation des champs, et c'est ce qui garantit que la moyenne de la courbe égale exactement la pension moyenne projetée — sans quoi le rapport d'écrêtement porterait sur une distribution autre que celle qui porte la masse. Effet de bord notable : la queue haute est étirée du même facteur, donc le chiffrage d'un plafond élevé s'en ressent (plafond à 4 000 € en 2040 : ≈ 15 Md€ contre ≈ 6 Md€ sur l'ancienne grille — l'ancienne écrasait tout le dernier décile sur sa moyenne, 4 331 €, et ne rognait donc presque rien).",
+    "source": "DREES, « Les retraités et les retraites », édition 2025, fiche 05 « Le niveau des pensions » (montants au 31/12/2023). Table reproduite dans docs/REPARTITION_MONTANT_RETRAITE.md. Attention : la section « Analyse des seuils » de ce document (25,8 % sous 1 000 €, 47,6 % sous 1 500 €) NE se déduit PAS de la table, qui donne 33,3 % et 55,5 % — c'est la table qui fait foi ici. Une fois transposée sur l'échelle du moteur, la courbe donne 22,8 % et 46,3 % en 2025, soit fortuitement très proche de la section « seuils ».",
     "retrieved": "2026-07-29"
   },
-  "deciles": [0.263, 0.447, 0.579, 0.7, 0.815, 0.936, 1.078, 1.262, 1.552, 2.368]
+  "brackets": {
+    "edge": [
+      0.065, 0.129, 0.194, 0.258, 0.323, 0.387, 0.452, 0.517, 0.581, 0.646, 0.71, 0.775, 0.84,
+      0.904, 0.969, 1.033, 1.098, 1.162, 1.227, 1.292, 1.356, 1.421, 1.485, 1.55, 1.615, 1.679,
+      1.744, 1.808, 1.873, 1.937, 2.002, 2.067, 2.131, 2.196, 2.26, 2.325, 2.389, 2.454, 2.519,
+      2.583, 2.648, 2.712, 2.777, 2.842, 4.262
+    ],
+    "ratio": [
+      0.032, 0.097, 0.161, 0.226, 0.291, 0.355, 0.42, 0.484, 0.549, 0.614, 0.678, 0.743, 0.807,
+      0.872, 0.936, 1.001, 1.066, 1.13, 1.195, 1.259, 1.324, 1.388, 1.453, 1.518, 1.582, 1.647,
+      1.711, 1.776, 1.841, 1.905, 1.97, 2.034, 2.099, 2.163, 2.228, 2.293, 2.357, 2.422, 2.486,
+      2.551, 2.616, 2.68, 2.745, 2.809, 4.262
+    ],
+    "share": {
+      "total": [
+        1.2, 2.5, 3.1, 3.1, 2.9, 3.0, 3.1, 3.9, 5.4, 5.1, 4.3, 4.3, 4.4, 4.6, 4.6, 4.4, 4.0, 3.7,
+        3.4, 3.3, 3.3, 2.7, 2.4, 2.1, 1.8, 1.6, 1.4, 1.2, 1.1, 0.9, 0.8, 0.7, 0.6, 0.5, 0.4, 0.5,
+        0.3, 0.3, 0.3, 0.3, 0.2, 0.2, 0.2, 0.2, 1.7
+      ],
+      "femmes": [
+        1.7, 4.1, 5.2, 5.0, 4.6, 4.6, 4.7, 5.8, 7.4, 6.3, 4.8, 4.6, 4.4, 4.2, 3.8, 3.3, 2.9, 2.6,
+        2.5, 2.4, 2.4, 2.0, 1.7, 1.5, 1.3, 1.0, 0.8, 0.7, 0.6, 0.5, 0.4, 0.3, 0.3, 0.2, 0.2, 0.2,
+        0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.0, 0.3
+      ],
+      "hommes": [
+        0.7, 0.7, 0.7, 0.8, 0.9, 1.0, 1.2, 1.7, 3.1, 3.7, 3.6, 3.9, 4.3, 5.0, 5.5, 5.6, 5.3, 4.9,
+        4.5, 4.3, 4.3, 3.6, 3.2, 2.9, 2.5, 2.3, 2.1, 1.8, 1.6, 1.4, 1.2, 1.1, 1.0, 0.8, 0.8, 0.7,
+        0.6, 0.6, 0.5, 0.5, 0.4, 0.4, 0.3, 0.3, 3.3
+      ]
+    }
+  }
 }

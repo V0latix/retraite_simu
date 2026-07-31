@@ -38,11 +38,12 @@ export interface EconInit {
   /** Reference legal age the effectiveness damping anchors to: at this age the deviation is
    *  zero, so the COR calibration is untouched (same trick as quartersRef). */
   legalAgeRef: number
-  /** Distribution des pensions par décile, en ratio à la moyenne (Σ = 10, une valeur par
-   *  dixième de la population retraitée). Sert uniquement au levier `pensionCap` : sans
-   *  plafond elle n'est jamais lue, la trajectoire de référence est donc inchangée.
+  /** Distribution des pensions par tranches de 100 € (table DREES) : `ratio[i]` = montant
+   *  représentatif de la tranche en ratio à la moyenne, `share[i]` = part des retraités qui
+   *  s'y trouvent, en % (Σ = 100). Sert au levier `pensionCap` et au graphe de répartition ;
+   *  sans plafond la masse n'en dépend pas, la trajectoire de référence est donc inchangée.
    *  Donnée, jamais en dur — voir pensionDistribution.json. */
-  pensionDeciles: number[]
+  pensionBrackets: { ratio: number[]; share: number[] }
   /** Pension brute moyenne OBSERVÉE à l'année de base, en €/mois. Sert d'échelle au plafond,
    *  qui est en euros réels : `benefits / retirees` ne convient pas (le modèle compte plus de
    *  retraités que le champ administratif, et hérite du multiplicateur de calage COR), et
@@ -72,7 +73,13 @@ const DEFAULT_ECON: EconInit = {
   quartersRef: 172,
   legalAgeEffectiveness: 0.26,
   legalAgeRef: 64,
-  pensionDeciles: [0.263, 0.447, 0.579, 0.7, 0.815, 0.936, 1.078, 1.262, 1.552, 2.368],
+  // Repli grossier : 10 déciles équipondérés, pas les 45 tranches DREES. Tous les appelants
+  // réels passent ECON_INIT (loader.ts), qui porte la vraie table ; ce défaut n'existe que pour
+  // qu'un project() nu reste exécutable, et il ne sert qu'au levier `pensionCap`.
+  pensionBrackets: {
+    ratio: [0.263, 0.447, 0.579, 0.7, 0.815, 0.936, 1.078, 1.262, 1.552, 2.368],
+    share: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10],
+  },
   avgPensionObservedMonthly: 1770,
 }
 
@@ -244,25 +251,31 @@ export function project(
     // dérivée avec la dynamique du modèle (noria + indexation, portée par avgPension). On tronque
     // chaque décile au plafond et on applique la part conservée à la masse — un rapport, donc
     // insensible au calage COR appliqué juste au-dessus.
-    // ponytail: 10 seaux, pas de loi paramétrique. Plafond connu : chaque décile est traité comme
-    // s'il était concentré sur sa moyenne, ce qui écrase la queue haute — un plafond posé À
-    // L'INTÉRIEUR du dernier décile (là où la distribution est la plus étalée) est donc chiffré à
-    // la louche. Passer à une lognormale calée sur les mêmes déciles si le plafond doit devenir
-    // autre chose qu'un ordre de grandeur, ou s'il faut l'exprimer en percentile.
-    // Les montants par décile sont produits dans tous les cas (pas seulement sous plafond) :
-    // c'est ce tableau que le graphe à boîtes affiche, et le calculer ici plutôt que dans l'UI
-    // garantit que la boîte dessinée et le solde affiché décrivent le même écrêtement.
+    // ponytail: 44 tranches de 100 € + un seau ouvert, pas de loi paramétrique. Limite résiduelle :
+    // ce dernier seau (1,7 % des retraités au-delà de 4 400 €) est traité comme concentré sur sa
+    // moyenne, donc un plafond posé AU-DESSUS de 4 400 € est chiffré à la louche. En dessous,
+    // l'écrêtement porte sur des tranches de 100 € — voir pensionDistribution.json `meta`.
+    // La courbe est produite dans tous les cas (pas seulement sous plafond) : c'est elle que le
+    // graphe de répartition affiche, et la calculer ici plutôt que dans l'UI garantit que la
+    // courbe dessinée et le solde affiché décrivent le même écrêtement.
     const avgMonthly = econ.avgPensionObservedMonthly * (avgPension / econ.avgAnnualPension)
     const cap = p.pensionCap && p.pensionCap > 0 ? p.pensionCap : 0
-    const deciles = cap > 0
-      ? econ.pensionDeciles.map((ratio) => Math.min(ratio * avgMonthly, cap))
-      : econ.pensionDeciles.map((ratio) => ratio * avgMonthly)
+    const { ratio: pRatio, share: pShare } = econ.pensionBrackets
+    const pensionCurve = cap > 0
+      ? pRatio.map((r) => Math.min(r * avgMonthly, cap))
+      : pRatio.map((r) => r * avgMonthly)
     let capFactor = 1
     if (cap > 0 && avgMonthly > 0) {
-      // Sans plafond on NE recalcule pas ce rapport : Σ(r·a)/(10·a) ne rend pas exactement 1 en
-      // flottant, et le moindre ulp sur `benefits` décalerait la trajectoire de référence calée
-      // sur le COR. Hors plafond, le facteur est 1 par construction.
-      capFactor = deciles.reduce((s, v) => s + v, 0) / (deciles.length * avgMonthly)
+      // Sans plafond on NE recalcule pas ce rapport : Σ(share·ratio·a)/(Σ share·a) ne rend pas
+      // exactement 1 en flottant, et le moindre ulp sur `benefits` décalerait la trajectoire de
+      // référence calée sur le COR. Hors plafond, le facteur est 1 par construction.
+      let kept = 0
+      let full = 0
+      for (let b = 0; b < pensionCurve.length; b++) {
+        kept += pShare[b] * pensionCurve[b]
+        full += pShare[b] * pRatio[b] * avgMonthly
+      }
+      capFactor = full > 0 ? kept / full : 1
       benefits *= capFactor
     }
 
@@ -294,7 +307,8 @@ export function project(
       // calage COR (qui pilote la masse, pas le montant individuel) mais APRÈS écrêtement.
       // C'est la série qui porte la dynamique du montant : indexation, noria, plafonnement.
       avgPension: avgPension * capFactor,
-      pensionDeciles: deciles,
+      pensionCurve,
+      pensionScale: avgMonthly,
       wageBill,
       contributions,
       benefits,

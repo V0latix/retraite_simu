@@ -73,7 +73,7 @@ export interface PolicyParams {
    *  move from contributors to retirees. Absent ⇒ 0 ⇒ uniform exit age (reference unchanged). */
   earlyRetirementShare?: number
   /** Plafond de pension brute, en €/mois. L'écrêtement porte sur la part de la masse au-dessus
-   *  du plafond, calculée sur la distribution par décile (`EconInit.pensionDeciles`).
+   *  du plafond, calculée sur la distribution par tranches (`EconInit.pensionBrackets`).
    *  Absent ou 0 ⇒ aucun plafonnement ⇒ trajectoire de référence inchangée. */
   pensionCap?: number
   /** Reform calendar: a real law phases in by birth cohort (2023: +3 months per génération,
@@ -118,11 +118,18 @@ export interface YearResult {
   /** Pension brute moyenne, euros constants annuels. Avant le multiplicateur de calage COR
    *  (qui pilote la masse, pas le montant individuel), après écrêtement `pensionCap`. */
   avgPension: number
-  /** Pension brute MENSUELLE de chaque dixième de retraités, euros constants, après écrêtement.
-   *  Au niveau observé (échelle `EconInit.avgPensionObservedMonthly`) — donc à un facteur près
-   *  de `avgPension`, qui porte lui l'échelle interne du bloc finance. Sert au graphe de
-   *  répartition ; c'est le tableau même sur lequel le plafond a été chiffré. */
-  pensionDeciles: number[]
+  /** Montant brut MENSUEL de chaque tranche de la distribution (`EconInit.pensionBrackets`),
+   *  euros constants, après écrêtement. Au niveau observé (échelle
+   *  `EconInit.avgPensionObservedMonthly`) — donc à un facteur près de `avgPension`, qui porte
+   *  lui l'échelle interne du bloc finance. Les parts qui pondèrent ces montants sont dans la
+   *  donnée, elles ne varient pas dans le temps. Sert au graphe de répartition ; c'est le
+   *  tableau même sur lequel le plafond a été chiffré, la courbe et le solde ne peuvent donc
+   *  pas décrire deux écrêtements différents. */
+  pensionCurve: number[]
+  /** Pension brute moyenne MENSUELLE au niveau observé, avant écrêtement — l'échelle sur
+   *  laquelle la distribution est posée cette année-là. Sert à l'UI pour dériver des courbes
+   *  d'affichage (femmes/hommes) que le moteur ne projette pas lui-même. */
+  pensionScale: number
   wageBill: number
   contributions: number
   benefits: number

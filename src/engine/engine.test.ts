@@ -1,10 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import central from '../data/scenarios/central.json'
 import initialPyramid from '../data/initialPyramid.json'
-import { buildHypotheses, buildInitialState, ECON_INIT } from '../data/loader'
+import { buildHypotheses, buildInitialState, ECON_INIT, pensionBrackets } from '../data/loader'
 import type { InitialPyramid, ScenarioData } from '../data/schema'
 import { stepDemography } from './demography'
 import { project } from './project'
+import type { PolicyParams } from './types'
 
 const pyr = initialPyramid as InitialPyramid
 const data = central as unknown as ScenarioData
@@ -216,7 +217,7 @@ describe('fractional legal age + reform calendars', () => {
     const run = (pensionCap?: number) =>
       project(state0(), buildHypotheses(data, { pensionCap }), 2040, ECON_INIT).at(-1)!
     const none = run()
-    // Un plafond au-dessus du dernier décile (2,368 × la moyenne, ~4 400 €/mois ici) ne mord pas.
+    // Un plafond au-dessus de la dernière tranche (4,262 × la moyenne) ne mord pas.
     expect(run(50_000).benefits).toBeCloseTo(none.benefits, 6)
     // Plus le plafond descend, plus la masse baisse — strictement et de façon monotone.
     const at4000 = run(4000).benefits
@@ -226,25 +227,48 @@ describe('fractional legal age + reform calendars', () => {
     expect(run(2000).soldePctGdp).toBeGreaterThan(none.soldePctGdp)
   })
 
-  it('les déciles publiés décrivent le MÊME écrêtement que la masse (le graphe ne ment pas)', () => {
+  it('la courbe publiée décrit le MÊME écrêtement que la masse (le graphe ne ment pas)', () => {
     const run = (pensionCap?: number) =>
       project(state0(), buildHypotheses(data, { pensionCap }), 2040, ECON_INIT).at(-1)!
     const none = run()
-    const mean = (d: number[]) => d.reduce((s, v) => s + v, 0) / d.length
-    // Hors plafond, la distribution est croissante et sa moyenne retombe sur le niveau observé
-    // servant d'échelle (1 770 €/mois en base, dérivé par le noria).
-    expect(none.pensionDeciles).toHaveLength(10)
-    for (let i = 1; i < 10; i++) expect(none.pensionDeciles[i]).toBeGreaterThan(none.pensionDeciles[i - 1])
-    // Sous plafond : aucun décile ne dépasse le plafond, et la baisse de la moyenne des déciles
-    // est exactement celle de la masse versée. C'est ce qui autorise le graphe à boîtes à
-    // illustrer le levier — sinon la boîte et le solde raconteraient deux histoires.
+    const { ratio, share } = pensionBrackets
+    // Moyenne pondérée par les parts — la courbe n'est plus équipondérée comme des déciles.
+    const mean = (c: number[]) => c.reduce((s, v, i) => s + (share.total[i] * v) / 100, 0)
+    // Hors plafond : une valeur par tranche, croissante, et la moyenne retombe sur l'échelle
+    // publiée par le moteur (le niveau observé dérivé par le noria).
+    expect(none.pensionCurve).toHaveLength(ratio.length)
+    for (let i = 1; i < ratio.length; i++)
+      expect(none.pensionCurve[i]).toBeGreaterThan(none.pensionCurve[i - 1])
+    // À 10⁻⁴ près et non à l'euro : les ratios sont arrondis à trois décimales dans le JSON, la
+    // table ne somme donc pas exactement à sa propre moyenne. Sans conséquence — hors plafond le
+    // moteur ne lit pas ce rapport, il pose capFactor = 1 (voir le test suivant).
+    expect(Math.abs(mean(none.pensionCurve) / none.pensionScale - 1)).toBeLessThan(1e-4)
+    // Sous plafond : aucune tranche ne dépasse le plafond, et la baisse de la moyenne pondérée
+    // est exactement celle de la masse versée. C'est ce qui autorise le graphe de répartition à
+    // illustrer le levier — sinon la courbe et le solde raconteraient deux histoires.
     for (const cap of [4000, 3000, 2000]) {
       const capped = run(cap)
-      for (const d of capped.pensionDeciles) expect(d).toBeLessThanOrEqual(cap + 1e-9)
-      expect(mean(capped.pensionDeciles) / mean(none.pensionDeciles)).toBeCloseTo(
+      for (const d of capped.pensionCurve) expect(d).toBeLessThanOrEqual(cap + 1e-9)
+      expect(mean(capped.pensionCurve) / mean(none.pensionCurve)).toBeCloseTo(
         capped.benefits / none.benefits,
         9,
       )
+    }
+  })
+
+  it('sans plafond, la distribution ne touche NI la masse NI le solde (calage COR intact)', () => {
+    // Le garde-fou du calage : `capFactor` doit rester 1 par construction, pas « 1 au flottant
+    // près ». Un ulp sur benefits décalerait la trajectoire de référence calée sur le COR — c'est
+    // la raison pour laquelle le rapport n'est pas recalculé hors plafond.
+    const run = (p: Partial<PolicyParams>) => project(state0(), buildHypotheses(data, p), 2070, ECON_INIT)
+    const ref = run({})
+    for (const p of [{ pensionCap: 0 }, { pensionCap: undefined }]) {
+      const s = run(p)
+      for (let i = 0; i < ref.length; i++) {
+        expect(s[i].benefits).toBe(ref[i].benefits)
+        expect(s[i].soldePctGdp).toBe(ref[i].soldePctGdp)
+        expect(s[i].avgPension).toBe(ref[i].avgPension)
+      }
     }
   })
 })

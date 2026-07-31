@@ -20,6 +20,22 @@ export const historical = historicalJson as HistoricalData
 export const historicalPyramid = historicalPyramidJson as HistoricalPyramid
 export const LAST_OBSERVED_YEAR = historical.lastObserved
 
+/**
+ * Distribution des pensions par tranches de 100 € (DREES fiche 05). Le JSON garde les parts
+ * VERBATIM de la fiche — la colonne Hommes y somme à 99,6 — pour rester une transcription
+ * vérifiable ; la normalisation à 100 est faite ici, une fois, pour les trois colonnes.
+ * `ratio`/`edge` sont en ratio à la moyenne de la table : mis à l'échelle par
+ * `YearResult.pensionScale`, ils suivent la pension moyenne projetée.
+ */
+export const pensionBrackets = (() => {
+  const { edge, ratio, share } = pensionDistributionJson.brackets
+  const norm = (col: number[]) => {
+    const s = col.reduce((a, b) => a + b, 0)
+    return col.map((v) => (v * 100) / s)
+  }
+  return { edge, ratio, share: { total: norm(share.total), femmes: norm(share.femmes), hommes: norm(share.hommes) } }
+})()
+
 /** Published DREES/COR reference indicators (context/validation, §4). */
 export const referenceIndicators = referenceIndicatorsJson as ReferenceIndicators
 
@@ -50,7 +66,7 @@ const ECON_SEEDS: EconInit = {
   quartersRef: params.policy.requiredQuarters,
   legalAgeEffectiveness: params.calibration.legalAgeEffectiveness,
   legalAgeRef: params.calibration.legalAgeRef,
-  pensionDeciles: pensionDistributionJson.deciles,
+  pensionBrackets: { ratio: pensionBrackets.ratio, share: pensionBrackets.share.total },
   avgPensionObservedMonthly: params.init.avgPensionObservedMonthly,
   depensesShareBase: params.calibration.depensesShareBase,
   soldeShareBase: params.calibration.soldeShareBase,
