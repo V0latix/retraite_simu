@@ -4,6 +4,8 @@
 // moteur : elle vit donc ici, à côté de REFORM_PRESETS, et non dans `src/engine/types.ts` qui reste
 // framework-free et sans notion d'UI. Pur, sans React, sans JSX — `src/lib/share.ts` l'importe.
 import { formatAge, scheduleSummary, type ReformPreset } from './reforms'
+import { clamp } from '../lib/clamp'
+import { parseFrNumber } from '../lib/format'
 import type { Indexation, PolicyAnchor, PolicyParams } from '../engine/types'
 
 /**
@@ -50,15 +52,63 @@ export const INDEXATION_LABELS: Record<Indexation, string> = {
  * les deux ne peuvent pas dire la même valeur de deux façons.
  * Les `hint` pédagogiques restent dans `Levers.tsx` : c'est du JSX, ça n'a rien à faire ici.
  */
-export interface LeverSpec {
-  key: ReformLeverKey
+/**
+ * Comment la valeur se tape à la main, le champ de saisie derrière la valeur affichée.
+ * `fmt` ne peut pas servir ici : il produit du texte de lecture, pas un nombre saisissable
+ * (« aucun », « 64 ans 3 mois », « −50 000/an », espaces insécables), et beaucoup de leviers sont
+ * stockés en fraction. D'où cette seconde description, minimale : `v * scale` est le nombre montré
+ * dans le champ, et ce qu'on y tape repasse au modèle par une division.
+ */
+export interface EditSpec {
+  /** Facteur modèle → saisie. 100 pour les taux stockés en fraction, 1 sinon. */
+  scale: number
+  /** Suffixe posé à droite du champ : l'unité dans laquelle on TAPE, pas celle de `fmt`. */
+  unit: string
+  /** Décimales à l'affichage du champ. La valeur saisie, elle, n'est pas arrondie. */
+  decimals: number
+}
+
+/**
+ * Le socle commun aux trois cartes de curseurs. `edit` est obligatoire : c'est ce qui rend
+ * « chaque curseur est saisissable au clavier » décidable, dans le même esprit que les trois
+ * listes closes de clés ci-dessus.
+ */
+interface SliderSpecBase {
   label: string
-  /** Libellé court pour le récapitulatif (sidebar de 280px). Absent ⇒ `label`. */
-  short?: string
   min: number
   max: number
   step: number
   fmt: (v: number) => string
+  edit: EditSpec
+}
+
+/** Bruit flottant en moins : sans ça un 27,3 % tapé s'écrirait `0.27300000000000002` dans l'URL. */
+const round10 = (v: number) => Math.round(v * 1e10) / 1e10
+
+/**
+ * Valeur du modèle → texte du champ. Ni séparateur de milliers (on y tape, on n'y lit pas) ni
+ * zéros terminaux : on veut « 64,25 » et « 64 », jamais « 64,00 ».
+ */
+export function toInput(v: number, edit: EditSpec): string {
+  return String(Number(round10(v * edit.scale).toFixed(edit.decimals))).replace('.', ',')
+}
+
+/**
+ * Texte du champ → valeur du modèle, ou `null` si ce n'est pas un nombre (l'appelant garde alors
+ * la valeur courante). On clampe aux bornes mais on ne cale PAS sur le pas : pouvoir viser entre
+ * deux crans est tout l'intérêt de la saisie. Le seul arrondi est celui de la granularité déclarée
+ * (`decimals`), ce qui garde entiers ceux qui doivent l'être — un trimestre, un migrant, une année.
+ */
+export function fromInput(s: string, spec: { min: number; max: number; edit: EditSpec }): number | null {
+  const n = parseFrNumber(s)
+  if (n === null) return null
+  return round10(clamp(Number(n.toFixed(spec.edit.decimals)) / spec.edit.scale, spec.min, spec.max))
+}
+
+export interface LeverSpec extends SliderSpecBase {
+  key: ReformLeverKey
+  /** Libellé court pour le récapitulatif (sidebar de 280px). Absent ⇒ `label`. */
+  short?: string
   /** Replié dans le `<details>` « Leviers avancés » : seuls âge légal et cotisation restent visibles. */
   advanced?: boolean
 }
@@ -74,6 +124,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 70,
     step: 0.25,
     fmt: formatAge,
+    edit: { scale: 1, unit: 'ans', decimals: 2 },
   },
   {
     key: 'contributionRate',
@@ -82,7 +133,8 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     min: 0.2,
     max: 0.4,
     step: 0.005,
-    fmt: (v) => `${(v * 100).toFixed(1)}%`,
+    fmt: (v) => `${(v * 100).toFixed(1).replace('.', ',')} %`,
+    edit: { scale: 100, unit: '%', decimals: 2 },
   },
   {
     key: 'legalAgeLEShare',
@@ -92,6 +144,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 1,
     step: 0.05,
     fmt: (v) => (v === 0 ? 'désactivé' : `${Math.round(v * 100)} %`),
+    edit: { scale: 100, unit: '%', decimals: 0 },
     advanced: true,
   },
   {
@@ -101,6 +154,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 188,
     step: 1,
     fmt: (v) => `${v} trim.`,
+    edit: { scale: 1, unit: 'trim.', decimals: 0 },
     advanced: true,
   },
   {
@@ -111,6 +165,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 6000,
     step: 100,
     fmt: (v) => (v === 0 ? 'aucun' : `${v.toLocaleString('fr-FR')} €/mois`),
+    edit: { scale: 1, unit: '€/mois', decimals: 0 },
     advanced: true,
   },
   {
@@ -121,6 +176,9 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 0.015,
     step: 0.0025,
     fmt: (v) => (v === 0 ? 'aucune' : `−${(v * 100).toFixed(2).replace('.', ',')} pt/an`),
+    // Se tape en POSITIF, comme le curseur qui va de 0 vers le haut : le « − » de `fmt` est le sens
+    // du levier (« sous-indexation »), pas le signe de la valeur stockée.
+    edit: { scale: 100, unit: 'pt/an', decimals: 2 },
     advanced: true,
   },
   {
@@ -131,6 +189,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 10,
     step: 1,
     fmt: (v) => (v === 0 ? 'aucune' : `${v} ans`),
+    edit: { scale: 1, unit: 'ans', decimals: 0 },
     advanced: true,
   },
   {
@@ -141,6 +200,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 0.02,
     step: 0.0025,
     fmt: (v) => (v === 0 ? 'aucune' : `+${(v * 100).toFixed(2).replace('.', ',')} pt PIB`),
+    edit: { scale: 100, unit: 'pt PIB', decimals: 2 },
     advanced: true,
   },
   {
@@ -151,6 +211,7 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 0.01,
     step: 0.001,
     fmt: (v) => (v === 0 ? 'aucun' : `+${(v * 100).toFixed(1).replace('.', ',')} pt PIB/an`),
+    edit: { scale: 100, unit: 'pt PIB/an', decimals: 2 },
     advanced: true,
   },
   {
@@ -161,19 +222,13 @@ export const REFORM_LEVER_SPECS: readonly LeverSpec[] = [
     max: 0.3,
     step: 0.05,
     fmt: (v) => (v === 0 ? 'aucun' : `${Math.round(v * 100)} %`),
+    edit: { scale: 100, unit: '%', decimals: 0 },
     advanced: true,
   },
 ]
 
 /** Specs des hypothèses et des risques — mêmes bornes qu'avant, pour les cartes voisines. */
-export const HYPOTHESIS_LEVER_SPECS: readonly {
-  key: HypothesisLeverKey
-  label: string
-  min: number
-  max: number
-  step: number
-  fmt: (v: number) => string
-}[] = [
+export const HYPOTHESIS_LEVER_SPECS: readonly (SliderSpecBase & { key: HypothesisLeverKey })[] = [
   {
     key: 'tfr',
     label: 'Fécondité',
@@ -181,6 +236,7 @@ export const HYPOTHESIS_LEVER_SPECS: readonly {
     max: 2.2,
     step: 0.05,
     fmt: (v) => `${v.toFixed(2).replace('.', ',')} enf./f.`,
+    edit: { scale: 1, unit: 'enf./f.', decimals: 2 },
   },
   {
     key: 'netMigration',
@@ -189,6 +245,7 @@ export const HYPOTHESIS_LEVER_SPECS: readonly {
     max: 250000,
     step: 5000,
     fmt: (v) => `+${Math.round(v / 1000)} 000/an`,
+    edit: { scale: 1, unit: '/an', decimals: 0 },
   },
   {
     key: 'productivity',
@@ -197,6 +254,7 @@ export const HYPOTHESIS_LEVER_SPECS: readonly {
     max: 0.02,
     step: 0.001,
     fmt: (v) => `${(v * 100).toFixed(1).replace('.', ',')} %/an`,
+    edit: { scale: 100, unit: '%/an', decimals: 2 },
   },
   {
     key: 'unemployment',
@@ -205,17 +263,11 @@ export const HYPOTHESIS_LEVER_SPECS: readonly {
     max: 0.25,
     step: 0.005,
     fmt: pct1,
+    edit: { scale: 100, unit: '%', decimals: 2 },
   },
 ]
 
-export const RISK_LEVER_SPECS: readonly {
-  key: RiskLeverKey
-  label: string
-  min: number
-  max: number
-  step: number
-  fmt: (v: number) => string
-}[] = [
+export const RISK_LEVER_SPECS: readonly (SliderSpecBase & { key: RiskLeverKey })[] = [
   {
     key: 'realInterestRate',
     label: "Taux d'intérêt sur la dette",
@@ -223,6 +275,7 @@ export const RISK_LEVER_SPECS: readonly {
     max: 0.04,
     step: 0.001,
     fmt: pct1,
+    edit: { scale: 100, unit: '%', decimals: 2 },
   },
   {
     key: 'workerExodus',
@@ -231,6 +284,8 @@ export const RISK_LEVER_SPECS: readonly {
     max: 100000,
     step: 5000,
     fmt: (v) => (v === 0 ? 'aucun' : `−${Math.round(v / 1000)} 000/an`),
+    // Positif à la saisie, comme le curseur : le « − » de `fmt` dit le sens (un exode), pas le signe.
+    edit: { scale: 1, unit: '/an', decimals: 0 },
   },
 ]
 
