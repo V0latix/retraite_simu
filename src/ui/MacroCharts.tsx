@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
-import { Bar, BarChart, CartesianGrid, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { Area, Bar, BarChart, CartesianGrid, ComposedChart, Line, LineChart, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimeSeries } from '../engine/types'
-import { historical } from '../data/loader'
+import { historical, pensionBrackets } from '../data/loader'
 import { JOBSEEKER_WEIGHTS, jobseekerRate, jobseekerRateByYear } from '../data/scenarioPresets'
 import type { ScenarioId } from '../data/schema'
 import { frontier, LAST_OBSERVED_YEAR, mergeObservedProjected, PROJECTED_DASH, type Row, toRows } from './observed'
@@ -91,40 +91,35 @@ function Group({
 }
 
 /**
- * Box-and-whisker drawn as a custom Bar shape — Recharts has no boxplot, and one <g> of lines
- * beats a charting dependency. The Bar's value is the [Q1, Q3] tuple, so `y`/`height` already
- * bracket the box: the pixel scale follows from them and we never touch the axis.
+ * Un point des courbes de répartition. `x` est le MILIEU de la tranche (densité), `xc` sa borne
+ * HAUTE (cumulée) : « 33 % perçoivent moins de 1 000 € » se lit sur la borne, pas sur le milieu.
+ * Les parts sont nulles sur la dernière ligne, celle qui ne porte que la masse rabattue au plafond.
  */
-function BoxWhisker({ x = 0, y = 0, width = 0, height = 0, payload }: BoxShapeProps) {
-  if (!payload) return null
-  const { box, median, low, high } = payload
-  const [q1, q3] = box
-  // A very low cap can flatten the box (q3 → q1) and kill the scale; fall back to the box line.
-  const k = q3 > q1 ? height / (q3 - q1) : 0
-  const px = (v: number) => (k === 0 ? y : y + (q3 - v) * k)
-  const cx = x + width / 2
-  const capW = width * 0.25
-  return (
-    <g stroke={CHART.violet} strokeWidth={1.5} fill="none">
-      <line x1={cx} y1={px(high)} x2={cx} y2={y} />
-      <line x1={cx} y1={y + height} x2={cx} y2={px(low)} />
-      <line x1={cx - capW} y1={px(high)} x2={cx + capW} y2={px(high)} />
-      <line x1={cx - capW} y1={px(low)} x2={cx + capW} y2={px(low)} />
-      <rect x={x} y={y} width={width} height={Math.max(height, 1)} fill={CHART.violet} fillOpacity={0.15} />
-      <line x1={x} y1={px(median)} x2={x + width} y2={px(median)} strokeWidth={2.5} />
-    </g>
-  )
+interface DistRow {
+  x: number
+  xc: number
+  total: number | null
+  femmes: number | null
+  hommes: number | null
+  cumTotal: number
+  cumFemmes: number
+  cumHommes: number
+  /** Masse rabattue sur le plafond, et queue haute au-delà de la dernière tranche fermée : deux
+   *  paquets de retraités concentrés en un point, dessinés en barre et non comme des tranches. */
+  piled: number | null
+  tail: number | null
 }
-interface BoxRow {
-  year: number
-  low: number
-  high: number
-  median: number
-  box: [number, number]
+
+/** Les deux courbes par sexe, à côté de l'ensemble. Le rose est déjà « femmes » dans la palette. */
+const DIST_SEXES = [
+  ['femmes', 'cumFemmes', CHART.pink, 'Femmes'],
+  ['hommes', 'cumHommes', CHART.blue, 'Hommes'],
+] as const
+
+/** Montant où la courbe cumulée passe 50 % — la médiane, à la tranche de 100 € près. */
+function medianOf(rows: readonly DistRow[], key: 'cumTotal' | 'cumFemmes' | 'cumHommes'): number {
+  return rows.find((r) => r[key] >= 50)?.xc ?? 0
 }
-// Tout optionnel : Recharts déclare `payload?: any` sur le shape d'une Bar, il faut donc que ce
-// type soit un sur-type du sien pour rester assignable sous strictFunctionTypes.
-type BoxShapeProps = { x?: number; y?: number; width?: number; height?: number; payload?: BoxRow }
 
 function Panel({
   title,
@@ -300,7 +295,7 @@ export function MacroCharts({
   const unemploymentLastObs = unemploymentObs.years.at(-1) ?? LAST_OBSERVED_YEAR
   const unemploymentNow = unemploymentObs.rate.at(-1) ?? 0.074
   const unemploymentAssumed = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.unemployment ?? 0.07
-  // Même piège que le box plot : une <ReferenceLine> hors domaine est silencieusement ignorée,
+  // Même piège que le graphe de répartition : une <ReferenceLine> hors domaine est ignorée sans bruit,
   // et l'hypothèse « inscrits A→G » (≈16,6 %) sort largement du 4-11 % du chômage BIT.
   const unemploymentMax = Math.ceil(Math.max(0.11, unemploymentAssumed, JOBSEEKER_RATE) * 100 + 1) / 100
 
@@ -365,28 +360,74 @@ export function MacroCharts({
     return mergeObservedProjected(observed, projected, ['pension', 'salaire'])
   }, [pensions, series])
 
-  // Répartition par décile, à quatre horizons témoins pris à intervalles réguliers dans la série
-  // (jamais en dur : l'horizon est réglable de 2025 à 2100). Les quartiles sont interpolés entre
-  // moyennes de déciles — une approximation, pas des quantiles mesurés ; le `desc` le dit.
-  const boxes = useMemo<BoxRow[]>(() => {
-    if (series.length === 0) return []
-    const idx = [...new Set([0, 1, 2, 3].map((i) => Math.round((i * (series.length - 1)) / 3)))]
-    return idx.map((i) => {
-      const d = series[i].pensionDeciles
-      return {
-        year: series[i].year,
-        low: d[0],
-        high: d[9],
-        median: (d[4] + d[5]) / 2,
-        box: [(d[1] + d[2]) / 2, (d[6] + d[7]) / 2] as [number, number],
-      }
+  // Répartition des pensions à l'horizon. Les MONTANTS viennent du moteur (`pensionCurve`, déjà
+  // écrêté) et non d'un calcul refait ici : c'est ce qui garantit que la courbe dessinée et le
+  // solde affiché décrivent le même plafonnement. Les PARTS sont la table DREES, fixe dans le
+  // temps — seule l'échelle bouge (noria), la forme non ; les trois colonnes partagent donc les
+  // mêmes tranches, l'écart femmes/hommes tient entièrement à leur poids dans chacune.
+  const dist = useMemo(() => {
+    const last = series.at(-1)
+    if (!last) return { rows: [] as DistRow[], xMax: 0, mean: 0, piled: 0, tail: 0, tailFrom: 0 }
+    const { edge, ratio, share } = pensionBrackets
+    const scale = last.pensionScale
+    const cap = pensionCap > 0 ? pensionCap : Infinity
+    const open = ratio.length - 1 // le seau ouvert : pas une tranche de 100 €, une queue
+    const rows: DistRow[] = []
+    const cum = { total: 0, femmes: 0, hommes: 0 }
+    let piled = 0
+    let tail = 0
+    let mean = 0
+    for (let i = 0; i < ratio.length; i++) {
+      const x = last.pensionCurve[i]
+      mean += (share.total[i] * x) / 100
+      cum.total += share.total[i]
+      cum.femmes += share.femmes[i]
+      cum.hommes += share.hommes[i]
+      // Deux masses ne sont PAS des tranches de 100 € et ne peuvent donc pas être un point de la
+      // densité : celle rabattue sur le plafond (plusieurs tranches au même x), et le seau ouvert
+      // (1,7 % étalés de 4 400 € à l'infini — le tracer comme une tranche en ferait un pic isolé
+      // qui ment sur la donnée). Le moteur les traite l'un comme l'autre comme concentrées en un
+      // point : on les dessine comme telles, en barre. Le test d'écrêtement porte sur le milieu de
+      // tranche, exactement comme le moteur — même granularité, pas de désaccord possible.
+      if (ratio[i] * scale > cap) piled += share.total[i]
+      else if (i === open) tail = share.total[i]
+      else
+        rows.push({
+          x,
+          xc: Math.min(edge[i] * scale, cap),
+          total: share.total[i],
+          femmes: share.femmes[i],
+          hommes: share.hommes[i],
+          cumTotal: cum.total,
+          cumFemmes: cum.femmes,
+          cumHommes: cum.hommes,
+          piled: null,
+          tail: null,
+        })
+    }
+    const point = (x: number, piledAt: number | null, tailAt: number | null): DistRow => ({
+      x,
+      xc: x,
+      total: null,
+      femmes: null,
+      hommes: null,
+      cumTotal: 100,
+      cumFemmes: 100,
+      cumHommes: 100,
+      piled: piledAt,
+      tail: tailAt,
     })
-  }, [series])
-  // L'axe doit être borné à la main : Recharts ne connaît que la valeur portée par la <Bar>
-  // (le couple [Q1, Q3]). Sans ça il cadre sur la boîte — les moustaches débordent hors du
-  // graphe, et la ligne de plafond, hors domaine, n'est même pas dessinée.
-  const boxMax = Math.max(pensionCap, ...boxes.map((b) => b.high), 0)
-  const boxDomain: [number, number] = [0, Math.ceil((boxMax * 1.08) / 500) * 500]
+    // Les deux s'excluent : un plafond assez haut pour laisser la queue intacte n'écrête personne.
+    // Sous plafond, tout le monde finit à 100 % dessus — la cumulée y saute, la densité s'y arrête.
+    if (piled > 0) rows.push(point(pensionCap, piled, null))
+    else if (tail > 0) rows.push(point(last.pensionCurve[open], null, tail))
+    // Même piège que partout ici : une <ReferenceLine> hors domaine est silencieusement ignorée,
+    // et Recharts ne cadre que sur le `dataKey` de l'axe. On borne donc à la main.
+    const xMax = Math.max(pensionCap, ...rows.map((r) => Math.max(r.x, r.xc)), 0)
+    const tailFrom = edge[open - 1] * scale
+    return { rows, xMax: Math.ceil((xMax * 1.04) / 500) * 500, mean, piled, tail, tailFrom }
+  }, [series, pensionCap])
+  const distYear = series.at(-1)?.year ?? 0
 
   return (
     <div className="space-y-6">
@@ -513,7 +554,7 @@ export function MacroCharts({
         </Panel>
       </Group>
 
-      <Group title="Niveau des pensions" count={2}>
+      <Group title="Niveau des pensions" count={3}>
         <Panel
           wide
           title="Pension moyenne et salaire moyen (€/mois, euros constants)"
@@ -533,39 +574,79 @@ export function MacroCharts({
 
         <Panel
           wide
-          title="Répartition des pensions par décile (€/mois, euros constants)"
-          desc={`Comment la pension se répartit entre les retraités, à quatre horizons. La boîte couvre la moitié centrale (du 1ᵉʳ au 3ᵉ quartile), le trait épais est la médiane, les moustaches vont de la moyenne du dixième le plus modeste à celle du dixième le plus aisé. Toute la distribution monte lentement avec l'effet noria — l'écart entre le haut et le bas, lui, ne bouge pas : le modèle applique une forme fixe (DREES) qu'il met à l'échelle. Les quartiles sont interpolés entre moyennes de déciles, ce sont des ordres de grandeur et non des quantiles mesurés.${pensionCap > 0 ? ` Le plafond de ${pensionCap.toLocaleString('fr-FR')} €/mois est en euros constants : il mord de plus en plus à mesure que les pensions dérivent.` : ' Le curseur « plafonnement » (leviers avancés) fait apparaître la ligne d\'écrêtement.'}`}
+          title={`Répartition des pensions en ${distYear} (€/mois, euros constants)`}
+          desc={`Combien de retraités à chaque niveau de pension, par tranches de 100 €. Le pic est bas — la moitié des retraités est sous ${eurMonth(medianOf(dist.rows, 'cumTotal'))} — et la courbe des femmes est tout entière décalée à gauche de celle des hommes. La forme est celle mesurée par la DREES (pension de droit direct, y c. majoration pour trois enfants) ; le modèle ne fait que la déplacer avec le niveau moyen qu'il projette, donc elle glisse vers la droite avec la noria à mesure que l'horizon s'éloigne, sans jamais changer de forme. Le moteur ne projette pas de pension par sexe : les trois courbes partagent les mêmes tranches, seul le poids de chaque sexe dans chacune diffère.${dist.tail > 0 ? ` La dernière barre n'est pas une tranche de 100 € mais toute la queue au-delà de ${eurMonth(dist.tailFrom)} (${pctPlain(dist.tail / 100)} des retraités), que le modèle traite comme concentrée sur sa moyenne — c'est la limite du chiffrage à ce niveau-là.` : ''}${pensionCap > 0 ? ` Sous plafond, la courbe s'arrête net à ${eurMonth(pensionCap)} et les ${pctPlain(dist.piled / 100)} de retraités au-dessus sont ramenés dessus : c'est la barre rouge, et c'est exactement la masse que le solde économise.` : ' Le curseur « plafonnement » (leviers avancés) tronque la courbe par le haut.'}`}
           footer={
             <Legend>
-              <Swatch color={CHART.violet}>
-                moustaches = 1ᵉʳ et 10ᵉ décile · boîte = Q1–Q3 · trait épais = médiane
-              </Swatch>
+              <Swatch color={CHART.violet}>ensemble</Swatch>
+              {DIST_SEXES.map(([k, , color, label]) => (
+                <Swatch key={k} color={color}>{label.toLowerCase()}</Swatch>
+              ))}
+              <Swatch color={CHART.muted} dashed>pension moyenne ({eurMonth(dist.mean)})</Swatch>
+              {dist.tail > 0 && <Swatch color={CHART.violet}>queue au-delà de {eurMonth(dist.tailFrom)} ({pctPlain(dist.tail / 100)})</Swatch>}
+              {pensionCap > 0 && <Swatch color={CHART.danger} dashed>plafond — {pctPlain(dist.piled / 100)} des retraités ramenés dessus</Swatch>}
+            </Legend>
+          }
+        >
+          <ComposedChart data={dist.rows}>
+            {GRID}
+            <XAxis dataKey="x" type="number" domain={[0, dist.xMax]} tickFormatter={(v) => `${ratio1(Number(v) / 1000)} k€`} {...AXIS} />
+            <YAxis tickFormatter={(v) => `${fmtNum(Number(v), 0)} %`} width={40} {...AXIS} />
+            <Tooltip
+              {...TOOLTIP}
+              formatter={(v, n) => [v == null ? '—' : `${ratio1(Number(v))} %`, String(n)]}
+              labelFormatter={(x) => `Pensions autour de ${eurMonth(Number(x))}`}
+            />
+            <ReferenceLine x={dist.mean} stroke={CHART.muted} strokeDasharray={PROJECTED_DASH} />
+            {pensionCap > 0 && (
+              <ReferenceLine
+                x={pensionCap}
+                stroke={CHART.danger}
+                strokeDasharray={PROJECTED_DASH}
+                label={{ value: `plafond ${eurMonth(pensionCap)}`, position: 'insideTopLeft', fontSize: 10, fill: CHART.danger }}
+              />
+            )}
+            <Area dataKey="total" name="Ensemble" stroke={CHART.violet} fill={CHART.violet} fillOpacity={0.12} strokeWidth={2} isAnimationActive={false} />
+            {DIST_SEXES.map(([k, , color, label]) => (
+              <Line key={k} dataKey={k} name={label} stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+            ))}
+            {/* Les deux masses concentrées en un point sont des barres, pas des points de la
+                courbe : à côté de tranches à 0,3 %, une aiguille se lit comme une erreur de tracé,
+                et surtout ni l'une ni l'autre n'est une tranche de 100 €. */}
+            <Bar dataKey="tail" name="Queue haute" fill={CHART.violet} barSize={12} isAnimationActive={false} />
+            <Bar dataKey="piled" name="Ramenés au plafond" fill={CHART.danger} barSize={12} isAnimationActive={false} />
+          </ComposedChart>
+        </Panel>
+
+        <Panel
+          wide
+          title={`Part des retraités en dessous d'un montant, en ${distYear} (%)`}
+          desc={`La même distribution, lue en cumulé : à chaque montant, la part des retraités qui perçoivent moins que ça. C'est la courbe qui répond aux seuils du débat public — et l'écart entre les deux courbes par sexe y est la mesure directe de l'inégalité de pension.${pensionCap > 0 ? ` Le plafond ramène la courbe à 100 % dès ${eurMonth(pensionCap)} : plus personne au-dessus.` : ''} Attention au champ : droit direct seulement, la réversion n'y est pas — elle relève une partie des pensions les plus basses, majoritairement féminines.`}
+          footer={
+            <Legend>
+              <Swatch color={CHART.violet}>ensemble</Swatch>
+              {DIST_SEXES.map(([k, , color, label]) => (
+                <Swatch key={k} color={color}>{label.toLowerCase()}</Swatch>
+              ))}
               {pensionCap > 0 && <Swatch color={CHART.danger} dashed>plafond ({eurMonth(pensionCap)})</Swatch>}
             </Legend>
           }
         >
-          <BarChart data={boxes}>
+          <LineChart data={dist.rows}>
             {GRID}
-            <XAxis dataKey="year" {...AXIS} />
-            <YAxis tickFormatter={(v) => `${ratio1(Number(v) / 1000)} k€`} width={46} {...AXIS} domain={boxDomain} allowDataOverflow={false} />
+            <XAxis dataKey="xc" type="number" domain={[0, dist.xMax]} tickFormatter={(v) => `${ratio1(Number(v) / 1000)} k€`} {...AXIS} />
+            <YAxis domain={[0, 100]} tickFormatter={(v) => `${fmtNum(Number(v), 0)} %`} width={40} {...AXIS} />
             <Tooltip
               {...TOOLTIP}
-              formatter={(_v, _n, item) => {
-                const d = item.payload as { low: number; high: number; median: number; box: [number, number] }
-                return [`${eurMonth(d.low)} … ${eurMonth(d.high)} · médiane ${eurMonth(d.median)}`, 'D1 → D10']
-              }}
-              labelFormatter={(y) => `Année ${y}`}
+              formatter={(v, n) => [`${ratio1(Number(v))} %`, String(n)]}
+              labelFormatter={(x) => `Perçoivent moins de ${eurMonth(Number(x))}`}
             />
-            {pensionCap > 0 && (
-              <ReferenceLine
-                y={pensionCap}
-                stroke={CHART.danger}
-                strokeDasharray={PROJECTED_DASH}
-                label={{ value: `plafond ${eurMonth(pensionCap)}`, position: 'insideTopRight', fontSize: 10, fill: CHART.danger }}
-              />
-            )}
-            <Bar dataKey="box" shape={BoxWhisker} isAnimationActive={false} />
-          </BarChart>
+            {pensionCap > 0 && <ReferenceLine x={pensionCap} stroke={CHART.danger} strokeDasharray={PROJECTED_DASH} />}
+            <Line dataKey="cumTotal" name="Ensemble" stroke={CHART.violet} strokeWidth={2} dot={false} isAnimationActive={false} />
+            {DIST_SEXES.map(([, ck, color, label]) => (
+              <Line key={ck} dataKey={ck} name={label} stroke={color} strokeWidth={1.5} dot={false} isAnimationActive={false} />
+            ))}
+          </LineChart>
         </Panel>
       </Group>
 
