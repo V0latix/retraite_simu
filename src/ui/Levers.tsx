@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { REFORM_PRESETS, scheduleSummary, type ReformPreset } from '../data/reforms'
 import {
   HYPOTHESIS_LEVER_SPECS,
@@ -6,13 +6,18 @@ import {
   REFORM_LEVER_SPECS,
   RISK_LEVER_SPECS,
   diffReformLevers,
+  fromInput,
   sameSchedule,
+  toInput,
+  type EditSpec,
   type ReformLeverKey,
   type ReformMode,
 } from '../data/reformLevers'
 import { SCENARIO_DESCRIPTIONS } from '../data/scenarioPresets'
 import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '../data/schema'
+import { clamp } from '../lib/clamp'
 import { MAX_NAME_LENGTH, type CustomReform } from '../lib/customReforms'
+import { parseFrNumber } from '../lib/format'
 import type { Indexation, PolicyParams } from '../engine/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -96,6 +101,7 @@ function Slider({
   max,
   step = 1,
   fmt,
+  edit,
   onChange,
   disabled = false,
   hint,
@@ -106,27 +112,106 @@ function Slider({
   max: number
   step?: number
   fmt: (v: number) => string
+  /** Absent ⇒ valeur en lecture seule, curseur seul. Présent ⇒ la valeur se clique et se tape. */
+  edit?: EditSpec
   onChange: (v: number) => void
   disabled?: boolean
   hint?: React.ReactNode
 }) {
+  // `null` = pas en édition, on affiche `fmt(value)` ; sinon la frappe en cours, telle quelle, pour
+  // qu'on puisse vider le champ ou taper « 1, » sans que la valeur saute (même convention que le
+  // `raw` de CareerForm). Échap passe par `cancelled` plutôt que par un démontage : le blur qui
+  // suit doit savoir qu'il ne valide rien.
+  const [raw, setRaw] = useState<string | null>(null)
+  const cancelled = useRef(false)
+
+  // Ce que vaudrait la frappe en cours : `null` = pas en édition, ou pas un nombre.
+  const typed = raw === null || !edit ? null : fromInput(raw, { min, max, edit })
+  // Hors bornes pendant la frappe : on le signale, mais au commit on clampe plutôt que rejeter.
+  // L'epsilon absorbe le bruit flottant de `min * scale` (0,045 × 100 n'est pas toujours 4,5).
+  const parsed = raw === null || !edit ? null : parseFrNumber(raw)
+  const outOfBounds =
+    parsed !== null &&
+    edit != null &&
+    (parsed < min * edit.scale - 1e-9 || parsed > max * edit.scale + 1e-9)
+
+  const commit = () => {
+    // On n'appelle `onChange` que si la valeur bouge : un clic-sortie sans rien taper détacherait
+    // sinon la réforme sélectionnée (`setReformLever` blanchit `reformKey`).
+    if (typed !== null && typed !== value && !cancelled.current) onChange(typed)
+    cancelled.current = false
+    setRaw(null)
+  }
+
+  /** ↑/↓ dans le champ : un pas de curseur, ce que `type="text"` ne donne plus gratuitement. */
+  const bump = (dir: 1 | -1) => {
+    if (!edit) return
+    setRaw(toInput(clamp((typed ?? value) + dir * step, min, max), edit))
+  }
+
   return (
     <div className={disabled ? 'opacity-50' : undefined}>
-      <label className="block">
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">{label}</span>
-          <span className="font-medium tabular-nums">{fmt(value)}</span>
-        </div>
-        <UiSlider
-          className="mt-2"
-          min={min}
-          max={max}
-          step={step}
-          value={[value]}
-          disabled={disabled}
-          onValueChange={([v]) => onChange(v)}
-        />
-      </label>
+      <div className="flex items-center justify-between gap-2 text-sm">
+        <span className="truncate text-muted-foreground">{label}</span>
+        {raw !== null && edit ? (
+          <span className="flex shrink-0 items-center gap-1">
+            <Input
+              autoFocus
+              type="text"
+              inputMode="decimal"
+              value={raw}
+              aria-label={`${label}, valeur en ${edit.unit}`}
+              aria-invalid={outOfBounds}
+              onFocus={(e) => e.currentTarget.select()}
+              onChange={(e) => setRaw(e.target.value)}
+              onBlur={commit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') e.currentTarget.blur()
+                else if (e.key === 'Escape') {
+                  cancelled.current = true
+                  e.currentTarget.blur()
+                } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+                  e.preventDefault()
+                  bump(e.key === 'ArrowUp' ? 1 : -1)
+                }
+              }}
+              // w-20 : « 176000 » et « 2100 » doivent tenir sans que le champ se mette à défiler.
+              className="h-6 w-20 px-1.5 py-0 text-right text-sm tabular-nums md:text-sm"
+            />
+            <span className="text-xs text-muted-foreground">{edit.unit}</span>
+          </span>
+        ) : edit && !disabled ? (
+          // Le champ ne s'ouvre qu'au clic : 16 curseurs dans une colonne de 280px, au repos on veut
+          // les libellés lisibles (« aucun », « 64 ans 3 mois »), pas 16 boîtes de saisie.
+          <button
+            type="button"
+            title="Saisir une valeur précise"
+            onClick={() => setRaw(toInput(value, edit))}
+            className="-mx-1 shrink-0 cursor-text rounded px-1 font-medium tabular-nums hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-hidden"
+          >
+            {fmt(value)}
+          </button>
+        ) : (
+          <span className="shrink-0 font-medium tabular-nums">{fmt(value)}</span>
+        )}
+      </div>
+      {outOfBounds && edit && (
+        <p className="mt-0.5 text-right text-xs text-destructive">
+          entre {toInput(min, edit)} et {toInput(max, edit)}
+        </p>
+      )}
+      {/* Le <label> qui enveloppait libellé + curseur a sauté : il ne pouvait pas désigner deux
+          contrôles. Le libellé passe au pouce Radix (seul élément à porter role="slider"). */}
+      <UiSlider
+        className="mt-2"
+        aria-label={label}
+        min={min}
+        max={max}
+        step={step}
+        value={[value]}
+        disabled={disabled}
+        onValueChange={([v]) => onChange(v)}
+      />
       {hint && (
         <div className="mt-1.5">
           <Hint>{hint}</Hint>
@@ -407,6 +492,7 @@ export function Levers({
       max={spec.max}
       step={spec.step}
       fmt={spec.fmt}
+      edit={spec.edit}
       onChange={(v) => onPolicy({ [spec.key]: v })}
       hint={REFORM_HINTS[spec.key]}
     />
@@ -460,6 +546,9 @@ export function Levers({
           min={2030}
           max={2100}
           fmt={(v) => String(v)}
+          // Seul curseur sans `LeverSpec` (ce n'est pas un levier de politique) : bornes et unité
+          // de saisie à la main, sur place.
+          edit={{ scale: 1, unit: 'année', decimals: 0 }}
           onChange={onHorizon}
         />
       </Card>
@@ -478,6 +567,7 @@ export function Levers({
             max={spec.max}
             step={spec.step}
             fmt={spec.fmt}
+            edit={spec.edit}
             onChange={(v) => onHypothesis({ [spec.key]: v })}
             hint={HYPOTHESIS_HINTS[spec.key]}
           />

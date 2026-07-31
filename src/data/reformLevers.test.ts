@@ -6,10 +6,14 @@ import {
   applyReform,
   diffReformLevers,
   extractReformDelta,
+  fromInput,
   HYPOTHESIS_LEVER_KEYS,
+  HYPOTHESIS_LEVER_SPECS,
   REFORM_LEVER_KEYS,
   REFORM_LEVER_SPECS,
   RISK_LEVER_KEYS,
+  RISK_LEVER_SPECS,
+  toInput,
 } from './reformLevers'
 import type { PolicyParams } from '../engine/types'
 
@@ -119,7 +123,8 @@ describe('diffReformLevers / extractReformDelta', () => {
   it('+2 pts de cotisation ne montre que la cotisation', () => {
     const rows = diffReformLevers(applyReform(base, base, REFORM_PRESETS['plus-cotisation']), base)
     expect(rows.map((r) => r.key)).toEqual(['contributionRate'])
-    expect(rows[0]).toMatchObject({ from: '28.1%', to: '30.1%' })
+    // Virgule décimale et espace avant le %, comme tous les autres `fmt` du fichier.
+    expect(rows[0]).toMatchObject({ from: '28,1 %', to: '30,1 %' })
   })
 
   it('le delta enregistré est plat : ni schedule, ni levier non déviant', () => {
@@ -139,5 +144,56 @@ describe('diffReformLevers / extractReformDelta', () => {
     const back = applyReform(base, base, { label: 'x', source: 'x', delta })
     expect(back.schedule).toEqual(base.schedule)
     expect(back.contributionRate).toBe(0.3)
+  })
+})
+
+// La saisie manuelle derrière chaque curseur : `fmt` n'étant pas réversible (« aucun »,
+// « 64 ans 3 mois », valeurs stockées en fraction), c'est `edit` qui dit dans quelle unité on tape.
+// Un levier ajouté à une carte sans son `edit` tombe ici — même rôle que les listes closes de clés.
+describe('EditSpec — la valeur se tape autant qu’elle se glisse', () => {
+  const ALL = [...REFORM_LEVER_SPECS, ...HYPOTHESIS_LEVER_SPECS, ...RISK_LEVER_SPECS]
+
+  it('couvre les trois cartes', () => {
+    expect(ALL.map((s) => s.key).sort()).toEqual(
+      [...REFORM_LEVER_KEYS, ...HYPOTHESIS_LEVER_KEYS, ...RISK_LEVER_KEYS].sort(),
+    )
+    for (const s of ALL) {
+      expect(s.edit.scale, s.key).toBeGreaterThan(0)
+      expect(s.edit.decimals, s.key).toBeGreaterThanOrEqual(0)
+      expect(s.edit.unit, s.key).not.toBe('')
+    }
+  })
+
+  it('fait l’aller-retour valeur → champ → valeur sur les bornes et le pas', () => {
+    for (const s of ALL) {
+      for (let v = s.min; v <= s.max + 1e-9; v = v + s.step) {
+        const at = Math.min(v, s.max)
+        expect(fromInput(toInput(at, s.edit), s), `${s.key} @ ${at}`).toBeCloseTo(at, 10)
+      }
+    }
+  })
+
+  it('clampe aux bornes et rend null sur une saisie non numérique', () => {
+    for (const s of ALL) {
+      expect(fromInput('999999999', s), s.key).toBe(s.max)
+      expect(fromInput('-999999999', s), s.key).toBe(s.min)
+      expect(fromInput('aucun', s), s.key).toBeNull()
+      expect(fromInput('', s), s.key).toBeNull()
+    }
+  })
+
+  it('ne cale pas sur le pas — c’est tout l’intérêt de la saisie', () => {
+    const age = REFORM_LEVER_SPECS.find((s) => s.key === 'legalAge')!
+    expect(age.step).toBe(0.25)
+    expect(fromInput('64,1', age)).toBe(64.1)
+    const cot = REFORM_LEVER_SPECS.find((s) => s.key === 'contributionRate')!
+    expect(fromInput('27,3', cot)).toBe(0.273) // et pas 0.27300000000000002 dans l'URL
+  })
+
+  it('garde entiers les leviers qui doivent l’être', () => {
+    const quarters = REFORM_LEVER_SPECS.find((s) => s.key === 'requiredQuarters')!
+    expect(fromInput('172,4', quarters)).toBe(172)
+    const mig = HYPOTHESIS_LEVER_SPECS.find((s) => s.key === 'netMigration')!
+    expect(fromInput('176 500,7', mig)).toBe(176501)
   })
 })
