@@ -13,11 +13,11 @@ import {
   type ReformLeverKey,
   type ReformMode,
 } from '../data/reformLevers'
-import { SCENARIO_DESCRIPTIONS } from '../data/scenarioPresets'
+import { jobseekerRate, jobseekerRawRate, SCENARIO_DESCRIPTIONS } from '../data/scenarioPresets'
 import { SCENARIO_IDS, SCENARIO_LABELS, type ScenarioId } from '../data/schema'
 import { clamp } from '../lib/clamp'
 import { MAX_NAME_LENGTH, type CustomReform } from '../lib/customReforms'
-import { parseFrNumber } from '../lib/format'
+import { fmtPct, parseFrNumber } from '../lib/format'
 import type { Indexation, PolicyParams } from '../engine/types'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -321,8 +321,9 @@ const HYPOTHESIS_HINTS: Record<string, React.ReactNode> = {
     <>
       Part du potentiel de cotisants retirée du compte : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Pour le
       scénario Pragmatique, le <em>chômage</em> est A+D ; B/C/E/F/G restent cependant pris en compte ici selon
-      leur situation d'emploi et leurs heures travaillées. L'effet total A→G pondéré est ≈&nbsp;16,6&nbsp;% des
-      actifs ; ce n'est donc pas un taux de chômage officiel. Le même effectif sans pondération donnerait 22,8&nbsp;%.
+      leur situation d'emploi et leurs heures travaillées. L'effet total A→G pondéré est
+      ≈&nbsp;{fmtPct(jobseekerRate(), 1)} des actifs ; ce n'est donc pas un taux de chômage officiel. Le même
+      effectif sans pondération donnerait {fmtPct(jobseekerRawRate(), 1)}.
     </>
   ),
 }

@@ -6,6 +6,7 @@ import {
   SCENARIO_PRESETS,
   jobseekerRate,
   jobseekerRateByYear,
+  jobseekerRawRate,
   jobseekerUnemploymentRate,
   jobseekerUnemploymentRateByYear,
 } from './scenarioPresets'
@@ -156,6 +157,21 @@ describe('historical.json', () => {
       expect(rate).toBeGreaterThan(0)
       expect(rate).toBeLessThan(total.rate[i])
     }
+  })
+
+  it('keeps the three definitions the chômage chart superimposes strictly nested', () => {
+    // Le graphe superpose BIT ⊂ A+D ⊂ A→G pondéré, et cite A→G brut pour l'écarter. Si cet
+    // emboîtement casse (pondération revue, périmètre changé), la lecture du graphe s'inverse
+    // en silence : trois courbes qui se croisent ne racontent plus « de la plus stricte à la
+    // plus large ».
+    const bit = demography.unemployment.rate.at(-1) ?? 0
+    expect(bit).toBeGreaterThan(0.05)
+    expect(bit).toBeLessThan(jobseekerUnemploymentRate())
+    expect(jobseekerUnemploymentRate()).toBeLessThan(jobseekerRate())
+    expect(jobseekerRate()).toBeLessThan(jobseekerRawRate())
+    expect(jobseekerRawRate()).toBeLessThan(0.3)
+    // Le nombre autrefois recopié à la main dans le graphe et dans l'infobulle du curseur.
+    expect(jobseekerRawRate()).toBeCloseTo(0.228, 3)
   })
 
   it('shows the 65+ share rising over the observed period', () => {

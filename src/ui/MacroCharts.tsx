@@ -6,6 +6,8 @@ import {
   JOBSEEKER_UNEMPLOYMENT_CATEGORIES,
   JOBSEEKER_WEIGHTS,
   jobseekerRate,
+  jobseekerRateByYear,
+  jobseekerRawRate,
   jobseekerUnemploymentRate,
   jobseekerUnemploymentRateByYear,
 } from '../data/scenarioPresets'
@@ -24,8 +26,16 @@ const signedK = (v: number) => `${v >= 0 ? '+' : '−'}${Math.abs(Math.round(v /
 const pctPlain = (v: number, d = 1) => fmtPct(v, d)
 const eurMonth = (v: number) => `${Math.round(v).toLocaleString('fr-FR')} €/mois`
 
+// Les trois définitions emboîtées que le graphe chômage superpose, de la plus stricte à la plus
+// large : BIT ⊂ A+D ⊂ A→G pondéré. Chacune avec son passé mesuré — c'est ce qui distingue un écart
+// constaté d'un écart postulé, et ce qui explique qu'un scénario retienne 7 % et un autre 16,6 %.
+
 /** Inscrits France Travail A→G pondérés, rapportés aux actifs — l'effet sur les cotisations du Pragmatique. */
 const JOBSEEKER_RATE = jobseekerRate()
+const JOBSEEKER_EFFECT_OBSERVED = jobseekerRateByYear()
+
+/** Le même effectif sans pondération : la lecture haute, citée pour être écartée. */
+const JOBSEEKER_RAW_RATE = jobseekerRawRate()
 
 /** Chômage retenu séparément : A+D, pas les personnes déjà en emploi ou en activité réduite. */
 const ADMINISTRATIVE_UNEMPLOYMENT_RATE = jobseekerUnemploymentRate()
@@ -285,21 +295,33 @@ export function MacroCharts({
   const migrationAssumed = (series.find((d) => d.year > LAST_OBSERVED_YEAR)?.netMigration ?? 70000) + workerExodus
   const migrationFrom = migrationObs.years[0]
 
-  // Chômage : central/choc raisonnent en BIT. Pour Pragmatique, le chômage est explicitement A+D
-  // (« administratif élargi »), tandis que le moteur garde l'effet plus large A→G pondéré sur les
-  // cotisations. Les deux lignes sont volontairement distinctes : on ne rebaptise plus un effet de
-  // cotisation incluant B/C/E/F/G en « chômage ».
+  // Chômage : les trois définitions sont tracées dans TOUS les scénarios, la plus stricte (BIT)
+  // à la plus large (A→G pondéré). Le pointillé de l'hypothèse vient alors se poser sur celle que
+  // le scénario retient — sur le BIT en central/choc, sur l'effet A→G en Pragmatique — et cette
+  // bascule est justement ce qui explique l'écart entre les scénarios. Aucune des trois n'est
+  // rebaptisée : un effet de cotisation incluant B/C/E/F/G n'est pas un taux de chômage.
   const usesJobseekers = scenario === 'pragmatique'
-  const unemploymentObs = usesJobseekers ? ADMINISTRATIVE_UNEMPLOYMENT_OBSERVED : historical.demography.unemployment
+  const bitObs = historical.demography.unemployment
   const unemployment = useMemo(() => {
-    const obs = new Map(unemploymentObs.years.map((y, i) => [y, unemploymentObs.rate[i]]))
+    const at = (s: { years: number[]; rate: number[] }) => new Map(s.years.map((y, i) => [y, s.rate[i]]))
+    const bit = at(bitObs)
+    const admin = at(ADMINISTRATIVE_UNEMPLOYMENT_OBSERVED)
+    const effect = at(JOBSEEKER_EFFECT_OBSERVED)
     const proj = new Map(series.map((d) => [d.year, d.unemployment]))
-    const years = [...new Set([...obs.keys(), ...proj.keys()])].sort((a, b) => a - b)
-    return years.map((year) => ({ year, observed: obs.get(year) ?? null, assumption: proj.get(year) ?? null }))
-  }, [series, unemploymentObs])
-  // La frontière suit la mesure affichée : le BIT s'arrête en 2024, France Travail va jusqu'en 2025.
-  const unemploymentLastObs = unemploymentObs.years.at(-1) ?? LAST_OBSERVED_YEAR
-  const unemploymentNow = unemploymentObs.rate.at(-1) ?? 0.074
+    const years = [...new Set([...bit.keys(), ...admin.keys(), ...effect.keys(), ...proj.keys()])].sort((a, b) => a - b)
+    return years.map((year) => ({
+      year,
+      bit: bit.get(year) ?? null,
+      admin: admin.get(year) ?? null,
+      effect: effect.get(year) ?? null,
+      assumption: proj.get(year) ?? null,
+    }))
+  }, [series, bitObs])
+  // La frontière suit la dernière mesure affichée, pas la première : le BIT s'arrête en 2024,
+  // France Travail va jusqu'en 2025, et les trois séries sont désormais toujours à l'écran.
+  const unemploymentLastObs = Math.max(bitObs.years.at(-1) ?? LAST_OBSERVED_YEAR, JOBSEEKER_EFFECT_OBSERVED.years.at(-1) ?? LAST_OBSERVED_YEAR)
+  const bitNow = bitObs.rate.at(-1) ?? 0.074
+  const bitLastObs = bitObs.years.at(-1) ?? LAST_OBSERVED_YEAR
   const contributionEffect = series.find((d) => d.year > LAST_OBSERVED_YEAR)?.unemployment ?? 0.07
   // Même piège que le graphe de répartition : une <ReferenceLine> hors domaine est ignorée sans bruit.
   const unemploymentMax = Math.ceil(Math.max(0.11, contributionEffect, JOBSEEKER_RATE, ADMINISTRATIVE_UNEMPLOYMENT_RATE) * 100 + 1) / 100
@@ -727,49 +749,42 @@ export function MacroCharts({
 
         <Panel
           title="Chômage et effet sur les cotisations"
-          desc={usesJobseekers
-            ? `Dans le scénario Pragmatique, le chômage est séparé proprement : A+D (« chômage administratif élargi ») représente ${pctPlain(unemploymentNow)} des actifs en ${unemploymentLastObs}. B, C, E, F et G ne sont pas appelés chômeurs ; ils restent néanmoins intégrés au calcul des retraites selon leur activité et leur cotisation. Leur effet cumulé, avec A+D, retire ${pctPlain(contributionEffect)} du potentiel de cotisants (ligne rouge).`
-            : `Le scénario sélectionné retient le chômage au sens du BIT : ${pctPlain(contributionEffect)} des actifs ne cotisent pas dans le modèle. Le passé affiché est celui de cette même mesure, ${pctPlain(unemploymentNow)} en ${unemploymentLastObs}.`}
+          desc={`Trois mesures emboîtées du même phénomène, toutes observées : le chômage au sens du BIT (${pctPlain(bitNow)} en ${bitLastObs}, la définition officielle), le chômage administratif A+D de France Travail (${pctPlain(ADMINISTRATIVE_UNEMPLOYMENT_RATE)}), et l'effet total A→G pondéré sur les cotisations (${pctPlain(JOBSEEKER_RATE)}), qui compte aussi les heures non travaillées de l'activité réduite. Le pointillé est l'hypothèse du scénario, ${pctPlain(contributionEffect)} : il prolonge ${usesJobseekers ? "l'effet A→G, la mesure large que retient le Pragmatique" : 'le chômage BIT, la mesure étroite que retiennent les projections officielles'}. Tout l'écart entre scénarios tient à ce choix de définition.`}
           footer={
             <>
               <Legend>
                 <Swatch color={CHART.primary}>
-                  {usesJobseekers ? 'chômage administratif A+D observé (France Travail' : 'chômage BIT observé (INSEE'}
-                  , {unemploymentObs.years[0]}–{unemploymentLastObs})
+                  chômage BIT (INSEE, {bitObs.years[0]}–{bitLastObs})
+                </Swatch>
+                <Swatch color={CHART.violet}>
+                  chômage administratif A+D (France Travail, {ADMINISTRATIVE_UNEMPLOYMENT_OBSERVED.years[0]}–{unemploymentLastObs})
+                </Swatch>
+                <Swatch color={CHART.amber}>
+                  effet A→G sur les cotisations ({ADMINISTRATIVE_UNEMPLOYMENT_OBSERVED.years[0]}–{unemploymentLastObs})
                 </Swatch>
                 <Swatch color={CHART.danger} dashed>
-                  {usesJobseekers ? `effet total sur les cotisations (${pctPlain(contributionEffect)})` : `hypothèse chômage (${pctPlain(contributionEffect)})`}
+                  hypothèse du scénario ({pctPlain(contributionEffect)})
                 </Swatch>
               </Legend>
               <details className="group/exp mt-2">
                 <summary className="w-fit cursor-pointer list-none text-xs font-medium text-muted-foreground select-none hover:text-foreground">
-                  ⓘ Ce qui est compté comme chômage — et ce qui reste dans le calcul des retraites
+                  ⓘ Pourquoi trois courbes — et ce que chaque catégorie retire aux cotisations
                 </summary>
                 <div className="mt-1 space-y-2 text-xs leading-snug text-muted-foreground">
                   <p>
-                    <strong className="text-foreground">Le BIT (7 %, scénario central).</strong> Définition
-                    internationale, celle du COR et de l'INSEE : être sans aucun emploi, disponible sous deux
-                    semaines, et avoir cherché activement dans le mois. Les trois conditions à la fois. C'est un
-                    taux bas par construction, et les projections officielles supposent souvent qu'il baisse encore
-                    — jusqu'à 4,5 % dans les variantes « plein emploi ».
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Le chômage retenu ici : A+D ({pctPlain(ADMINISTRATIVE_UNEMPLOYMENT_RATE)},
-                    scénario Pragmatique).</strong> A est sans emploi et en recherche ; D est sans emploi mais
-                    dispensé de recherche (formation, maladie…). C'est donc un <em>chômage administratif élargi</em>,
-                    distinct du BIT : D n'implique pas forcément une disponibilité immédiate.
+                    <strong className="text-foreground">Les trois définitions, en un mot.</strong> Le{' '}
+                    <em>BIT</em> exige trois conditions à la fois — aucun emploi, disponible sous deux semaines,
+                    recherche active dans le mois — d'où un taux bas par construction. Le{' '}
+                    <em>chômage administratif A+D</em> ajoute les inscrits sans emploi mais dispensés de recherche
+                    (formation, maladie) : D n'implique pas une disponibilité immédiate. L'
+                    <em>effet A→G</em> n'est plus un chômage du tout, mais ce que l'ensemble des inscrits retire
+                    réellement aux cotisations.
                   </p>
                   <p>
                     <strong className="text-foreground">Le reste est conservé pour les retraites, sans être appelé chômage.</strong>{' '}
                     B et C ont une activité réduite (≤ ou &gt; 78 h/mois), E est en emploi, F relève d'un
                     accompagnement social et G de l'orientation RSA. Ces catégories pèsent encore sur les
                     cotisations, mais selon la part de temps travaillé, pas comme si elles étaient toutes sans emploi.
-                  </p>
-                  <p>
-                    <strong className="text-foreground">Attention à la marche de 2025.</strong> A à E se suivent
-                    depuis 1996, F et G n'existent que depuis janvier 2025. Cette rupture ne gonfle pas le chômage
-                    A+D, mais elle augmente l'effet total sur les cotisations : le périmètre A→G n'est pas homogène
-                    avant et après cette date.
                   </p>
                   <p>
                     <strong className="text-foreground">Être inscrit ≠ ne pas cotiser.</strong> C'est le cœur du
@@ -798,7 +813,13 @@ export function MacroCharts({
                   <p>
                     L'effet total sur les cotisations est de {pctPlain(JOBSEEKER_RATE)} : il additionne A+D et les
                     parts non travaillées de B/C/F/G (E = 0), rapportées aux ~33 M d'actifs du modèle. Sans
-                    pondération, le même effectif donnerait 22,8 %.
+                    pondération, le même effectif donnerait {pctPlain(JOBSEEKER_RAW_RATE)}.
+                  </p>
+                  <p>
+                    <strong className="text-foreground">Attention à la marche de 2025.</strong> A à E se suivent
+                    depuis 1996, F et G n'existent que depuis janvier 2025 — c'est le décrochement visible sur la
+                    courbe ambre, et sur elle seule. Cette rupture ne gonfle pas le chômage A+D : elle change le
+                    périmètre A→G, qui n'est donc pas homogène avant et après cette date.
                   </p>
                   <p>
                     <strong className="text-foreground">Ce qui reste discutable.</strong> Les poids de B et C sont
@@ -817,14 +838,6 @@ export function MacroCharts({
             {GRID}
             <XAxis dataKey="year" {...AXIS} />
             <YAxis tickFormatter={(v) => `${Math.round(v * 100)}%`} width={40} {...AXIS} domain={[0.04, unemploymentMax]} />
-            {usesJobseekers && (
-              <ReferenceLine
-                y={ADMINISTRATIVE_UNEMPLOYMENT_RATE}
-                stroke={CHART.muted}
-                strokeDasharray="2 3"
-                label={{ value: `chômage A+D (${pctPlain(ADMINISTRATIVE_UNEMPLOYMENT_RATE)})`, position: 'insideTopRight', fontSize: 10, fill: CHART.muted }}
-              />
-            )}
             <ReferenceLine
               y={0.045}
               stroke={CHART.muted}
@@ -833,9 +846,13 @@ export function MacroCharts({
             />
             {frontier(unemploymentLastObs + 1)}
             <Tooltip {...TOOLTIP} formatter={(v) => (v == null ? '—' : pctPlain(Number(v)))} labelFormatter={(y) => `Année ${y}`} />
-            {/* Le `name` est ce que dit le tooltip : il doit nommer la mesure réellement tracée. */}
-            <Line type="monotone" dataKey="observed" name={usesJobseekers ? 'Chômage administratif A+D observé' : 'Chômage BIT observé'} stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
-            <Line type="monotone" dataKey="assumption" name={usesJobseekers ? 'Effet total A→G sur les cotisations' : 'Hypothèse chômage'} stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
+            {/* Le `name` est ce que dit le tooltip : il doit nommer la mesure réellement tracée.
+                Celui du pointillé reste neutre — le curseur « Effet sur les cotisants » peut
+                l'emmener où il veut, il ne peut donc nommer aucune source officielle. */}
+            <Line type="monotone" dataKey="bit" name="Chômage BIT observé" stroke={CHART.primary} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="admin" name="Chômage administratif A+D observé" stroke={CHART.violet} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="effect" name="Effet A→G observé sur les cotisations" stroke={CHART.amber} dot={false} strokeWidth={2} connectNulls={false} isAnimationActive={false} />
+            <Line type="monotone" dataKey="assumption" name="Hypothèse retenue (effet sur les cotisants)" stroke={CHART.danger} dot={false} strokeWidth={2} strokeDasharray={PROJECTED_DASH} connectNulls isAnimationActive={false} />
           </LineChart>
         </Panel>
 
