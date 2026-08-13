@@ -58,8 +58,9 @@ export interface PolicyParams {
   /** Share (0-1) of life-expectancy gains since BASE_YEAR converted into extra working
    *  years: effective legal age = legalAge + share × max(0, ΔLE). 0 ⇒ age stays fixed. */
   legalAgeLEShare?: number
-  /** Macro override of the flat unemployment rate (fraction). When set, wins over the
-   *  scenario's unemploymentTarget; absent ⇒ scenario/systemParams default. */
+  /** Macro override of the share of potential contributors removed from the contribution base
+   *  (fraction). Central/choc use unemployment BIT; Pragmatique uses the wider France Travail
+   *  A→G weighted non-contribution effect. */
   unemployment?: number
   /** Additional revenue as a share of GDP, added on top of contributions + calibrated
    *  other-resources (models a CSG hike on pensions / « mise à contribution des retraités »).
@@ -92,7 +93,7 @@ export interface HypothesisSet {
   mortality: (year: number, age: number, sex: Sex) => number // qx
   migration: (year: number, age: number, sex: Sex) => number // net headcount
   productivity: (year: number) => number // g
-  unemployment: (year: number) => number // u
+  unemployment: (year: number) => number // part du potentiel de cotisants non contributrice
   activityRate: (year: number, age: number, legalAge: number) => number // τ_act
   /** Flat levers (cotisation, indexation, plafond…) — sans le calendrier, qui est générationnel. */
   policy: (year: number) => PolicyParams
@@ -111,7 +112,7 @@ export interface YearResult {
   lifeExpectancyAt65: number // e65 = durée de retraite espérée
   tfr: number // indicateur conjoncturel de fécondité (Σ fertility, ages 15-50)
   netMigration: number // solde migratoire (Σ migration, tous âges et sexes)
-  unemployment: number // taux de chômage retenu (fraction) — les chômeurs ne cotisent pas
+  unemployment: number // effet retenu sur les cotisants (fraction), pas toujours un taux de chômage
   contributors: number
   retirees: number
   avgWage: number

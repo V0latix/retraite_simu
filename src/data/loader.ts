@@ -189,8 +189,8 @@ function unemploymentFn(base: number, shock?: { from: number; peak: number; to: 
 /** Central deterministic scenario from real data; reform levers override policy. */
 /** Taux d'activité : hypothèse à la COR, qui décroît à l'approche de l'âge légal.
  *  Exporté parce que c'est la définition de la population active DU MODÈLE — la base à
- *  laquelle `project()` applique le taux de chômage, donc celle sur laquelle un taux de
- *  chômage doit être calculé (voir jobseekerRate, scenarioPresets.ts). */
+ *  laquelle `project()` applique l'effet de non-cotisation, donc celle sur laquelle cet effet
+ *  doit être calculé (voir jobseekerRate, scenarioPresets.ts). */
 export function ACTIVITY_RATE(age: number, legalAge: number): number {
   if (age < 20) return 0.25
   if (age >= legalAge) return 0

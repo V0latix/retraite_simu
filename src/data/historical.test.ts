@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { historical, historicalPyramid, LAST_OBSERVED_YEAR } from './loader'
-import { JOBSEEKER_WEIGHTS, SCENARIO_PRESETS, jobseekerRate, jobseekerRateByYear } from './scenarioPresets'
+import {
+  JOBSEEKER_UNEMPLOYMENT_CATEGORIES,
+  JOBSEEKER_WEIGHTS,
+  SCENARIO_PRESETS,
+  jobseekerRate,
+  jobseekerRateByYear,
+  jobseekerUnemploymentRate,
+  jobseekerUnemploymentRateByYear,
+} from './scenarioPresets'
 
 const strictlyIncreasing = (ys: readonly number[]) => ys.every((y, i) => i === 0 || y > ys[i - 1])
 
@@ -113,6 +121,13 @@ describe('historical.json', () => {
     expect(jobseekerRate()).toBeCloseTo(0.1661, 4)
     expect(SCENARIO_PRESETS.pragmatique.unemployment).toBe(jobseekerRate())
     expect(SCENARIO_PRESETS.central.unemployment).toBe(0.07) // la référence COR ne bouge pas
+
+    // Le chômage affiché est volontairement plus étroit que l'effet total sur les cotisations :
+    // A+D seulement. B/C/E/F/G restent dans la simulation selon leur situation, sans être nommés
+    // « chômeurs ».
+    expect(JOBSEEKER_UNEMPLOYMENT_CATEGORIES).toEqual(['a', 'd'])
+    expect(jobseekerUnemploymentRate()).toBeGreaterThan(0.1)
+    expect(jobseekerUnemploymentRate()).toBeLessThan(jobseekerRate())
   })
 
   it('derives the observed France Travail rate year by year, break included', () => {
@@ -131,6 +146,16 @@ describe('historical.json', () => {
     expect(at(2025) - at(2024)).toBeGreaterThan(0.03)
     // Le dernier point observé et l'hypothèse projetée décrivent bien la même mesure.
     expect(at(2025)).toBeCloseTo(jobseekerRate(), 2)
+  })
+
+  it('separates chômage administratif A+D from the broader retirement contribution effect', () => {
+    const unemployment = jobseekerUnemploymentRateByYear()
+    const total = jobseekerRateByYear()
+    expect(unemployment.years).toEqual(total.years)
+    for (const [i, rate] of unemployment.rate.entries()) {
+      expect(rate).toBeGreaterThan(0)
+      expect(rate).toBeLessThan(total.rate[i])
+    }
   })
 
   it('shows the 65+ share rising over the observed period', () => {

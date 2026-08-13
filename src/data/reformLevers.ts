@@ -258,7 +258,7 @@ export const HYPOTHESIS_LEVER_SPECS: readonly (SliderSpecBase & { key: Hypothesi
   },
   {
     key: 'unemployment',
-    label: 'Taux de chômage',
+    label: 'Effet sur les cotisants',
     min: 0.045,
     max: 0.25,
     step: 0.005,

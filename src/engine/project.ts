@@ -111,7 +111,9 @@ function retirees(state: PopulationState, effAge: Float64Array, earlyShare = 0):
 }
 
 /** Occupied active population: Σ P(a)·τ_act(a)·(1-u), ages 15..âge légal de la génération.
- *  A share of the [60, legalAge) band retires early (carrières longues) and stops contributing. */
+ * `u` is BIT unemployment in the central/choc scenarios and the broader, weighted France Travail
+ * non-contribution effect in Pragmatique. A share of the [60, legalAge) band retires early
+ * (carrières longues) and stops contributing. */
 function contributors(
   state: PopulationState,
   h: HypothesisSet,

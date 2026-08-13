@@ -319,11 +319,10 @@ const HYPOTHESIS_HINTS: Record<string, React.ReactNode> = {
   ),
   unemployment: (
     <>
-      Un actif qui ne cotise pas est retiré du compte : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Deux
-      mesures coexistent, d'où l'amplitude du curseur : le chômage au sens du BIT (7,4&nbsp;% en 2024, celui
-      du COR, qui suppose souvent un retour vers 4,5&nbsp;%) et les 7,5&nbsp;M d'inscrits à France Travail
-      toutes catégories A à G, pondérés par les heures qu'ils travaillent déjà (≈&nbsp;16,6&nbsp;% des actifs,
-      retenu par le scénario Pragmatique). Le même effectif sans pondération donnerait 22,8&nbsp;%.
+      Part du potentiel de cotisants retirée du compte : les cotisants sont comptés × (1&nbsp;−&nbsp;u). Pour le
+      scénario Pragmatique, le <em>chômage</em> est A+D ; B/C/E/F/G restent cependant pris en compte ici selon
+      leur situation d'emploi et leurs heures travaillées. L'effet total A→G pondéré est ≈&nbsp;16,6&nbsp;% des
+      actifs ; ce n'est donc pas un taux de chômage officiel. Le même effectif sans pondération donnerait 22,8&nbsp;%.
     </>
   ),
 }
