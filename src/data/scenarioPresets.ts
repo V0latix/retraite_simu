@@ -72,9 +72,23 @@ export function jobseekerUnemploymentRate(): number {
 }
 
 /**
- * La même mesure, mais année par année : la contrepartie OBSERVÉE de l'hypothèse ci-dessus, celle
- * que le graphe chômage affiche à la place du taux BIT quand le Pragmatique est sélectionné.
- * Années civiles complètes seulement (4 trimestres publiés) et couvertes par la pyramide observée,
+ * Le même effectif A→G, mais sans pondération : la lecture haute, celle que le modèle ne retient
+ * PAS. Elle n'existe que pour être citée à côté de `jobseekerRate()` — dire « 16,6 % et non
+ * 22,8 % » est ce qui rend la pondération vérifiable. Calculée pour la même raison que les
+ * autres : recopiée à la main, elle se périme à la publication trimestrielle suivante.
+ */
+export function jobseekerRawRate(): number {
+  const j = (historicalJson as unknown as HistoricalData).jobseekers
+  const n = j.periods.length
+  const from = Math.max(0, n - 4)
+  const cats = Object.keys(JOBSEEKER_WEIGHTS) as (keyof typeof JOBSEEKER_WEIGHTS)[]
+  return count(j, from, n, cats) / (n - from) / activePopulation(JOBSEEKER_BASE_YEAR)
+}
+
+/**
+ * La même mesure, mais année par année : la contrepartie OBSERVÉE de l'hypothèse du Pragmatique,
+ * tracée par le graphe chômage dans TOUS les scénarios — c'est ce passé mesuré qui distingue un
+ * écart constaté d'un écart postulé. Années civiles complètes seulement (4 trimestres publiés) et couvertes par la pyramide observée,
  * soit 1996-2025 : le dénominateur suit la population active de CHAQUE année, pas celle de 2025.
  *
  * La série n'est pas homogène : F et G naissent en janvier 2025 et ajoutent ≈ 3,5 pts d'un coup
